@@ -1,11 +1,11 @@
 import {Context} from '@actions/github/lib/context'
-import {getInputs, DISPATCH_EVENT_NAME} from '../src/inputs'
+import {getJobParameters, DISPATCH_EVENT_NAME} from '../src/inputs'
 
 test('raises error on issue_comment', () => {
   const ctx = new Context()
   ctx.eventName = 'issue_comment'
 
-  expect(getInputs(ctx)).toBeNull
+  expect(getJobParameters(ctx)).toBeNull
 })
 
 test('loads repository_dispatch', () => {
@@ -20,10 +20,10 @@ test('loads repository_dispatch', () => {
     }
   }
 
-  const inputs = getInputs(ctx)
-  expect(inputs?.jobID).toEqual(1)
-  expect(inputs?.jobToken).toEqual('xxx')
-  expect(inputs?.credentialsToken).toEqual('yyy')
+  const params = getJobParameters(ctx)
+  expect(params?.jobID).toEqual(1)
+  expect(params?.jobToken).toEqual('xxx')
+  expect(params?.credentialsToken).toEqual('yyy')
 })
 
 test('loads dynamic', () => {
@@ -37,10 +37,10 @@ test('loads dynamic', () => {
     }
   }
 
-  const inputs = getInputs(ctx)
-  expect(inputs?.jobID).toEqual(1)
-  expect(inputs?.jobToken).toEqual('xxx')
-  expect(inputs?.credentialsToken).toEqual('yyy')
+  const params = getJobParameters(ctx)
+  expect(params?.jobID).toEqual(1)
+  expect(params?.jobToken).toEqual('xxx')
+  expect(params?.credentialsToken).toEqual('yyy')
 })
 
 test('loads workflow_dispatch', () => {
@@ -54,8 +54,8 @@ test('loads workflow_dispatch', () => {
     }
   }
 
-  const inputs = getInputs(ctx)
-  expect(inputs?.jobID).toEqual(1)
-  expect(inputs?.jobToken).toEqual('xxx')
-  expect(inputs?.credentialsToken).toEqual('yyy')
+  const params = getJobParameters(ctx)
+  expect(params?.jobID).toEqual(1)
+  expect(params?.jobToken).toEqual('xxx')
+  expect(params?.credentialsToken).toEqual('yyy')
 })
