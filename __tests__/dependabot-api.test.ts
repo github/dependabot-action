@@ -1,4 +1,3 @@
-import axios, {AxiosInstance} from 'axios'
 import {DependabotAPI, PackageManager} from '../src/dependabot-api'
 
 describe('DependabotAPI', () => {
