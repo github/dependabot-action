@@ -3,10 +3,15 @@ import {AxiosInstance} from 'axios'
 // JobParameters are the parameters to execute a job
 export class JobParameters {
   constructor(
-    public jobID: number,
-    public jobToken: string,
-    public credentialsToken: string
+    readonly jobID: number,
+    readonly jobToken: string,
+    readonly credentialsToken: string,
+    readonly dependabotAPI: string
   ) {}
+}
+
+export enum PackageManager {
+  NpmAndYarn = 'npm_and_yarn'
 }
 
 // JobDetails are information about the repository and dependencies to be updated
@@ -14,17 +19,16 @@ export type JobDetails = {
   'allowed-updates': {
     'dependency-type': string
   }[]
+  id: string
   'package-manager': PackageManager
 }
 
-export enum PackageManager {
-  NpmAndYarn = 'npm_and_yarn'
-}
+export type Credential = {}
 
 export class DependabotAPI {
   constructor(
     private readonly client: AxiosInstance,
-    private readonly params: JobParameters
+    readonly params: JobParameters
   ) {}
 
   async getJobDetails(): Promise<JobDetails> {

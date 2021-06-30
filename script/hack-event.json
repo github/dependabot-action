@@ -2,7 +2,7 @@
   "action": "on-demand-test",
   "branch": "master",
   "client_payload": {
-    "dependabotAPI": "https://f34f9fbb7a6a.ngrok.io",
+    "dependabotAPI": "https://3c3fcfad18d1.ngrok.io",
     "jobID": "8",
     "jobToken": "QkNM+m1lDFieJ0V6DAwUY+hG6PUKItjuS7EApTVsTQw=",
     "credentialsToken": "hMAqnnY+CJGUCQjKRUzSZnR+DnbW5YEA5nL2xh8zovk=",
