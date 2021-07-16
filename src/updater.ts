@@ -8,7 +8,8 @@ const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output.json'
-const DEFAULT_UPDATER_IMAGE = 'dependabot/dependabot-updater:0.156.4'
+const DEFAULT_UPDATER_IMAGE =
+  'docker.pkg.github.com/dependabot/dependabot-updater:latest'
 
 export class Updater {
   constructor(
@@ -32,7 +33,11 @@ export class Updater {
     }
 
     core.info(`Pulling image ${this.updaterImage}...`)
-    const stream = await this.docker.pull(this.updaterImage)
+    const auth = {
+      username: process.env.GITHUB_PKG_USER,
+      password: process.env.GITHUB_PKG_TOKEN
+    }
+    const stream = await this.docker.pull(this.updaterImage, {authconfig: auth})
     await this.endOfStream(stream)
     core.info(`Pulled image ${this.updaterImage}`)
   }
