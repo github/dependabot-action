@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import * as Docker from 'dockerode'
 import path from 'path'
+import fs from 'fs'
 import {Credential, JobDetails, DependabotAPI} from './dependabot-api'
 import {Readable} from 'stream'
 import {pack} from 'tar-stream'
@@ -11,6 +12,8 @@ const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output/output.json'
 const DEFAULT_UPDATER_IMAGE =
   'docker.pkg.github.com/dependabot/dependabot-updater:latest'
+
+const decode = (str: string):string => Buffer.from(str, 'base64').toString('binary');
 
 export class Updater {
   constructor(
@@ -67,6 +70,12 @@ export class Updater {
     }
   }
 
+  private decodeBase64Content(file: DependencyFile) {
+    const fileCopy = JSON.parse(JSON.stringify(file))
+    fileCopy.content = decode(fileCopy.content)
+    return fileCopy
+  }
+
   private async runFileFetcher(
     details: JobDetails,
     credentials: Credential[]
@@ -78,12 +87,16 @@ export class Updater {
     })
     await this.runContainer(container)
 
-    // TODO: extract files from container
-    return {
-      base_commit_sha: '',
-      dependency_files: [],
-      base64_dependency_files: []
+    const fileFetcherSync = fs.readFileSync(path.join(__dirname, "../output/output.json")).toString();
+    const fileFetcherOutput = JSON.parse(fileFetcherSync)
+
+    const fetchedFiles: FetchedFiles = {
+        base_commit_sha: fileFetcherOutput.base_commit_sha,
+        base64_dependency_files: fileFetcherOutput.base64_dependency_files,
+        dependency_files: fileFetcherOutput.base64_dependency_files.map(this.decodeBase64Content)
     }
+
+    return fetchedFiles
   }
 
   private async runFileUpdater(
@@ -159,6 +172,17 @@ type FetchedFiles = {
   base_commit_sha: string
   dependency_files: any[]
   base64_dependency_files: any[]
+}
+
+type DependencyFile = {
+  name: string
+  content: any
+  directory: string
+  type: string
+  support_file: boolean
+  content_encoding: string
+  deleted: boolean
+  operation: string
 }
 
 type FileUpdaterInput = FetchedFiles & {
