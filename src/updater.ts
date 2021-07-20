@@ -56,7 +56,8 @@ export class Updater {
   async runUpdater(): Promise<void> {
     try {
       const details = await this.dependabotAPI.getJobDetails()
-      const credentials: Credential[] = [] // TODO: fetch credentials from API
+      const credentials = await this.dependabotAPI.getCredentials()
+
       const files = await this.runFileFetcher(details, credentials)
       await this.runFileUpdater(details, files)
     } catch (e) {
@@ -104,9 +105,9 @@ export class Updater {
         `DEPENDABOT_JOB_TOKEN=${this.dependabotAPI.params.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,
-        `DEPENDABOT_API_URL=${this.dependabotAPI}`
+        `DEPENDABOT_API_URL=${this.dependabotAPI.params.dependabotAPI}`
       ],
-      Cmd: ['bin/run', 'fetch_files']
+      Cmd: ['bin/run', updaterCommand]
     })
 
     core.info(`Created ${updaterCommand} container: ${container.id}`)
@@ -134,6 +135,10 @@ export class Updater {
       container.modem.demuxStream(stream, process.stdout, process.stderr)
 
       await container.wait()
+      const jobOutput = await container.getArchive({
+        path: JOB_OUTPUT_PATH
+      })
+      console.log('jobOutput', jobOutput)
     } finally {
       await container.remove()
       core.info(`Cleaned up container ${container.id}`)

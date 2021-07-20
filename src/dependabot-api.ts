@@ -23,7 +23,13 @@ export type JobDetails = {
   'package-manager': PackageManager
 }
 
-export type Credential = {}
+export type Credential = {
+  type: string
+  host: string
+  username?: string
+  password?: string
+  token?: string
+}
 
 export class DependabotAPI {
   constructor(
@@ -41,5 +47,17 @@ export class DependabotAPI {
     }
 
     return res.data.data.attributes
+  }
+
+  async getCredentials(): Promise<Credential[]> {
+    const detailsURL = `/update_jobs/${this.params.jobID}/credentials`
+    const res = await this.client.get(detailsURL, {
+      headers: {Authorization: this.params.credentialsToken}
+    })
+    if (res.status !== 200) {
+      throw new Error(`Unexpected status code: ${res.status}`)
+    }
+
+    return res.data.data.attributes.credentials
   }
 }
