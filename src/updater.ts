@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as Docker from 'dockerode'
+import path from 'path'
 import {Credential, JobDetails, DependabotAPI} from './dependabot-api'
 import {Readable} from 'stream'
 import {pack} from 'tar-stream'
@@ -7,7 +8,7 @@ import {pack} from 'tar-stream'
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 
-const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output.json'
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output/output.json'
 const DEFAULT_UPDATER_IMAGE =
   'docker.pkg.github.com/dependabot/dependabot-updater:latest'
 
@@ -107,7 +108,10 @@ export class Updater {
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,
         `DEPENDABOT_API_URL=${this.dependabotAPI.params.dependabotAPI}`
       ],
-      Cmd: ['bin/run', updaterCommand]
+      Cmd: ['bin/run', updaterCommand],
+      HostConfig: {
+        'Binds': [path.join(__dirname, '../output') + ':/home/dependabot/dependabot-updater/output:rw']
+      }
     })
 
     core.info(`Created ${updaterCommand} container: ${container.id}`)
