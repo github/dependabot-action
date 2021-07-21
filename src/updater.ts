@@ -13,7 +13,8 @@ const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output/output.json'
 const DEFAULT_UPDATER_IMAGE =
   'docker.pkg.github.com/dependabot/dependabot-updater:latest'
 
-const decode = (str: string):string => Buffer.from(str, 'base64').toString('binary');
+const decode = (str: string): string =>
+  Buffer.from(str, 'base64').toString('binary')
 
 export class Updater {
   constructor(
@@ -63,6 +64,12 @@ export class Updater {
       const credentials = await this.dependabotAPI.getCredentials()
 
       const files = await this.runFileFetcher(details, credentials)
+      if (!files) {
+        core.error(`failed during fetch, skipping updater`)
+        // TODO: report job runner_error?
+        return
+      }
+
       await this.runFileUpdater(details, files)
     } catch (e) {
       // TODO: report job runner_error?
@@ -70,7 +77,7 @@ export class Updater {
     }
   }
 
-  private decodeBase64Content(file: DependencyFile) {
+  private decodeBase64Content(file: DependencyFile): string {
     const fileCopy = JSON.parse(JSON.stringify(file))
     fileCopy.content = decode(fileCopy.content)
     return fileCopy
@@ -79,7 +86,7 @@ export class Updater {
   private async runFileFetcher(
     details: JobDetails,
     credentials: Credential[]
-  ): Promise<FetchedFiles> {
+  ): Promise<void | FetchedFiles> {
     const container = await this.createContainer(details, 'fetch_files')
     await this.storeContainerInput(container, {
       job: details,
@@ -87,13 +94,20 @@ export class Updater {
     })
     await this.runContainer(container)
 
-    const fileFetcherSync = fs.readFileSync(path.join(__dirname, "../output/output.json")).toString();
+    const outputPath = path.join(__dirname, '../output/output.json')
+    if (!fs.existsSync(outputPath)) {
+      return
+    }
+
+    const fileFetcherSync = fs.readFileSync(outputPath).toString()
     const fileFetcherOutput = JSON.parse(fileFetcherSync)
 
     const fetchedFiles: FetchedFiles = {
-        base_commit_sha: fileFetcherOutput.base_commit_sha,
-        base64_dependency_files: fileFetcherOutput.base64_dependency_files,
-        dependency_files: fileFetcherOutput.base64_dependency_files.map(this.decodeBase64Content)
+      base_commit_sha: fileFetcherOutput.base_commit_sha,
+      base64_dependency_files: fileFetcherOutput.base64_dependency_files,
+      dependency_files: fileFetcherOutput.base64_dependency_files.map(
+        (file: DependencyFile) => this.decodeBase64Content(file)
+      )
     }
 
     return fetchedFiles
@@ -123,7 +137,12 @@ export class Updater {
       ],
       Cmd: ['bin/run', updaterCommand],
       HostConfig: {
-        'Binds': [path.join(__dirname, '../output') + ':/home/dependabot/dependabot-updater/output:rw']
+        Binds: [
+          `${path.join(
+            __dirname,
+            '../output'
+          )}:/home/dependabot/dependabot-updater/output:rw`
+        ]
       }
     })
 
@@ -152,10 +171,6 @@ export class Updater {
       container.modem.demuxStream(stream, process.stdout, process.stderr)
 
       await container.wait()
-      const jobOutput = await container.getArchive({
-        path: JOB_OUTPUT_PATH
-      })
-      console.log('jobOutput', jobOutput)
     } finally {
       await container.remove()
       core.info(`Cleaned up container ${container.id}`)
