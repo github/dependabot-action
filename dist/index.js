@@ -19,10 +19,11 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DependabotAPI = exports.PackageManager = exports.JobParameters = void 0;
 // JobParameters are the parameters to execute a job
 class JobParameters {
-    constructor(jobID, jobToken, credentialsToken) {
+    constructor(jobID, jobToken, credentialsToken, dependabotAPI) {
         this.jobID = jobID;
         this.jobToken = jobToken;
         this.credentialsToken = credentialsToken;
+        this.dependabotAPI = dependabotAPI;
     }
 }
 exports.JobParameters = JobParameters;
@@ -98,7 +99,7 @@ function getJobParameters(ctx) {
 exports.getJobParameters = getJobParameters;
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;
-    return new dependabot_api_1.JobParameters(parseInt(evt.inputs.jobID, 10), evt.inputs.jobToken, evt.inputs.credentialsToken);
+    return new dependabot_api_1.JobParameters(parseInt(evt.inputs.jobID, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotAPI);
 }
 function fromRepoDispatch(ctx) {
     const evt = ctx.payload;
@@ -107,7 +108,7 @@ function fromRepoDispatch(ctx) {
         return null;
     }
     const payload = evt.client_payload;
-    return new dependabot_api_1.JobParameters(payload.jobID, payload.jobToken, payload.credentialsToken);
+    return new dependabot_api_1.JobParameters(payload.jobID, payload.jobToken, payload.credentialsToken, payload.dependabotAPI);
 }
 
 
@@ -154,27 +155,25 @@ const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const inputs_1 = __nccwpck_require__(6180);
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
-const fetcher_1 = __nccwpck_require__(6450);
+const updater_1 = __nccwpck_require__(3045);
 const dependabot_api_1 = __nccwpck_require__(1845);
 const axios_1 = __importDefault(__nccwpck_require__(6545));
-const apiUrl = 'https://38d4f0538147.ngrok.io';
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            // Decode JobParameters:
             const params = inputs_1.getJobParameters(github.context);
             if (params === null) {
                 return;
             }
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
-            // TODO: api client: fetch job details
-            const client = axios_1.default.create({ baseURL: apiUrl });
-            const api = new dependabot_api_1.DependabotAPI(client, params);
-            const jobDetails = yield api.getJobDetails();
-            core.info(`Details: ${JSON.stringify(jobDetails)}`);
-            // TODO: the full docker jamboree
             const docker = new dockerode_1.default();
-            yield fetcher_1.runFileFetcher(docker);
+            const client = axios_1.default.create({ baseURL: params.dependabotAPI });
+            const api = new dependabot_api_1.DependabotAPI(client, params);
+            const updater = new updater_1.Updater(docker, api);
+            yield updater.pullImage();
+            yield updater.runUpdater();
         }
         catch (error) {
             core.setFailed(error.message);
@@ -186,7 +185,7 @@ run();
 
 /***/ }),
 
-/***/ 6450:
+/***/ 3045:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -220,18 +219,132 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runFileFetcher = void 0;
+exports.Updater = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-function runFileFetcher(docker) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // hello docker
-        const containers = yield docker.listContainers();
-        for (const container of containers) {
-            core.info(`Container ${container.Id} - ${container.Names}`);
-        }
-    });
+const tar_stream_1 = __nccwpck_require__(2283);
+const JOB_INPUT_FILENAME = 'job.json';
+const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output.json';
+const DEFAULT_UPDATER_IMAGE = 'dependabot/dependabot-updater:0.156.4';
+class Updater {
+    constructor(docker, dependabotAPI, updaterImage = DEFAULT_UPDATER_IMAGE) {
+        this.docker = docker;
+        this.dependabotAPI = dependabotAPI;
+        this.updaterImage = updaterImage;
+    }
+    /** Fetch the configured updater image, if it isn't already available. */
+    pullImage(force = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const image = yield this.docker.getImage(this.updaterImage).inspect();
+                if (!force) {
+                    core.info(`Resolved ${this.updaterImage} to existing ${image.Id}`);
+                    return;
+                } // else fallthrough to pull
+            }
+            catch (e) {
+                if (!e.message.includes('no such image')) {
+                    throw e;
+                } // else fallthrough to pull
+            }
+            core.info(`Pulling image ${this.updaterImage}...`);
+            const stream = yield this.docker.pull(this.updaterImage);
+            yield this.endOfStream(stream);
+            core.info(`Pulled image ${this.updaterImage}`);
+        });
+    }
+    endOfStream(stream) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve, reject) => {
+                this.docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
+            });
+        });
+    }
+    /**
+     * Execute an update job and report the result to Dependabot API.
+     */
+    runUpdater() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const details = yield this.dependabotAPI.getJobDetails();
+                const credentials = []; // TODO: fetch credentials from API
+                const files = yield this.runFileFetcher(details, credentials);
+                yield this.runFileUpdater(details, files);
+            }
+            catch (e) {
+                // TODO: report job runner_error?
+                core.error(`Error ${e}`);
+            }
+        });
+    }
+    runFileFetcher(details, credentials) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const container = yield this.createContainer(details, 'fetch_files');
+            yield this.storeContainerInput(container, {
+                job: details,
+                credentials
+            });
+            yield this.runContainer(container);
+            // TODO: extract files from container
+            return {
+                base_commit_sha: '',
+                dependency_files: [],
+                base64_dependency_files: []
+            };
+        });
+    }
+    runFileUpdater(details, files) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.info(`running update ${details.id} ${files}`);
+        });
+    }
+    createContainer(details, updaterCommand) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const container = yield this.docker.createContainer({
+                Image: this.updaterImage,
+                AttachStdout: true,
+                AttachStderr: true,
+                Env: [
+                    `DEPENDABOT_JOB_ID=${details.id}`,
+                    `DEPENDABOT_JOB_TOKEN=${this.dependabotAPI.params.jobToken}`,
+                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
+                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,
+                    `DEPENDABOT_API_URL=${this.dependabotAPI}`
+                ],
+                Cmd: ['bin/run', 'fetch_files']
+            });
+            core.info(`Created ${updaterCommand} container: ${container.id}`);
+            return container;
+        });
+    }
+    storeContainerInput(container, input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const tar = tar_stream_1.pack();
+            tar.entry({ name: JOB_INPUT_FILENAME }, JSON.stringify(input));
+            tar.finalize();
+            yield container.putArchive(tar, { path: JOB_INPUT_PATH });
+        });
+    }
+    runContainer(container) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield container.start();
+                const stream = yield container.attach({
+                    stream: true,
+                    stdout: true,
+                    stderr: true
+                });
+                container.modem.demuxStream(stream, process.stdout, process.stderr);
+                yield container.wait();
+            }
+            finally {
+                yield container.remove();
+                core.info(`Cleaned up container ${container.id}`);
+            }
+        });
+    }
 }
-exports.runFileFetcher = runFileFetcher;
+exports.Updater = Updater;
 
 
 /***/ }),

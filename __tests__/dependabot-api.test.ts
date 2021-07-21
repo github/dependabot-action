@@ -1,4 +1,3 @@
-import axios, {AxiosInstance} from 'axios'
 import {DependabotAPI, PackageManager} from '../src/dependabot-api'
 
 describe('DependabotAPI', () => {
@@ -8,7 +7,8 @@ describe('DependabotAPI', () => {
   const api = new DependabotAPI(mockAxios, {
     jobID: 1,
     jobToken: 'xxx',
-    credentialsToken: 'yyy'
+    credentialsToken: 'yyy',
+    dependabotAPI: 'https://localhost'
   })
   beforeEach(jest.clearAllMocks)
 

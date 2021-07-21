@@ -4,9 +4,13 @@ ROOT=$(dirname "$0")/..
 export ROOT
 
 cd $ROOT
-npm run build
-npm run package
+
+#npm run build
+#npm run package
+#RUN_CMD=node dist/index.js
+
+RUN_CMD="node_modules/.bin/ts-node src/main.ts"
 
 GITHUB_EVENT_NAME=repository_dispatch \
   GITHUB_EVENT_PATH="${ROOT}/script/hack-event.json" \
-  node dist/index.js
+  $RUN_CMD

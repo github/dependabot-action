@@ -27,7 +27,8 @@ function fromWorkflowInputs(ctx: Context): JobParameters {
   return new JobParameters(
     parseInt(evt.inputs.jobID as string, 10),
     evt.inputs.jobToken as string,
-    evt.inputs.credentialsToken as string
+    evt.inputs.credentialsToken as string,
+    evt.inputs.dependabotAPI as string
   )
 }
 
@@ -41,6 +42,7 @@ function fromRepoDispatch(ctx: Context): JobParameters | null {
   return new JobParameters(
     payload.jobID as number,
     payload.jobToken as string,
-    payload.credentialsToken as string
+    payload.credentialsToken as string,
+    payload.dependabotAPI as string
   )
 }
