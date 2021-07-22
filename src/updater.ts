@@ -118,6 +118,15 @@ export class Updater {
     files: FetchedFiles
   ): Promise<void> {
     core.info(`running update ${details.id} ${files}`)
+    const container = await this.createContainer(details, 'update_files')
+    const containerInput: FileUpdaterInput = {
+        base_commit_sha: files.base_commit_sha,
+        base64_dependency_files: files.base64_dependency_files,
+        dependency_files: files.dependency_files,
+        job: details
+    }
+    await this.storeContainerInput(container, containerInput)
+    await this.runContainer(container)
   }
 
   private async createContainer(
@@ -169,6 +178,9 @@ export class Updater {
         stderr: true
       })
       container.modem.demuxStream(stream, process.stdout, process.stderr)
+
+      const network = this.docker.getNetwork('host')
+      network.connect({Container: container}, (err, data) => core.info(err))
 
       await container.wait()
     } finally {

@@ -12,10 +12,14 @@ describe('Updater', () => {
       jobID: 1,
       jobToken: 'xxx',
       credentialsToken: 'yyy',
-      dependabotAPI: 'http://localhost'
+      dependabotAPI: 'http://host.docker.internal:3001'
     }
   }
   const updater = new Updater(docker, mockDependabotAPI)
+
+  beforeAll(() => {
+    updater.pullImage()
+  })
 
   afterEach(() => {
     docker.listContainers(function (err, containers) {
@@ -54,8 +58,6 @@ describe('Updater', () => {
         }
       ]
     })
-
-    await updater.pullImage()
     await updater.runUpdater()
   })
 })
