@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/dockerode": "^3.2.6",
-    "@types/jest": "^26.0.23",
+    "@types/jest": "^26.0.24",
     "@types/node": "^16.4.3",
     "@types/tar-stream": "^2.2.0",
     "@typescript-eslint/parser": "^4.28.1",
