@@ -8,9 +8,9 @@ describe('Updater', () => {
     getCredentials: jest.fn(),
     params: {
       jobID: 1,
-      jobToken: 'xxx',
-      credentialsToken: 'yyy',
-      dependabotAPIURL: 'http://localhost'
+      jobToken: process.env.JOB_TOKEN,
+      credentialsToken: process.env.CREDENTIALS_TOKEN,
+      dependabotAPIURL: 'http://host.docker.internal:3001'
     }
   }
   const updater = new Updater(docker, mockAPIClient)

@@ -23,8 +23,8 @@ describe('Updater', () => {
     getCredentials: jest.fn(),
     params: {
       jobID: 1,
-      jobToken: 'xxx',
-      credentialsToken: 'yyy',
+      jobToken: process.env.JOB_TOKEN,
+      credentialsToken: process.env.CREDENTIALS_TOKEN,
       dependabotAPIURL: 'http://host.docker.internal:3001'
     }
   }
