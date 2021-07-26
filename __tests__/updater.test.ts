@@ -1,8 +1,7 @@
-import Docker from 'dockerode'
+import {UPDATER_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 
 describe('Updater', () => {
-  const docker = new Docker()
   const mockAPIClient: any = {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
@@ -13,7 +12,7 @@ describe('Updater', () => {
       dependabotAPIURL: 'http://localhost'
     }
   }
-  const updater = new Updater(docker, mockAPIClient)
+  const updater = new Updater(UPDATER_IMAGE_NAME, mockAPIClient)
 
   it('should fetch job details', async () => {
     mockAPIClient.getJobDetails.mockImplementation(() => {

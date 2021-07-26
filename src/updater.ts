@@ -1,60 +1,26 @@
 import * as core from '@actions/core'
-import * as Docker from 'dockerode'
+import Docker, {Container} from 'dockerode'
 import path from 'path'
 import fs from 'fs'
 import {Credential, JobDetails, APIClient} from './api-client'
-import {Readable} from 'stream'
 import {pack} from 'tar-stream'
 
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
-
 const JOB_OUTPUT_FILENAME = 'output.json'
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
-const DEFAULT_UPDATER_IMAGE =
-  'docker.pkg.github.com/dependabot/dependabot-updater:latest'
 
 const decode = (str: string): string =>
   Buffer.from(str, 'base64').toString('binary')
 
 export class Updater {
+  docker: Docker
   constructor(
-    private readonly docker: Docker,
-    private readonly apiClient: APIClient,
-    private readonly updaterImage = DEFAULT_UPDATER_IMAGE
-  ) {}
-
-  /** Fetch the configured updater image, if it isn't already available. */
-  async pullImage(force = false): Promise<void> {
-    try {
-      const image = await this.docker.getImage(this.updaterImage).inspect()
-      if (!force) {
-        core.info(`Resolved ${this.updaterImage} to existing ${image.Id}`)
-        return
-      } // else fallthrough to pull
-    } catch (e) {
-      if (!e.message.includes('no such image')) {
-        throw e
-      } // else fallthrough to pull
-    }
-
-    core.info(`Pulling image ${this.updaterImage}...`)
-    const auth = {
-      username: process.env.GITHUB_PKG_USER,
-      password: process.env.GITHUB_PKG_TOKEN
-    }
-    const stream = await this.docker.pull(this.updaterImage, {authconfig: auth})
-    await this.endOfStream(stream)
-    core.info(`Pulled image ${this.updaterImage}`)
-  }
-
-  private async endOfStream(stream: Readable): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.docker.modem.followProgress(stream, (err: Error) =>
-        err ? reject(err) : resolve(undefined)
-      )
-    })
+    private readonly updaterImage: string,
+    private readonly apiClient: APIClient
+  ) {
+    this.docker = new Docker()
   }
 
   /**
@@ -65,7 +31,7 @@ export class Updater {
       const details = await this.apiClient.getJobDetails()
       const credentials = await this.apiClient.getCredentials()
       // TODO: once the proxy is set up, remove credentials from the job details
-      details['credentials'] = credentials
+      details.credentials = credentials
 
       const files = await this.runFileFetcher(details, credentials)
       if (!files) {
@@ -121,7 +87,7 @@ export class Updater {
     details: JobDetails,
     files: FetchedFiles
   ): Promise<void> {
-    core.info(`running update ${details.id} ${files}`)
+    core.info(`Running update job ${this.apiClient.params.jobID}`)
     const container = await this.createContainer('update_files')
     const containerInput: FileUpdaterInput = {
       base_commit_sha: files.base_commit_sha,
@@ -133,9 +99,7 @@ export class Updater {
     await this.runContainer(container)
   }
 
-  private async createContainer(
-    updaterCommand: string
-  ): Promise<Docker.Container> {
+  private async createContainer(updaterCommand: string): Promise<Container> {
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       AttachStdout: true,
@@ -162,7 +126,7 @@ export class Updater {
   }
 
   private async storeContainerInput(
-    container: Docker.Container,
+    container: Container,
     input: FileFetcherInput | FileUpdaterInput
   ): Promise<void> {
     const tar = pack()
@@ -171,7 +135,7 @@ export class Updater {
     await container.putArchive(tar, {path: JOB_INPUT_PATH})
   }
 
-  private async runContainer(container: Docker.Container): Promise<void> {
+  private async runContainer(container: Container): Promise<void> {
     try {
       await container.start()
       const stream = await container.attach({
