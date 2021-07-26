@@ -1,5 +1,6 @@
 # Updater output
 output/output.json
+repo
 
 # Dependency directory
 node_modules
