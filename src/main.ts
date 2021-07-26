@@ -22,7 +22,7 @@ async function run(): Promise<void> {
     const client = axios.create({baseURL: params.dependabotAPIURL})
     const apiClient = new APIClient(client, params)
     const updater = new Updater(UPDATER_IMAGE_NAME, apiClient)
-    await ImageService.pullImage(UPDATER_IMAGE_NAME)
+    await ImageService.pull(UPDATER_IMAGE_NAME)
 
     await updater.runUpdater()
   } catch (error) {

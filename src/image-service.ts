@@ -12,7 +12,7 @@ const endOfStream = async (docker: Docker, stream: Readable): Promise<void> => {
 
 export const ImageService = {
   /** Fetch the configured updater image, if it isn't already available. */
-  async pullImage(imageName: string, force = false): Promise<void> {
+  async pull(imageName: string, force = false): Promise<void> {
     const docker = new Docker()
     try {
       const image = await docker.getImage(imageName).inspect()

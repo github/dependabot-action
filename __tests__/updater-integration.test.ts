@@ -36,7 +36,7 @@ describe('Updater', () => {
       // Skip this test on CI, as it takes too long to download the image
       return
     }
-    await ImageService.pullImage(UPDATER_IMAGE_NAME)
+    await ImageService.pull(UPDATER_IMAGE_NAME)
   })
 
   afterEach(async () => {
