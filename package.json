@@ -32,7 +32,7 @@
     "tar-stream": "^2.2.0"
   },
   "devDependencies": {
-    "@types/dockerode": "^3.2.3",
+    "@types/dockerode": "^3.2.6",
     "@types/jest": "^26.0.23",
     "@types/node": "^15.12.5",
     "@types/tar-stream": "^2.2.0",
