@@ -3,20 +3,20 @@ import {Updater} from '../src/updater'
 
 describe('Updater', () => {
   const docker = new Docker()
-  const mockDependabotAPI: any = {
+  const mockAPIClient: any = {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
     params: {
       jobID: 1,
       jobToken: 'xxx',
       credentialsToken: 'yyy',
-      dependabotAPI: 'http://localhost'
+      dependabotAPIURL: 'http://localhost'
     }
   }
-  const updater = new Updater(docker, mockDependabotAPI)
+  const updater = new Updater(docker, mockAPIClient)
 
   it('should fetch job details', async () => {
-    mockDependabotAPI.getJobDetails.mockImplementation(() => {
+    mockAPIClient.getJobDetails.mockImplementation(() => {
       throw new Error('kaboom')
     })
     updater.runUpdater()

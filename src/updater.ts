@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as Docker from 'dockerode'
 import path from 'path'
 import fs from 'fs'
-import {Credential, JobDetails, DependabotAPI} from './dependabot-api'
+import {Credential, JobDetails, APIClient} from './api-client'
 import {Readable} from 'stream'
 import {pack} from 'tar-stream'
 
@@ -19,7 +19,7 @@ const decode = (str: string): string =>
 export class Updater {
   constructor(
     private readonly docker: Docker,
-    private readonly dependabotAPI: DependabotAPI,
+    private readonly apiClient: APIClient,
     private readonly updaterImage = DEFAULT_UPDATER_IMAGE
   ) {}
 
@@ -60,8 +60,8 @@ export class Updater {
    */
   async runUpdater(): Promise<void> {
     try {
-      const details = await this.dependabotAPI.getJobDetails()
-      const credentials = await this.dependabotAPI.getCredentials()
+      const details = await this.apiClient.getJobDetails()
+      const credentials = await this.apiClient.getCredentials()
       // TODO: once the proxy is set up, remove credentials from the job details
       details['credentials'] = credentials
 
@@ -140,11 +140,11 @@ export class Updater {
       AttachStdout: true,
       AttachStderr: true,
       Env: [
-        `DEPENDABOT_JOB_ID=${this.dependabotAPI.params.jobID}`,
-        `DEPENDABOT_JOB_TOKEN=${this.dependabotAPI.params.jobToken}`,
+        `DEPENDABOT_JOB_ID=${this.apiClient.params.jobID}`,
+        `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,
-        `DEPENDABOT_API_URL=${this.dependabotAPI.params.dependabotAPI}`
+        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`
       ],
       Cmd: ['bin/run', updaterCommand],
       HostConfig: {
@@ -182,7 +182,7 @@ export class Updater {
       container.modem.demuxStream(stream, process.stdout, process.stderr)
 
       const network = this.docker.getNetwork('host')
-      network.connect({Container: container}, (err, data) => core.info(err))
+      network.connect({Container: container}, err => core.info(err))
 
       await container.wait()
     } finally {
