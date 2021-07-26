@@ -2,9 +2,10 @@ import Docker from 'dockerode'
 import fs from 'fs'
 import path from 'path'
 import {Updater} from '../src/updater'
+import {UPDATER_IMAGE_NAME} from '../src/main'
+import {ImageService} from '../src/image-service'
 
 describe('Updater', () => {
-  const docker = new Docker()
   // To run the js-code itself against API:
   // const params = {
   //   jobID: 1,
@@ -14,7 +15,7 @@ describe('Updater', () => {
   // }
   // const client = axios.create({baseURL: params.dependabotAPI})
   // const api = new DependabotAPI(client, params)
-  // const updater = new Updater(docker, api)
+  // const updater = new Updater(UPDATER_IMAGE_NAME, api)
 
   // This stubs out API calls from JS, but will run the updater against an API
   // running on the specified API endpoint.
@@ -28,26 +29,33 @@ describe('Updater', () => {
       dependabotAPIURL: 'http://host.docker.internal:3001'
     }
   }
-  const updater = new Updater(docker, mockAPIClient)
+  const updater = new Updater(UPDATER_IMAGE_NAME, mockAPIClient)
 
-  beforeAll(() => {
-    updater.pullImage()
+  beforeAll(async () => {
+    if (process.env.CI) {
+      // Skip this test on CI, as it takes too long to download the image
+      return
+    }
+    await ImageService.pull(UPDATER_IMAGE_NAME)
   })
 
-  afterEach(() => {
-    docker.listContainers(function (err, containers) {
-      if (!containers) return
+  afterEach(async () => {
+    const docker = new Docker()
+    const containers = (await docker.listContainers()) || []
 
-      for (const container of containers) {
-        if (
-          container.Image.includes(
-            'docker.pkg.github.com/dependabot/dependabot-updater'
-          )
-        ) {
-          docker.getContainer(container.Id).remove()
+    for (const container of containers) {
+      if (
+        container.Image.includes(
+          'docker.pkg.github.com/dependabot/dependabot-updater'
+        )
+      ) {
+        try {
+          await docker.getContainer(container.Id).remove({v: true, force: true})
+        } catch (e) {
+          // ignore
         }
       }
-    })
+    }
   })
 
   jest.setTimeout(20000)

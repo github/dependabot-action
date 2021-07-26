@@ -41399,11 +41399,16 @@ var __webpack_exports__ = {};
 // ESM COMPAT FLAG
 __nccwpck_require__.r(__webpack_exports__);
 
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  "UPDATER_IMAGE_NAME": () => (/* binding */ UPDATER_IMAGE_NAME)
+});
+
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
-;// CONCATENATED MODULE: ./src/dependabot-api.ts
+;// CONCATENATED MODULE: ./src/api-client.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -41415,18 +41420,18 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 };
 // JobParameters are the parameters to execute a job
 class JobParameters {
-    constructor(jobID, jobToken, credentialsToken, dependabotAPI) {
+    constructor(jobID, jobToken, credentialsToken, dependabotAPIURL) {
         this.jobID = jobID;
         this.jobToken = jobToken;
         this.credentialsToken = credentialsToken;
-        this.dependabotAPI = dependabotAPI;
+        this.dependabotAPIURL = dependabotAPIURL;
     }
 }
 var PackageManager;
 (function (PackageManager) {
     PackageManager["NpmAndYarn"] = "npm_and_yarn";
 })(PackageManager || (PackageManager = {}));
-class DependabotAPI {
+class APIClient {
     constructor(client, params) {
         this.client = client;
         this.params = params;
@@ -41476,7 +41481,7 @@ function getJobParameters(ctx) {
 }
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;
-    return new JobParameters(parseInt(evt.inputs.jobID, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotAPI);
+    return new JobParameters(parseInt(evt.inputs.jobID, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotAPIURL);
 }
 function fromRepoDispatch(ctx) {
     const evt = ctx.payload;
@@ -41485,12 +41490,58 @@ function fromRepoDispatch(ctx) {
         return null;
     }
     const payload = evt.client_payload;
-    return new JobParameters(payload.jobID, payload.jobToken, payload.credentialsToken, payload.dependabotAPI);
+    return new JobParameters(payload.jobID, payload.jobToken, payload.credentialsToken, payload.dependabotAPIURL);
 }
 
 // EXTERNAL MODULE: ./node_modules/dockerode/lib/docker.js
 var lib_docker = __nccwpck_require__(4571);
 var docker_default = /*#__PURE__*/__nccwpck_require__.n(lib_docker);
+;// CONCATENATED MODULE: ./src/image-service.ts
+var image_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+const endOfStream = (docker, stream) => image_service_awaiter(void 0, void 0, void 0, function* () {
+    return new Promise((resolve, reject) => {
+        docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
+    });
+});
+const ImageService = {
+    /** Fetch the configured updater image, if it isn't already available. */
+    pull(imageName, force = false) {
+        return image_service_awaiter(this, void 0, void 0, function* () {
+            const docker = new (docker_default())();
+            try {
+                const image = yield docker.getImage(imageName).inspect();
+                if (!force) {
+                    core.info(`Resolved ${imageName} to existing ${image.Id}`);
+                    return;
+                } // else fallthrough to pull
+            }
+            catch (e) {
+                if (!e.message.includes('no such image')) {
+                    throw e;
+                } // else fallthrough to pull
+            }
+            core.info(`Pulling image ${imageName}...`);
+            const auth = {
+                username: process.env.GITHUB_PKG_USER,
+                password: process.env.GITHUB_PKG_TOKEN
+            };
+            const stream = yield docker.pull(imageName, { authconfig: auth });
+            yield endOfStream(docker, stream);
+            core.info(`Pulled image ${imageName}`);
+        });
+    }
+};
+
 // EXTERNAL MODULE: external "path"
 var external_path_ = __nccwpck_require__(5622);
 var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
@@ -41513,48 +41564,18 @@ var updater_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _
 
 
 
+
 const JOB_INPUT_FILENAME = 'job.json';
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
-const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output/output.json';
-const DEFAULT_UPDATER_IMAGE = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
+const JOB_OUTPUT_FILENAME = 'output.json';
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
+const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
 const decode = (str) => Buffer.from(str, 'base64').toString('binary');
 class Updater {
-    constructor(docker, dependabotAPI, updaterImage = DEFAULT_UPDATER_IMAGE) {
-        this.docker = docker;
-        this.dependabotAPI = dependabotAPI;
+    constructor(updaterImage, apiClient) {
         this.updaterImage = updaterImage;
-    }
-    /** Fetch the configured updater image, if it isn't already available. */
-    pullImage(force = false) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            try {
-                const image = yield this.docker.getImage(this.updaterImage).inspect();
-                if (!force) {
-                    core.info(`Resolved ${this.updaterImage} to existing ${image.Id}`);
-                    return;
-                } // else fallthrough to pull
-            }
-            catch (e) {
-                if (!e.message.includes('no such image')) {
-                    throw e;
-                } // else fallthrough to pull
-            }
-            core.info(`Pulling image ${this.updaterImage}...`);
-            const auth = {
-                username: process.env.GITHUB_PKG_USER,
-                password: process.env.GITHUB_PKG_TOKEN
-            };
-            const stream = yield this.docker.pull(this.updaterImage, { authconfig: auth });
-            yield this.endOfStream(stream);
-            core.info(`Pulled image ${this.updaterImage}`);
-        });
-    }
-    endOfStream(stream) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                this.docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
-            });
-        });
+        this.apiClient = apiClient;
+        this.docker = new (docker_default())();
     }
     /**
      * Execute an update job and report the result to Dependabot API.
@@ -41562,8 +41583,10 @@ class Updater {
     runUpdater() {
         return updater_awaiter(this, void 0, void 0, function* () {
             try {
-                const details = yield this.dependabotAPI.getJobDetails();
-                const credentials = yield this.dependabotAPI.getCredentials();
+                const details = yield this.apiClient.getJobDetails();
+                const credentials = yield this.apiClient.getCredentials();
+                // TODO: once the proxy is set up, remove credentials from the job details
+                details.credentials = credentials;
                 const files = yield this.runFileFetcher(details, credentials);
                 if (!files) {
                     core.error(`failed during fetch, skipping updater`);
@@ -41585,7 +41608,7 @@ class Updater {
     }
     runFileFetcher(details, credentials) {
         return updater_awaiter(this, void 0, void 0, function* () {
-            const container = yield this.createContainer(details, 'fetch_files');
+            const container = yield this.createContainer('fetch_files');
             yield this.storeContainerInput(container, {
                 job: details,
                 credentials
@@ -41607,26 +41630,37 @@ class Updater {
     }
     runFileUpdater(details, files) {
         return updater_awaiter(this, void 0, void 0, function* () {
-            core.info(`running update ${details.id} ${files}`);
+            core.info(`Running update job ${this.apiClient.params.jobID}`);
+            const container = yield this.createContainer('update_files');
+            const containerInput = {
+                base_commit_sha: files.base_commit_sha,
+                base64_dependency_files: files.base64_dependency_files,
+                dependency_files: files.dependency_files,
+                job: details
+            };
+            yield this.storeContainerInput(container, containerInput);
+            yield this.runContainer(container);
         });
     }
-    createContainer(details, updaterCommand) {
+    createContainer(updaterCommand) {
         return updater_awaiter(this, void 0, void 0, function* () {
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [
-                    `DEPENDABOT_JOB_ID=${details.id}`,
-                    `DEPENDABOT_JOB_TOKEN=${this.dependabotAPI.params.jobToken}`,
+                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobID}`,
+                    `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
                     `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
-                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,
-                    `DEPENDABOT_API_URL=${this.dependabotAPI.params.dependabotAPI}`
+                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
+                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
+                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`
                 ],
                 Cmd: ['bin/run', updaterCommand],
                 HostConfig: {
                     Binds: [
-                        `${external_path_default().join(__dirname, '../output')}:/home/dependabot/dependabot-updater/output:rw`
+                        `${external_path_default().join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
+                        `${external_path_default().join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
                     ]
                 }
             });
@@ -41652,6 +41686,8 @@ class Updater {
                     stderr: true
                 });
                 container.modem.demuxStream(stream, process.stdout, process.stderr);
+                const network = this.docker.getNetwork('host');
+                network.connect({ Container: container }, err => core.info(err));
                 yield container.wait();
             }
             finally {
@@ -41682,6 +41718,7 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
+const UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
 function run() {
     return main_awaiter(this, void 0, void 0, function* () {
         try {
@@ -41692,11 +41729,10 @@ function run() {
             }
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
-            const docker = new (docker_default())();
-            const client = axios_default().create({ baseURL: params.dependabotAPI });
-            const api = new DependabotAPI(client, params);
-            const updater = new Updater(docker, api);
-            yield updater.pullImage();
+            const client = axios_default().create({ baseURL: params.dependabotAPIURL });
+            const apiClient = new APIClient(client, params);
+            const updater = new Updater(UPDATER_IMAGE_NAME, apiClient);
+            yield ImageService.pull(UPDATER_IMAGE_NAME);
             yield updater.runUpdater();
         }
         catch (error) {
