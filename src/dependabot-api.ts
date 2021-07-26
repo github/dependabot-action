@@ -21,6 +21,7 @@ export type JobDetails = {
   }[]
   id: string
   'package-manager': PackageManager
+  credentials: Credential[] // TODO: Remove these once the proxy is set up
 }
 
 export type Credential = {
