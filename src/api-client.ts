@@ -6,7 +6,7 @@ export class JobParameters {
     readonly jobID: number,
     readonly jobToken: string,
     readonly credentialsToken: string,
-    readonly dependabotAPI: string
+    readonly dependabotAPIURL: string
   ) {}
 }
 
@@ -32,7 +32,7 @@ export type Credential = {
   token?: string
 }
 
-export class DependabotAPI {
+export class APIClient {
   constructor(
     private readonly client: AxiosInstance,
     readonly params: JobParameters

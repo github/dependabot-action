@@ -4,7 +4,7 @@ import {
   RepositoryDispatchEvent,
   WorkflowDispatchEvent
 } from '@octokit/webhooks-definitions/schema'
-import {JobParameters} from './dependabot-api'
+import {JobParameters} from './api-client'
 
 // FIXME: '@octokit/webhooks-definitions' assumes this is the only repository_dispatch event type, workaround that
 // https://github.com/octokit/webhooks/blob/0b04a009507aa35811e91a10703bbb2a33bdeff4/payload-schemas/schemas/repository_dispatch/on-demand-test.schema.json#L14
@@ -28,7 +28,7 @@ function fromWorkflowInputs(ctx: Context): JobParameters {
     parseInt(evt.inputs.jobID as string, 10),
     evt.inputs.jobToken as string,
     evt.inputs.credentialsToken as string,
-    evt.inputs.dependabotAPI as string
+    evt.inputs.dependabotAPIURL as string
   )
 }
 
@@ -43,6 +43,6 @@ function fromRepoDispatch(ctx: Context): JobParameters | null {
     payload.jobID as number,
     payload.jobToken as string,
     payload.credentialsToken as string,
-    payload.dependabotAPI as string
+    payload.dependabotAPIURL as string
   )
 }

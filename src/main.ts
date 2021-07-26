@@ -3,7 +3,7 @@ import * as github from '@actions/github'
 import {getJobParameters} from './inputs'
 import Docker from 'dockerode'
 import {Updater} from './updater'
-import {DependabotAPI} from './dependabot-api'
+import {APIClient} from './api-client'
 import axios from 'axios'
 
 async function run(): Promise<void> {
@@ -17,8 +17,8 @@ async function run(): Promise<void> {
     core.setSecret(params.credentialsToken)
 
     const docker = new Docker()
-    const client = axios.create({baseURL: params.dependabotAPI})
-    const api = new DependabotAPI(client, params)
+    const client = axios.create({baseURL: params.dependabotAPIURL})
+    const api = new APIClient(client, params)
     const updater = new Updater(docker, api)
     await updater.pullImage()
 

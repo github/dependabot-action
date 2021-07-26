@@ -1,14 +1,14 @@
-import {DependabotAPI, PackageManager} from '../src/dependabot-api'
+import {APIClient, PackageManager} from '../src/api-client'
 
-describe('DependabotAPI', () => {
+describe('APIClient', () => {
   const mockAxios: any = {
     get: jest.fn()
   }
-  const api = new DependabotAPI(mockAxios, {
+  const api = new APIClient(mockAxios, {
     jobID: 1,
     jobToken: 'xxx',
     credentialsToken: 'yyy',
-    dependabotAPI: 'https://localhost'
+    dependabotAPIURL: 'https://localhost'
   })
   beforeEach(jest.clearAllMocks)
 

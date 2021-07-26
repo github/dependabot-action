@@ -18,17 +18,17 @@ describe('Updater', () => {
 
   // This stubs out API calls from JS, but will run the updater against an API
   // running on the specified API endpoint.
-  const mockDependabotAPI: any = {
+  const mockAPIClient: any = {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
     params: {
       jobID: 1,
       jobToken: 'xxx',
       credentialsToken: 'yyy',
-      dependabotAPI: 'http://host.docker.internal:3001'
+      dependabotAPIURL: 'http://host.docker.internal:3001'
     }
   }
-  const updater = new Updater(docker, mockDependabotAPI)
+  const updater = new Updater(docker, mockAPIClient)
 
   beforeAll(() => {
     updater.pullImage()
@@ -54,14 +54,14 @@ describe('Updater', () => {
 
   jest.setTimeout(20000)
   it('should fetch manifests', async () => {
-    mockDependabotAPI.getJobDetails.mockImplementation(() => {
+    mockAPIClient.getJobDetails.mockImplementation(() => {
       return JSON.parse(
         fs
           .readFileSync(path.join(__dirname, 'fixtures/job-details/npm.json'))
           .toString()
       ).data.attributes
     })
-    mockDependabotAPI.getCredentials.mockImplementation(() => {
+    mockAPIClient.getCredentials.mockImplementation(() => {
       return [
         {
           type: 'git_source',
