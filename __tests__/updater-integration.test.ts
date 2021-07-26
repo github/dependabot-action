@@ -32,6 +32,10 @@ describe('Updater', () => {
   const updater = new Updater(UPDATER_IMAGE_NAME, mockAPIClient)
 
   beforeAll(async () => {
+    if (process.env.CI) {
+      // Skip this test on CI, as it takes too long to download the image
+      return
+    }
     await ImageService.pullImage(UPDATER_IMAGE_NAME)
   })
 
