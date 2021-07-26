@@ -9,7 +9,9 @@ import {pack} from 'tar-stream'
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 
-const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output/output.json'
+const JOB_OUTPUT_FILENAME = 'output.json'
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
+const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
 const DEFAULT_UPDATER_IMAGE =
   'docker.pkg.github.com/dependabot/dependabot-updater:latest'
 
@@ -89,7 +91,7 @@ export class Updater {
     details: JobDetails,
     credentials: Credential[]
   ): Promise<void | FetchedFiles> {
-    const container = await this.createContainer(details, 'fetch_files')
+    const container = await this.createContainer('fetch_files')
     await this.storeContainerInput(container, {
       job: details,
       credentials
@@ -120,7 +122,7 @@ export class Updater {
     files: FetchedFiles
   ): Promise<void> {
     core.info(`running update ${details.id} ${files}`)
-    const container = await this.createContainer(details, 'update_files')
+    const container = await this.createContainer('update_files')
     const containerInput: FileUpdaterInput = {
       base_commit_sha: files.base_commit_sha,
       base64_dependency_files: files.base64_dependency_files,
@@ -132,7 +134,6 @@ export class Updater {
   }
 
   private async createContainer(
-    details: JobDetails,
     updaterCommand: string
   ): Promise<Docker.Container> {
     const container = await this.docker.createContainer({
@@ -143,16 +144,15 @@ export class Updater {
         `DEPENDABOT_JOB_ID=${this.apiClient.params.jobID}`,
         `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
-        `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,
+        `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
+        `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`
       ],
       Cmd: ['bin/run', updaterCommand],
       HostConfig: {
         Binds: [
-          `${path.join(
-            __dirname,
-            '../output'
-          )}:/home/dependabot/dependabot-updater/output:rw`
+          `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
+          `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
         ]
       }
     })
