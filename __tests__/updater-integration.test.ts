@@ -38,22 +38,25 @@ describe('Updater', () => {
     docker.listContainers(function (err, containers) {
       if (!containers) return
 
-      containers.forEach(function (containerInfo) {
+      for (const container of containers) {
         if (
-          containerInfo.Image.includes(
+          container.Image.includes(
             'docker.pkg.github.com/dependabot/dependabot-updater'
           )
         ) {
-          console.log('removing')
-
-          docker.getContainer(containerInfo.Id).remove()
+          docker.getContainer(container.Id).remove()
         }
-      })
+      }
     })
   })
 
   jest.setTimeout(20000)
   it('should fetch manifests', async () => {
+    if (process.env.CI) {
+      // Skip this test on CI, as it takes too long to download the image
+      return
+    }
+
     mockAPIClient.getJobDetails.mockImplementation(() => {
       return JSON.parse(
         fs

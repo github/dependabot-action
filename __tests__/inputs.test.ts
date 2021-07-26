@@ -1,11 +1,12 @@
 import {Context} from '@actions/github/lib/context'
 import {getJobParameters, DISPATCH_EVENT_NAME} from '../src/inputs'
 
-test('raises error on issue_comment', () => {
+test('returns null on issue_comment', () => {
   const ctx = new Context()
   ctx.eventName = 'issue_comment'
+  const params = getJobParameters(ctx)
 
-  expect(getJobParameters(ctx)).toBeNull
+  expect(params).toEqual(null)
 })
 
 test('loads repository_dispatch', () => {
