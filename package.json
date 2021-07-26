@@ -35,7 +35,7 @@
     "@types/dockerode": "^3.2.6",
     "@types/jest": "^26.0.24",
     "@types/node": "^16.4.3",
-    "@types/tar-stream": "^2.2.0",
+    "@types/tar-stream": "^2.2.1",
     "@typescript-eslint/parser": "^4.28.4",
     "@vercel/ncc": "^0.29.0",
     "eslint": "^7.31.0",
