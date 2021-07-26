@@ -62,6 +62,8 @@ export class Updater {
     try {
       const details = await this.dependabotAPI.getJobDetails()
       const credentials = await this.dependabotAPI.getCredentials()
+      // TODO: once the proxy is set up, remove credentials from the job details
+      details['credentials'] = credentials
 
       const files = await this.runFileFetcher(details, credentials)
       if (!files) {
@@ -120,10 +122,10 @@ export class Updater {
     core.info(`running update ${details.id} ${files}`)
     const container = await this.createContainer(details, 'update_files')
     const containerInput: FileUpdaterInput = {
-        base_commit_sha: files.base_commit_sha,
-        base64_dependency_files: files.base64_dependency_files,
-        dependency_files: files.dependency_files,
-        job: details
+      base_commit_sha: files.base_commit_sha,
+      base64_dependency_files: files.base64_dependency_files,
+      dependency_files: files.dependency_files,
+      job: details
     }
     await this.storeContainerInput(container, containerInput)
     await this.runContainer(container)
@@ -138,7 +140,7 @@ export class Updater {
       AttachStdout: true,
       AttachStderr: true,
       Env: [
-        `DEPENDABOT_JOB_ID=${details.id}`,
+        `DEPENDABOT_JOB_ID=${this.dependabotAPI.params.jobID}`,
         `DEPENDABOT_JOB_TOKEN=${this.dependabotAPI.params.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}`,

@@ -1,47 +1,46 @@
 {
   "data": {
-      "attributes": {
-          "allowed-updates": [
-              {
-                  "dependency-type": "direct",
-                  "update-type": "all"
-              }
-          ],
-          "credentials-metadata": [
-              {
-                  "type": "git_source",
-                  "host": "github.com"
-              }
-          ],
-          "dependencies": null,
-          "existing-pull-requests": [],
-          "ignore-conditions": [],
-          "lockfile-only": false,
-          "max-updater-run-time": 2700,
-          "package-manager": "npm_and_yarn",
-          "source": {
-              "provider": "github",
-              "repo": "dsp-testing/dependabot-all-updates-test",
-              "directory": "/",
-              "branch": null,
-              "api-endpoint": "https://api.github.com/",
-              "hostname": "github.com"
-          },
-          "updating-a-pull-request": false,
-          "update-subdependencies": false,
-          "requirements-update-strategy": null,
-          "security-advisories": [],
-          "security-updates-only": false,
-          "vendor-dependencies": false,
-          "reject-external-code": false,
-          "experiments": {},
-          "commit-message-options": {
-              "include-scope": null,
-              "prefix": null,
-              "prefix-development": null
-          }
+    "attributes": {
+      "allowed-updates": [
+        {
+          "dependency-type": "direct",
+          "update-type": "all"
+        }
+      ],
+      "credentials-metadata": [
+        {
+          "type": "git_source", "host": "github.com"
+        }
+      ],
+      "dependencies": null,
+      "existing-pull-requests": [],
+      "ignore-conditions": [],
+      "lockfile-only": false,
+      "max-updater-run-time": 2700,
+      "package-manager": "npm_and_yarn",
+      "source": {
+        "provider": "github",
+        "repo": "dsp-testing/dependabot-all-updates-test",
+        "directory": "/",
+        "branch": null,
+        "api-endpoint": "https://api.github.com/",
+        "hostname": "github.com"
       },
-      "id": "1001",
-      "type": "update-jobs"
+      "updating-a-pull-request": false,
+      "update-subdependencies": false,
+      "requirements-update-strategy": null,
+      "security-advisories": [],
+      "security-updates-only": false,
+      "vendor-dependencies": false,
+      "reject-external-code": false,
+      "experiments": { "build-pull-request-message": true },
+      "commit-message-options": {
+        "include-scope": null,
+        "prefix": null,
+        "prefix-development": null
+      }
+    },
+    "id": "1",
+    "type": "update-jobs"
   }
 }

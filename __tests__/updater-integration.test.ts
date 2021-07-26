@@ -5,6 +5,19 @@ import {Updater} from '../src/updater'
 
 describe('Updater', () => {
   const docker = new Docker()
+  // To run the js-code itself against API:
+  // const params = {
+  //   jobID: 1,
+  //   jobToken: 'xxx',
+  //   credentialsToken: 'xxx',
+  //   dependabotAPI: 'http://host.docker.internal:3001'
+  // }
+  // const client = axios.create({baseURL: params.dependabotAPI})
+  // const api = new DependabotAPI(client, params)
+  // const updater = new Updater(docker, api)
+
+  // This stubs out API calls from JS, but will run the updater against an API
+  // running on the specified API endpoint.
   const mockDependabotAPI: any = {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
