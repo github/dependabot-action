@@ -114,6 +114,7 @@ export class Updater {
       ],
       Cmd: ['bin/run', updaterCommand],
       HostConfig: {
+        NetworkMode: 'host',
         Binds: [
           `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
           `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
@@ -144,9 +145,6 @@ export class Updater {
         stderr: true
       })
       container.modem.demuxStream(stream, process.stdout, process.stderr)
-
-      const network = this.docker.getNetwork('host')
-      network.connect({Container: container}, err => core.info(err))
 
       await container.wait()
     } finally {

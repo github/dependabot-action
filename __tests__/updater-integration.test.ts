@@ -1,11 +1,17 @@
-import Docker from 'dockerode'
-import fs from 'fs'
-import path from 'path'
-import {Updater} from '../src/updater'
-import {UPDATER_IMAGE_NAME} from '../src/main'
+import axios from 'axios'
+
+import {APIClient, JobParameters} from '../src/api-client'
 import {ImageService} from '../src/image-service'
+import {UPDATER_IMAGE_NAME} from '../src/main'
+import {Updater} from '../src/updater'
+
+import {removeDanglingUpdaterContainers, runFakeDependabotApi} from './helpers'
+
+const FAKE_SERVER_PORT = 9000
 
 describe('Updater', () => {
+  let server: any
+
   // To run the js-code itself against API:
   // const params = {
   //   jobID: 1,
@@ -13,75 +19,63 @@ describe('Updater', () => {
   //   credentialsToken: 'xxx',
   //   dependabotAPI: 'http://host.docker.internal:3001'
   // }
-  // const client = axios.create({baseURL: params.dependabotAPI})
-  // const api = new DependabotAPI(client, params)
-  // const updater = new Updater(UPDATER_IMAGE_NAME, api)
 
-  // This stubs out API calls from JS, but will run the updater against an API
-  // running on the specified API endpoint.
-  const mockAPIClient: any = {
-    getJobDetails: jest.fn(),
-    getCredentials: jest.fn(),
-    params: {
-      jobID: 1,
-      jobToken: process.env.JOB_TOKEN,
-      credentialsToken: process.env.CREDENTIALS_TOKEN,
-      dependabotAPIURL: 'http://host.docker.internal:3001'
-    }
-  }
-  const updater = new Updater(UPDATER_IMAGE_NAME, mockAPIClient)
+  // This runs the tests against a fake dependabot-api server using json-server
+  const fakeDependabotApiUrl = `http://localhost:${FAKE_SERVER_PORT}`
+  // Used from this action to get job details and credentials
+  const externalDependabotApiUrl =
+    process.env.DEPENDABOT_API_URL || fakeDependabotApiUrl
+  // Used from within the updater container to update the job state and create prs
+  const internalDockerHost =
+    process.platform === 'darwin' ? 'host.docker.internal' : 'localhost'
+  const internalDependabotApiUrl =
+    process.env.DEPENDABOT_API_URL ||
+    `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
+  const params = new JobParameters(
+    1,
+    process.env.JOB_TOKEN || 'job-token',
+    process.env.CREDENTIALS_TOKEN || 'cred-token',
+    internalDependabotApiUrl
+  )
+
+  const client = axios.create({baseURL: externalDependabotApiUrl})
+  const apiClient = new APIClient(client, params)
+  const updater = new Updater(UPDATER_IMAGE_NAME, apiClient)
 
   beforeAll(async () => {
-    if (process.env.CI) {
-      // Skip this test on CI, as it takes too long to download the image
+    // Skip the test when we haven't preloaded the updater image
+    if (process.env.SKIP_INTEGRATION_TESTS) {
       return
     }
+
     await ImageService.pull(UPDATER_IMAGE_NAME)
+
+    if (externalDependabotApiUrl === fakeDependabotApiUrl) {
+      server = await runFakeDependabotApi(FAKE_SERVER_PORT)
+    }
   })
 
   afterEach(async () => {
-    const docker = new Docker()
-    const containers = (await docker.listContainers()) || []
-
-    for (const container of containers) {
-      if (
-        container.Image.includes(
-          'docker.pkg.github.com/dependabot/dependabot-updater'
-        )
-      ) {
-        try {
-          await docker.getContainer(container.Id).remove({v: true, force: true})
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
+    server && server() // teardown server process
+    await removeDanglingUpdaterContainers()
   })
 
-  jest.setTimeout(20000)
-  it('should fetch manifests', async () => {
-    if (process.env.CI) {
-      // Skip this test on CI, as it takes too long to download the image
+  jest.setTimeout(25000)
+  it('should run the updater and create a pull request', async () => {
+    // Skip the test when we haven't preloaded the updater image
+    if (process.env.SKIP_INTEGRATION_TESTS) {
       return
     }
 
-    mockAPIClient.getJobDetails.mockImplementation(() => {
-      return JSON.parse(
-        fs
-          .readFileSync(path.join(__dirname, 'fixtures/job-details/npm.json'))
-          .toString()
-      ).data.attributes
-    })
-    mockAPIClient.getCredentials.mockImplementation(() => {
-      return [
-        {
-          type: 'git_source',
-          host: 'github.com',
-          username: 'x-access-token',
-          password: process.env.GITHUB_TOKEN
-        }
-      ]
-    })
     await updater.runUpdater()
+
+    // NOTE: This will not work when running against the actual dependabot-api
+    // Checks if the pr was persisted in the fake json-server
+    const res = await client.get('/pull_requests/1')
+
+    expect(res.status).toEqual(200)
+    expect(res.data.data.attributes['pr-title']).toEqual(
+      'Bump fetch-factory from 0.0.1 to 0.2.1'
+    )
   })
 })

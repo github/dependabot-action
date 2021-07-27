@@ -1,0 +1,19 @@
+name: 'ci'
+on: pull_request
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: GPR login
+        run: docker login docker.pkg.github.com -u x -p ${{ secrets.GPR_TOKEN }}
+      - name: GRP pull
+        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:latest
+      - run: |
+          npm ci
+      - name: Run integration test files
+        run: npm test "integration"
