@@ -1,5 +1,8 @@
 import Docker from 'dockerode'
 import {UPDATER_IMAGE_NAME} from '../src/main'
+import waitPort from 'wait-port'
+import path from 'path'
+import {spawn} from 'child_process'
 
 export const removeDanglingUpdaterContainers = async (): Promise<void> => {
   const docker = new Docker()
@@ -13,5 +16,22 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
         // ignore
       }
     }
+  }
+}
+
+export const runFakeDependabotApi = async (port: number): Promise<Function> => {
+  const server = spawn(`${path.join(__dirname, 'server/server.js')}`, [
+    `${port}`
+  ])
+  server.stdout.on('data', (data: any) => {
+    console.log(`json-server log: ${data}`) // eslint-disable-line no-console
+  })
+  server.stderr.on('data', (data: any) => {
+    console.error(`json-server error: ${data}`) // eslint-disable-line no-console
+  })
+  await waitPort({port})
+
+  return (): void => {
+    server.kill()
   }
 }

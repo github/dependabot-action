@@ -114,6 +114,7 @@ export class Updater {
       ],
       Cmd: ['bin/run', updaterCommand],
       HostConfig: {
+        NetworkMode: 'host',
         Binds: [
           `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
           `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
