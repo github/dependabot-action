@@ -2,8 +2,9 @@
 
 ### Prerequisites
 
-**node**: v14 LTS and up
-**docker**: current release
+**node**: e.g. `brew install node` on Mac
+
+**docker**: e.g. `brew install docker` on Mac
 
 ### Project dependencies
 
@@ -13,7 +14,7 @@ $ npm install
 
 ## Tests
 
-Run the tests :heavy_check_mark:
+Run the tests (excluding integration tests) :heavy_check_mark:
 
 ```bash
 $ npm test
@@ -36,8 +37,7 @@ The integration test will time out if you don't already have the docker image on
 your local machine.
 
 You'll need to create a [GitHub PAT](https://github.com/settings/tokens/new)
-(Personal Access Token) to access the updater image hosted on [GitHub
-Packages](https://github.com/dependabot/dependabot-updater/pkgs/container/dependabot-updater%2Fdependabot-updater).
+(Personal Access Token) to access the updater image hosted on [dependabot/dependabot-updater](https://github.com/dependabot/dependabot-updater/pkgs/container/dependabot-updater%2Fdependabot-updater).
 
 Create the PAT with `read:packages` permissions checked and export it:
 
@@ -52,29 +52,48 @@ docker login docker.pkg.github.com -u x -p $GPR_TOKEN
 docker pull docker.pkg.github.com/dependabot/dependabot-updater:latest
 ```
 
+#### Debugging the fake dependabot-api json-server
+
+Integration tests run against a fake dependabot-api server using
+[json-server](https://github.com/typicode/json-server).
+
+Initial responses are defined in `__tess__/server/db.json` and the server itself
+configured in `__tests__server/server.js`.
+
+Run the api server outside of tests:
+
+```bash
+node __tests__/server/server.js
+```
+
+Inspect resources:
+
+```bash
+curl http://localhost:9000/update_jobs/1/details
+```
+
+### Running against a local dependabot-api instance
+
+TBD
+
 ## Releasing a new version of the action
 
-Actions are run from GitHub repos so we will checkin the packed dist folder.
+Actions executes the `dist/index.js` file when run, defined in `action.yml`. This is packaged using [ncc](https://github.com/zeit/ncc).
 
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
+To update the `dist/index.js` run:
 
 ```bash
 $ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
 ```
 
-Your action is now published! :rocket:
+### Tagging releases
 
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
+When tagging a release, use semver e.g. `v1.0.0`.
 
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+Also update the major version tag to point to the latest major release, e.g. `git tag v1`.
 
-## Change action.yml
+### Major versions
 
-The action.yml contains defines the inputs and output for your action.
+Create a new `releases/v1` branch before merging a `v2` branch to main to allow releasing patch releases of previous major versions.
 
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
+![versioning](https://github.com/actions/toolkit/blob/master/docs/assets/action-releases.png)
