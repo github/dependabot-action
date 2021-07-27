@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 const jsonServer = require('json-server')
 const path = require('path')
 const fs = require('fs')
@@ -7,8 +5,15 @@ const server = jsonServer.create()
 const db = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json')))
 const router = jsonServer.router(db)
 const middlewares = jsonServer.defaults()
-
 const SERVER_PORT = process.argv.slice(2)[0] || 9000
+
+// Sets up a fake dependabot-api using json-server
+//
+// Test it locally by running this script directly:
+// $ node __tests__/server/server.js
+// Running on http://localhost:9000
+//
+// Verify it works: curl http://localhost:9000/update_jobs/1/details
 
 // NOTE: Serialise the response like dependabot-api
 router.render = (_, res) => {
