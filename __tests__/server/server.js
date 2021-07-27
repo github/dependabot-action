@@ -10,10 +10,19 @@ const SERVER_PORT = process.argv.slice(2)[0] || 9000
 // Sets up a fake dependabot-api using json-server
 //
 // Test it locally by running this script directly:
-// $ node __tests__/server/server.js
-// Running on http://localhost:9000
+//
+// $ node __tests__/server/server.js Running on http://localhost:9000
 //
 // Verify it works: curl http://localhost:9000/update_jobs/1/details
+//
+// The 'id' attribute is significant for json-server and maps requests tp the
+// 'id' key in the db.json for the resource, for example:
+//
+// - GET /update_jobs/1/details and GET /update_jobs/1 return hard-coded update
+//   job in db.json
+// - GET /update_jobs/2 would 404
+// - POST /update_jobs {data: {...attrs}} would persist a new update job with id
+//   2
 
 // NOTE: Serialise the response like dependabot-api
 router.render = (_, res) => {
