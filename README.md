@@ -1,18 +1,17 @@
 ## Setup
 
-> First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
+### Prerequisites
 
-Install the dependencies
+**node**: v14 LTS and up
+**docker**: current release
+
+### Project dependencies
 
 ```bash
 $ npm install
 ```
 
-Build the typescript and package it for distribution
-
-```bash
-$ npm run package
-```
+## Tests
 
 Run the tests :heavy_check_mark:
 
@@ -27,37 +26,33 @@ $ npm test
 ...
 ```
 
-## Change action.yml
+### Running integration tests
 
-The action.yml contains defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try {
-      ...
-  }
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
+```bash
+$ npm run test-integration
 ```
 
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
+The integration test will time out if you don't already have the docker image on
+your local machine.
 
-## Publish to a distribution branch
+You'll need to create a [GitHub PAT](https://github.com/settings/tokens/new)
+(Personal Access Token) to access the updater image hosted on [GitHub
+Packages](https://github.com/dependabot/dependabot-updater/pkgs/container/dependabot-updater%2Fdependabot-updater).
+
+Create the PAT with `read:packages` permissions checked and export it:
+
+```bash
+export GPR_TOKEN=_pat_with_read_packages_
+```
+
+Pull the updater image:
+
+```bash
+docker login docker.pkg.github.com -u x -p $GPR_TOKEN
+docker pull docker.pkg.github.com/dependabot/dependabot-updater:latest
+```
+
+## Releasing a new version of the action
 
 Actions are run from GitHub repos so we will checkin the packed dist folder.
 
@@ -70,24 +65,16 @@ $ git commit -a -m "prod dependencies"
 $ git push origin releases/v1
 ```
 
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
-
 Your action is now published! :rocket:
 
 See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
 
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
-
-```yaml
-uses: ./
-with:
-  milliseconds: 1000
-```
-
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
-
-## Usage:
-
 After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+
+## Change action.yml
+
+The action.yml contains defines the inputs and output for your action.
+
+Update the action.yml with your name, description, inputs and outputs for your action.
+
+See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
