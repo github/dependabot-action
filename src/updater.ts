@@ -145,9 +145,6 @@ export class Updater {
       })
       container.modem.demuxStream(stream, process.stdout, process.stderr)
 
-      const network = this.docker.getNetwork('host')
-      network.connect({Container: container}, err => core.info(err))
-
       await container.wait()
     } finally {
       await container.remove()

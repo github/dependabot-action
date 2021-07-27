@@ -1,0 +1,55 @@
+{
+  "update_jobs": [
+    {
+      "id": 1,
+      "allowed-updates": [
+        {
+          "dependency-type": "direct",
+          "update-type": "all"
+        }
+      ],
+      "credentials-metadata": [
+        {
+          "type": "git_source",
+          "host": "github.com"
+        }
+      ],
+      "dependencies": null,
+      "existing-pull-requests": [],
+      "ignore-conditions": [],
+      "lockfile-only": false,
+      "max-updater-run-time": 2700,
+      "package-manager": "npm_and_yarn",
+      "source": {
+        "provider": "github",
+        "repo": "dsp-testing/dependabot-all-updates-test",
+        "directory": "/",
+        "branch": null,
+        "api-endpoint": "https://api.github.com/",
+        "hostname": "github.com"
+      },
+      "updating-a-pull-request": false,
+      "update-subdependencies": false,
+      "requirements-update-strategy": null,
+      "security-advisories": [],
+      "security-updates-only": false,
+      "vendor-dependencies": false,
+      "reject-external-code": false,
+      "experiments": {
+        "build-pull-request-message": true
+      },
+      "commit-message-options": {
+        "include-scope": null,
+        "prefix": null,
+        "prefix-development": null
+      },
+      "data": {
+        "base-commit-sha": "a8d9c08ff29358f80f6194b5909de9879741780d"
+      }
+    }
+  ],
+  "credentials": [{"id": 1}],
+  "dependencies": [],
+  "update_job_errors": [],
+  "pull_requests": []
+}

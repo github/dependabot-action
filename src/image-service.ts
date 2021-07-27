@@ -28,8 +28,8 @@ export const ImageService = {
 
     core.info(`Pulling image ${imageName}...`)
     const auth = {
-      username: process.env.GITHUB_PKG_USER,
-      password: process.env.GITHUB_PKG_TOKEN
+      username: 'x',
+      password: process.env.GPR_TOKEN
     }
     const stream = await docker.pull(imageName, {authconfig: auth})
     await endOfStream(docker, stream)

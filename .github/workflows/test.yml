@@ -14,7 +14,7 @@ jobs:
       - run: |
           npm ci
       - run: |
-          CI=true npm run all
+          SKIP_INTEGRATION_TESTS=true npm run all
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:

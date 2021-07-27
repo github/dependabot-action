@@ -1,0 +1,21 @@
+name: 'build-test'
+on: pull_request
+
+jobs:
+  integration-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: GPR login
+        run: docker login docker.pkg.github.com -u x -p ${{ secrets.GPR_TOKEN }}
+      - name: GRP pull
+        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:latest
+      - run: |
+          npm ci
+      - name: Run integration test files
+        env:
+          DEPENDABOT_API_URL: 'http://host.docker.internal:9000'
+        run: npm test "integration"

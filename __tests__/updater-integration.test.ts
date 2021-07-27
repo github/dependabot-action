@@ -1,11 +1,19 @@
-import Docker from 'dockerode'
-import fs from 'fs'
 import path from 'path'
+import axios from 'axios'
+import waitPort from 'wait-port'
+import {spawn} from 'child_process'
+
 import {Updater} from '../src/updater'
 import {UPDATER_IMAGE_NAME} from '../src/main'
+import {APIClient, JobParameters} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 
+import {removeDanglingUpdaterContainers} from './helpers'
+const FAKE_SERVER_PORT = 9000
+
 describe('Updater', () => {
+  let server: any
+
   // To run the js-code itself against API:
   // const params = {
   //   jobID: 1,
@@ -13,75 +21,59 @@ describe('Updater', () => {
   //   credentialsToken: 'xxx',
   //   dependabotAPI: 'http://host.docker.internal:3001'
   // }
-  // const client = axios.create({baseURL: params.dependabotAPI})
-  // const api = new DependabotAPI(client, params)
-  // const updater = new Updater(UPDATER_IMAGE_NAME, api)
 
-  // This stubs out API calls from JS, but will run the updater against an API
-  // running on the specified API endpoint.
-  const mockAPIClient: any = {
-    getJobDetails: jest.fn(),
-    getCredentials: jest.fn(),
-    params: {
-      jobID: 1,
-      jobToken: process.env.JOB_TOKEN,
-      credentialsToken: process.env.CREDENTIALS_TOKEN,
-      dependabotAPIURL: 'http://host.docker.internal:3001'
-    }
-  }
-  const updater = new Updater(UPDATER_IMAGE_NAME, mockAPIClient)
+  // This runs the tests against a fake dependabot-api server using json-server
+  const fakeDependabotApiUrl = `http://host.docker.internal:${FAKE_SERVER_PORT}`
+  const dependabotApiUrl =
+    process.env.DEPENDABOT_API_URL || fakeDependabotApiUrl
+  const params = new JobParameters(
+    1,
+    process.env.JOB_TOKEN || 'job-token',
+    process.env.CREDENTIALS_TOKEN || 'cred-token',
+    process.env.DEPENDABOT_API_URL ||
+      `http://host.docker.internal:${FAKE_SERVER_PORT}`
+  )
+
+  const client = axios.create({baseURL: params.dependabotAPIURL})
+  const apiClient = new APIClient(client, params)
+  const updater = new Updater(UPDATER_IMAGE_NAME, apiClient)
 
   beforeAll(async () => {
-    if (process.env.CI) {
+    if (process.env.SKIP_INTEGRATION_TESTS) {
       // Skip this test on CI, as it takes too long to download the image
       return
     }
+
     await ImageService.pull(UPDATER_IMAGE_NAME)
+
+    if (dependabotApiUrl === fakeDependabotApiUrl) {
+      server = spawn(`${path.join(__dirname, 'server/server.js')}`)
+      server.stdout.on('data', (data: any) => {
+        console.log(`json-server log: ${data}`) // eslint-disable-line no-console
+      })
+      server.stderr.on('data', (data: any) => {
+        console.error(`json-server error: ${data}`) // eslint-disable-line no-console
+      })
+      await waitPort({port: FAKE_SERVER_PORT})
+    }
   })
 
   afterEach(async () => {
-    const docker = new Docker()
-    const containers = (await docker.listContainers()) || []
-
-    for (const container of containers) {
-      if (
-        container.Image.includes(
-          'docker.pkg.github.com/dependabot/dependabot-updater'
-        )
-      ) {
-        try {
-          await docker.getContainer(container.Id).remove({v: true, force: true})
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
+    server && server.kill()
+    await removeDanglingUpdaterContainers()
   })
 
-  jest.setTimeout(20000)
+  jest.setTimeout(30000)
   it('should fetch manifests', async () => {
-    if (process.env.CI) {
+    if (process.env.SKIP_INTEGRATION_TESTS) {
       // Skip this test on CI, as it takes too long to download the image
       return
     }
 
-    mockAPIClient.getJobDetails.mockImplementation(() => {
-      return JSON.parse(
-        fs
-          .readFileSync(path.join(__dirname, 'fixtures/job-details/npm.json'))
-          .toString()
-      ).data.attributes
-    })
-    mockAPIClient.getCredentials.mockImplementation(() => {
-      return [
-        {
-          type: 'git_source',
-          host: 'github.com',
-          username: 'x-access-token',
-          password: process.env.GITHUB_TOKEN
-        }
-      ]
-    })
     await updater.runUpdater()
+
+    // TODO: Check if the pr was persisted in json-server
+    // const res = await client.get('/pull_requests/1')
+    // expect(res.status).toEqual(200)
   })
 })

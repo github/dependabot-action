@@ -2,7 +2,9 @@
 
 > First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
 
-Install the dependencies
+Prerequisites: docker
+
+Install project dependencies
 
 ```bash
 $ npm install
@@ -25,6 +27,22 @@ $ npm test
   ✓ test runs (95ms)
 
 ...
+```
+
+## Access the updater image
+
+Create a [PAT](https://github.com/settings/tokens/new) (Personal Access Token) to pull the updater image. Check the `read:packages` permission.
+
+Export the PAT:
+
+```
+export GPR_TOKEN=_pat_with_read_packages_
+```
+
+You should now be able to run the `updater-integration.ts` test:
+
+```
+jest __tests__/updater-integration.test.ts
 ```
 
 ## Change action.yml
