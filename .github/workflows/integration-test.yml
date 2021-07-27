@@ -1,7 +1,8 @@
+name: 'ci'
 on: pull_request
 
 jobs:
-  integration-ci:
+  integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
