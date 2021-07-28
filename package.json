@@ -8,7 +8,8 @@
     "format": "prettier --write **/*.ts",
     "lint": "eslint --fix **/*.ts",
     "package": "rm -f ./output/output.json && ncc build --source-map --license licenses.txt",
-    "test": "jest --detectOpenHandles",
+    "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
+    "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
     "all": "npm run format && npm run lint && npm run package && npm test"
   },

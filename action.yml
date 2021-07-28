@@ -1,6 +1,6 @@
 name: 'Updater Action'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+description: 'Runs dependabot-updater in Actions'
+author: 'GitHub'
 runs:
   using: 'node12'
   main: 'dist/index.js'
