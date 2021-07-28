@@ -3,16 +3,15 @@ import Docker, {Container} from 'dockerode'
 import path from 'path'
 import fs from 'fs'
 import {Credential, JobDetails, APIClient} from './api-client'
-import {pack} from 'tar-stream'
+import {ContainerService} from './container-service'
+import {base64DecodeDependencyFile} from './utils'
+import {DependencyFile, FetchedFiles, FileUpdaterInput} from './file-types'
 
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 const JOB_OUTPUT_FILENAME = 'output.json'
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
-
-const decode = (str: string): string =>
-  Buffer.from(str, 'base64').toString('binary')
 
 export class Updater {
   docker: Docker
@@ -47,22 +46,21 @@ export class Updater {
     }
   }
 
-  private decodeBase64Content(file: DependencyFile): string {
-    const fileCopy = JSON.parse(JSON.stringify(file))
-    fileCopy.content = decode(fileCopy.content)
-    return fileCopy
-  }
-
   private async runFileFetcher(
     details: JobDetails,
     credentials: Credential[]
   ): Promise<void | FetchedFiles> {
     const container = await this.createContainer('fetch_files')
-    await this.storeContainerInput(container, {
-      job: details,
-      credentials
-    })
-    await this.runContainer(container)
+    await ContainerService.storeInput(
+      JOB_INPUT_FILENAME,
+      JOB_INPUT_PATH,
+      container,
+      {
+        job: details,
+        credentials
+      }
+    )
+    await ContainerService.run(container)
 
     const outputPath = path.join(__dirname, '../output/output.json')
     if (!fs.existsSync(outputPath)) {
@@ -76,7 +74,7 @@ export class Updater {
       base_commit_sha: fileFetcherOutput.base_commit_sha,
       base64_dependency_files: fileFetcherOutput.base64_dependency_files,
       dependency_files: fileFetcherOutput.base64_dependency_files.map(
-        (file: DependencyFile) => this.decodeBase64Content(file)
+        (file: DependencyFile) => base64DecodeDependencyFile(file)
       )
     }
 
@@ -95,8 +93,13 @@ export class Updater {
       dependency_files: files.dependency_files,
       job: details
     }
-    await this.storeContainerInput(container, containerInput)
-    await this.runContainer(container)
+    await ContainerService.storeInput(
+      JOB_INPUT_FILENAME,
+      JOB_INPUT_PATH,
+      container,
+      containerInput
+    )
+    await ContainerService.run(container)
   }
 
   private async createContainer(updaterCommand: string): Promise<Container> {
@@ -125,57 +128,4 @@ export class Updater {
     core.info(`Created ${updaterCommand} container: ${container.id}`)
     return container
   }
-
-  private async storeContainerInput(
-    container: Container,
-    input: FileFetcherInput | FileUpdaterInput
-  ): Promise<void> {
-    const tar = pack()
-    tar.entry({name: JOB_INPUT_FILENAME}, JSON.stringify(input))
-    tar.finalize()
-    await container.putArchive(tar, {path: JOB_INPUT_PATH})
-  }
-
-  private async runContainer(container: Container): Promise<void> {
-    try {
-      await container.start()
-      const stream = await container.attach({
-        stream: true,
-        stdout: true,
-        stderr: true
-      })
-      container.modem.demuxStream(stream, process.stdout, process.stderr)
-
-      await container.wait()
-    } finally {
-      await container.remove()
-      core.info(`Cleaned up container ${container.id}`)
-    }
-  }
-}
-
-type FileFetcherInput = {
-  job: JobDetails
-  credentials: Credential[]
-}
-
-type FetchedFiles = {
-  base_commit_sha: string
-  dependency_files: any[]
-  base64_dependency_files: any[]
-}
-
-type DependencyFile = {
-  name: string
-  content: any
-  directory: string
-  type: string
-  support_file: boolean
-  content_encoding: string
-  deleted: boolean
-  operation: string
-}
-
-type FileUpdaterInput = FetchedFiles & {
-  job: JobDetails
 }
