@@ -48,8 +48,5 @@
       }
     }
   ],
-  "credentials": [{"id": 1}],
-  "dependencies": [],
-  "update_job_errors": [],
   "pull_requests": []
 }

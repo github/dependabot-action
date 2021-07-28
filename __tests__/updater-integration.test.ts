@@ -74,7 +74,7 @@ describe('Updater', () => {
     const res = await client.get('/pull_requests/1')
 
     expect(res.status).toEqual(200)
-    expect(res.data.data.attributes['pr-title']).toEqual(
+    expect(res.data['pr-title']).toEqual(
       'Bump fetch-factory from 0.0.1 to 0.2.1'
     )
   })
