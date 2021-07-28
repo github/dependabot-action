@@ -16,6 +16,9 @@ async function run(): Promise<void> {
     if (params === null) {
       return
     }
+
+    core.info(JSON.stringify(params))
+
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 
