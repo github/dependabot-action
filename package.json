@@ -35,7 +35,7 @@
   "devDependencies": {
     "@types/dockerode": "^3.2.6",
     "@types/jest": "^26.0.24",
-    "@types/node": "^16.4.3",
+    "@types/node": "^16.4.6",
     "@types/tar-stream": "^2.2.1",
     "@typescript-eslint/parser": "^4.28.5",
     "@vercel/ncc": "^0.29.0",
