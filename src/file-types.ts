@@ -25,3 +25,19 @@ export type DependencyFile = {
 export type FileUpdaterInput = FetchedFiles & {
   job: JobDetails
 }
+
+export type CertificateAuthority = {
+  cert: string
+  key: string
+}
+
+export type BasicAuthCredentials = {
+  username: string
+  password: string
+}
+
+export type ProxyConfig = {
+  all_credentials: Credential[]
+  ca: CertificateAuthority
+  proxy_auth: BasicAuthCredentials
+}

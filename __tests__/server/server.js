@@ -45,12 +45,12 @@ server.get('/update_jobs/:id/credentials', (_, res) => {
   res.jsonp({
     data: {
       attributes: {
-        credentials: {
+        credentials: [{
           type: 'git_source',
           host: 'github.com',
           username: 'x-access-token',
           password: process.env.GITHUB_TOKEN
-        }
+        }]
       }
     }
   })

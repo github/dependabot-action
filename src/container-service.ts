@@ -1,17 +1,29 @@
 import * as core from '@actions/core'
 import {Container} from 'dockerode'
 import {pack} from 'tar-stream'
-import {FileFetcherInput, FileUpdaterInput} from './file-types'
+import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './file-types'
 
 export const ContainerService = {
   async storeInput(
     name: string,
     path: string,
     container: Container,
-    input: FileFetcherInput | FileUpdaterInput
+    input: FileFetcherInput | FileUpdaterInput | ProxyConfig
   ): Promise<void> {
     const tar = pack()
     tar.entry({name}, JSON.stringify(input))
+    tar.finalize()
+    await container.putArchive(tar, {path})
+  },
+
+  async storeCert(
+    name: string,
+    path: string,
+    container: Container,
+    cert: string
+  ): Promise<void> {
+    const tar = pack()
+    tar.entry({name}, cert)
     tar.finalize()
     await container.putArchive(tar, {path})
   },

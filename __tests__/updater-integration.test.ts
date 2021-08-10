@@ -2,7 +2,7 @@ import axios from 'axios'
 
 import {APIClient, JobParameters} from '../src/api-client'
 import {ImageService} from '../src/image-service'
-import {UPDATER_IMAGE_NAME} from '../src/main'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 
 import {removeDanglingUpdaterContainers, runFakeDependabotApi} from './helpers'
@@ -40,7 +40,7 @@ describe('Updater', () => {
 
   const client = axios.create({baseURL: externalDependabotApiUrl})
   const apiClient = new APIClient(client, params)
-  const updater = new Updater(UPDATER_IMAGE_NAME, apiClient)
+  const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient)
 
   beforeAll(async () => {
     // Skip the test when we haven't preloaded the updater image
@@ -49,6 +49,7 @@ describe('Updater', () => {
     }
 
     await ImageService.pull(UPDATER_IMAGE_NAME)
+    await ImageService.pull(PROXY_IMAGE_NAME)
 
     if (externalDependabotApiUrl === fakeDependabotApiUrl) {
       server = await runFakeDependabotApi(FAKE_SERVER_PORT)

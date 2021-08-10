@@ -8,6 +8,8 @@ import axios from 'axios'
 
 export const UPDATER_IMAGE_NAME =
   'docker.pkg.github.com/dependabot/dependabot-updater:latest'
+export const PROXY_IMAGE_NAME =
+  'docker.pkg.github.com/github/dependabot-update-job-proxy:latest'
 
 async function run(): Promise<void> {
   try {
@@ -24,8 +26,9 @@ async function run(): Promise<void> {
 
     const client = axios.create({baseURL: params.dependabotAPIURL})
     const apiClient = new APIClient(client, params)
-    const updater = new Updater(UPDATER_IMAGE_NAME, apiClient)
+    const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient)
     await ImageService.pull(UPDATER_IMAGE_NAME)
+    await ImageService.pull(PROXY_IMAGE_NAME)
 
     await updater.runUpdater()
   } catch (error) {

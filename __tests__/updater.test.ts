@@ -1,4 +1,4 @@
-import {UPDATER_IMAGE_NAME} from '../src/main'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 
 describe('Updater', () => {
@@ -12,7 +12,11 @@ describe('Updater', () => {
       dependabotAPIURL: 'http://host.docker.internal:3001'
     }
   }
-  const updater = new Updater(UPDATER_IMAGE_NAME, mockAPIClient)
+  const updater = new Updater(
+    UPDATER_IMAGE_NAME,
+    PROXY_IMAGE_NAME,
+    mockAPIClient
+  )
 
   it('should fetch job details', async () => {
     mockAPIClient.getJobDetails.mockImplementation(() => {

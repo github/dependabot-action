@@ -6,20 +6,27 @@ import {Credential, JobDetails, APIClient} from './api-client'
 import {ContainerService} from './container-service'
 import {base64DecodeDependencyFile} from './utils'
 import {DependencyFile, FetchedFiles, FileUpdaterInput} from './file-types'
+import {Proxy} from './proxy'
 
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 const JOB_OUTPUT_FILENAME = 'output.json'
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates'
+const CA_CERT_FILENAME = 'dbot-ca.crt'
 
 export class Updater {
   docker: Docker
+  proxy: Proxy
+
   constructor(
     private readonly updaterImage: string,
+    private readonly proxyImage: string,
     private readonly apiClient: APIClient
   ) {
     this.docker = new Docker()
+    this.proxy = new Proxy(this.docker, proxyImage)
   }
 
   /**
@@ -32,6 +39,8 @@ export class Updater {
       // TODO: once the proxy is set up, remove credentials from the job details
       details.credentials = credentials
 
+      await this.proxy.run(details, credentials)
+
       const files = await this.runFileFetcher(details, credentials)
       if (!files) {
         core.error(`failed during fetch, skipping updater`)
@@ -43,6 +52,9 @@ export class Updater {
     } catch (e) {
       // TODO: report job runner_error?
       core.error(`Error ${e}`)
+    } finally {
+      this.proxy.container?.stop()
+      this.proxy.container?.remove()
     }
   }
 
@@ -60,6 +72,13 @@ export class Updater {
         credentials
       }
     )
+    await ContainerService.storeCert(
+      CA_CERT_FILENAME,
+      CA_CERT_INPUT_PATH,
+      container,
+      this.proxy.cert
+    )
+
     await ContainerService.run(container)
 
     const outputPath = path.join(__dirname, '../output/output.json')
@@ -99,10 +118,18 @@ export class Updater {
       container,
       containerInput
     )
+    await ContainerService.storeCert(
+      CA_CERT_FILENAME,
+      CA_CERT_INPUT_PATH,
+      container,
+      this.proxy.cert
+    )
+
     await ContainerService.run(container)
   }
 
   private async createContainer(updaterCommand: string): Promise<Container> {
+    core.info(`Proxy: ${this.proxy.url}`)
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       AttachStdout: true,
@@ -113,11 +140,21 @@ export class Updater {
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`
+        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`,
+        `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
+        `SSL_CERT_DIR=/etc/ssl/certs`,
+        `http_proxy=${this.proxy.url}`,
+        `HTTP_PROXY=${this.proxy.url}`,
+        `https_proxy=${this.proxy.url}`,
+        `HTTPS_PROXY=${this.proxy.url}`
       ],
-      Cmd: ['bin/run', updaterCommand],
+      Cmd: [
+        'sh',
+        '-c',
+        `/usr/sbin/update-ca-certificates && $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
+      ],
       HostConfig: {
-        NetworkMode: 'host',
+        NetworkMode: 'job-test-network',
         Binds: [
           `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
           `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
