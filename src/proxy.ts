@@ -99,24 +99,10 @@ export class Proxy {
   }
 
   private generateCertificateAuthority(): CertificateAuthority {
-    const keys = crypto.generateKeyPairSync('rsa', {
-      modulusLength: KEY_SIZE,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem'
-      }
-    })
-
-    const prKey = pki.privateKeyFromPem(keys.privateKey)
-    const pubKey = pki.publicKeyFromPem(keys.publicKey)
-
+    const keys = pki.rsa.generateKeyPair(KEY_SIZE)
     const cert = pki.createCertificate()
 
-    cert.publicKey = pubKey
+    cert.publicKey = keys.publicKey
     cert.serialNumber = '01'
     cert.validity.notBefore = new Date()
     cert.validity.notAfter = new Date()
@@ -126,10 +112,12 @@ export class Proxy {
 
     cert.setSubject(CERT_SUBJECT)
     cert.setIssuer(CERT_SUBJECT)
-    cert.sign(prKey)
+    cert.setExtensions([{name: 'basicConstraints', cA: true}])
+    cert.sign(keys.privateKey)
 
-    const pemCert = pki.certificateToPem(cert)
-    return {cert: pemCert, key: keys.privateKey}
+    const pem = pki.certificateToPem(cert)
+    const key = pki.privateKeyToPem(keys.privateKey)
+    return {cert: pem, key}
   }
 
   private async createContainer(
@@ -141,7 +129,7 @@ export class Proxy {
       name: containerName,
       AttachStdout: true,
       AttachStderr: true,
-      Env: [`DEPENDABOT_JOB_ID=${jobID}`],
+      Env: [`JOB_ID=${jobID}`],
       HostConfig: {
         NetworkMode: `job-test-network` // TODO: Dynamically generate network
       }

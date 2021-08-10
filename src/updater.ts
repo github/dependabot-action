@@ -142,7 +142,6 @@ export class Updater {
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-        `SSL_CERT_DIR=/etc/ssl/certs`,
         `http_proxy=${this.proxy.url}`,
         `HTTP_PROXY=${this.proxy.url}`,
         `https_proxy=${this.proxy.url}`,
