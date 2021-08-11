@@ -51,8 +51,8 @@ export class Updater {
       // TODO: report job runner_error?
       core.error(`Error ${e}`)
     } finally {
-      this.proxy.container?.stop()
-      this.proxy.container?.remove()
+      await this.proxy.container?.stop()
+      await this.proxy.container?.remove()
     }
   }
 
