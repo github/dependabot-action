@@ -27,7 +27,7 @@ describe('Updater', () => {
     process.env.DEPENDABOT_API_URL || fakeDependabotApiUrl
   // Used from within the updater container to update the job state and create prs
   const internalDockerHost =
-    process.platform === 'darwin' ? 'host.docker.internal' : 'localhost'
+    process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
   const internalDependabotApiUrl =
     process.env.DEPENDABOT_API_URL ||
     `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
