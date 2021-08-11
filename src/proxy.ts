@@ -41,51 +41,53 @@ const CERT_SUBJECT = [
   }
 ]
 
-export class Proxy {
-  container?: Container
+export type Proxy = {
+  container: Container
+  network: Network
   networkName: string
   url: string
   cert: string
-  network?: Network
+}
 
+export class ProxyBuilder {
   constructor(
     private readonly docker: Docker,
     private readonly proxyImage: string
-  ) {
-    // TODO: this is obviously gnarly, decouple some things so we don't need to
-    // initialize these as empty strings
-    this.networkName = ''
-    this.url = ''
-    this.cert = ''
-  }
+  ) {}
 
-  async run(details: JobDetails, credentials: Credential[]): Promise<void> {
+  async run(details: JobDetails, credentials: Credential[]): Promise<Proxy> {
     const name = `job-${details.id}-proxy`
     const config = this.buildProxyConfig(credentials, details.id)
-    this.cert = config.ca.cert
+    const cert = config.ca.cert
 
-    this.networkName = `job-${details.id}-network`
-    this.network = await this.ensureNetwork(this.networkName)
+    const networkName = `job-${details.id}-network`
+    const network = await this.ensureNetwork(networkName)
 
-    this.container = await this.createContainer(details.id, name)
+    const container = await this.createContainer(details.id, name, networkName)
 
     await ContainerService.storeInput(
       CONFIG_FILE_NAME,
       CONFIG_FILE_PATH,
-      this.container,
+      container,
       config
     )
 
-    const stream = await this.container.attach({
+    const stream = await container.attach({
       stream: true,
       stdout: true,
       stderr: true
     })
-    this.container.modem.demuxStream(stream, process.stdout, process.stderr)
+    container.modem.demuxStream(stream, process.stdout, process.stderr)
 
-    this.container.start()
-    this.url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
-    core.info(this.url)
+    container.start()
+    const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
+    return {
+      container,
+      network,
+      networkName,
+      url,
+      cert
+    }
   }
 
   private async ensureNetwork(name: string): Promise<Network> {
@@ -139,7 +141,8 @@ export class Proxy {
 
   private async createContainer(
     jobID: string,
-    containerName: string
+    containerName: string,
+    networkName: string
   ): Promise<Container> {
     const container = await this.docker.createContainer({
       Image: this.proxyImage,
@@ -148,7 +151,7 @@ export class Proxy {
       AttachStderr: true,
       Env: [`JOB_ID=${jobID}`],
       HostConfig: {
-        NetworkMode: this.networkName
+        NetworkMode: networkName
       }
     })
 

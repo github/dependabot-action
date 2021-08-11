@@ -2,11 +2,11 @@ import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
 import path from 'path'
 import fs from 'fs'
-import {JobDetails, APIClient} from './api-client'
+import {JobDetails, APIClient, Credential} from './api-client'
 import {ContainerService} from './container-service'
 import {base64DecodeDependencyFile} from './utils'
 import {DependencyFile, FetchedFiles, FileUpdaterInput} from './file-types'
-import {Proxy} from './proxy'
+import {ProxyBuilder, Proxy} from './proxy'
 
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
@@ -18,15 +18,15 @@ const CA_CERT_FILENAME = 'dbot-ca.crt'
 
 export class Updater {
   docker: Docker
-  proxy: Proxy
 
   constructor(
     private readonly updaterImage: string,
     private readonly proxyImage: string,
-    private readonly apiClient: APIClient
+    private readonly apiClient: APIClient,
+    private readonly details: JobDetails,
+    private readonly credentials: Credential[]
   ) {
     this.docker = new Docker()
-    this.proxy = new Proxy(this.docker, proxyImage)
   }
 
   /**
@@ -34,44 +34,47 @@ export class Updater {
    */
   async runUpdater(): Promise<void> {
     try {
-      const details = await this.apiClient.getJobDetails()
-      const credentials = await this.apiClient.getCredentials()
+      const proxy = await new ProxyBuilder(this.docker, this.proxyImage).run(
+        this.details,
+        this.credentials
+      )
 
-      await this.proxy.run(details, credentials)
+      try {
+        const files = await this.runFileFetcher(proxy)
+        if (!files) {
+          core.error(`failed during fetch, skipping updater`)
+          // TODO: report job runner_error?
+          return
+        }
 
-      const files = await this.runFileFetcher(details)
-      if (!files) {
-        core.error(`failed during fetch, skipping updater`)
+        await this.runFileUpdater(proxy, files)
+      } catch (e) {
         // TODO: report job runner_error?
-        return
+        core.error(`Error ${e}`)
+      } finally {
+        await proxy.container.stop()
+        await proxy.container.remove()
+        await proxy.network.remove()
       }
-
-      await this.runFileUpdater(details, files)
     } catch (e) {
       // TODO: report job runner_error?
       core.error(`Error ${e}`)
-    } finally {
-      await this.proxy.container?.stop()
-      await this.proxy.container?.remove()
-      await this.proxy.network?.remove()
     }
   }
 
-  private async runFileFetcher(
-    details: JobDetails
-  ): Promise<void | FetchedFiles> {
-    const container = await this.createContainer('fetch_files')
+  private async runFileFetcher(proxy: Proxy): Promise<void | FetchedFiles> {
+    const container = await this.createContainer(proxy, 'fetch_files')
     await ContainerService.storeInput(
       JOB_INPUT_FILENAME,
       JOB_INPUT_PATH,
       container,
-      {job: details}
+      {job: this.details}
     )
     await ContainerService.storeCert(
       CA_CERT_FILENAME,
       CA_CERT_INPUT_PATH,
       container,
-      this.proxy.cert
+      proxy.cert
     )
 
     await ContainerService.run(container)
@@ -96,16 +99,16 @@ export class Updater {
   }
 
   private async runFileUpdater(
-    details: JobDetails,
+    proxy: Proxy,
     files: FetchedFiles
   ): Promise<void> {
     core.info(`Running update job ${this.apiClient.params.jobID}`)
-    const container = await this.createContainer('update_files')
+    const container = await this.createContainer(proxy, 'update_files')
     const containerInput: FileUpdaterInput = {
       base_commit_sha: files.base_commit_sha,
       base64_dependency_files: files.base64_dependency_files,
       dependency_files: files.dependency_files,
-      job: details
+      job: this.details
     }
     await ContainerService.storeInput(
       JOB_INPUT_FILENAME,
@@ -117,13 +120,16 @@ export class Updater {
       CA_CERT_FILENAME,
       CA_CERT_INPUT_PATH,
       container,
-      this.proxy.cert
+      proxy.cert
     )
 
     await ContainerService.run(container)
   }
 
-  private async createContainer(updaterCommand: string): Promise<Container> {
+  private async createContainer(
+    proxy: Proxy,
+    updaterCommand: string
+  ): Promise<Container> {
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       AttachStdout: true,
@@ -136,10 +142,10 @@ export class Updater {
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-        `http_proxy=${this.proxy.url}`,
-        `HTTP_PROXY=${this.proxy.url}`,
-        `https_proxy=${this.proxy.url}`,
-        `HTTPS_PROXY=${this.proxy.url}`
+        `http_proxy=${proxy.url}`,
+        `HTTP_PROXY=${proxy.url}`,
+        `https_proxy=${proxy.url}`,
+        `HTTPS_PROXY=${proxy.url}`
       ],
       Cmd: [
         'sh',
@@ -147,7 +153,7 @@ export class Updater {
         `/usr/sbin/update-ca-certificates && $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
       ],
       HostConfig: {
-        NetworkMode: this.proxy.networkName,
+        NetworkMode: proxy.networkName,
         Binds: [
           `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
           `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`

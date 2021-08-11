@@ -40,7 +40,6 @@ describe('Updater', () => {
 
   const client = axios.create({baseURL: externalDependabotApiUrl})
   const apiClient = new APIClient(client, params)
-  const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient)
 
   beforeAll(async () => {
     // Skip the test when we haven't preloaded the updater image
@@ -67,6 +66,17 @@ describe('Updater', () => {
     if (process.env.SKIP_INTEGRATION_TESTS) {
       return
     }
+
+    const details = await apiClient.getJobDetails()
+    const credentials = await apiClient.getCredentials()
+
+    const updater = new Updater(
+      UPDATER_IMAGE_NAME,
+      PROXY_IMAGE_NAME,
+      apiClient,
+      details,
+      credentials
+    )
 
     await updater.runUpdater()
 
