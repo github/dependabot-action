@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import {Container} from 'dockerode'
 import {pack} from 'tar-stream'
 import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './file-types'
+import {outStream, errStream} from './utils'
 
 export const ContainerService = {
   async storeInput(
@@ -35,7 +36,11 @@ export const ContainerService = {
         stdout: true,
         stderr: true
       })
-      container.modem.demuxStream(stream, process.stdout, process.stderr)
+      container.modem.demuxStream(
+        stream,
+        outStream('updater'),
+        errStream('updater')
+      )
 
       await container.start()
       await container.wait()

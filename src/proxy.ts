@@ -9,6 +9,7 @@ import {
 import {ContainerService} from './container-service'
 import {Credential, JobDetails} from './api-client'
 import {pki} from 'node-forge'
+import {outStream, errStream} from './utils'
 
 const KEY_SIZE = 2048
 const KEY_EXPIRY_YEARS = 2
@@ -77,7 +78,11 @@ export class ProxyBuilder {
       stdout: true,
       stderr: true
     })
-    container.modem.demuxStream(stream, process.stdout, process.stderr)
+    container.modem.demuxStream(
+      stream,
+      outStream('  proxy'),
+      errStream('  proxy')
+    )
 
     container.start()
     const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
