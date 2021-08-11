@@ -1,4 +1,4 @@
-name: 'ci'
+name: 'integration'
 on: pull_request_target
 permissions:
   contents: read
@@ -12,8 +12,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: GPR login
         run: docker login docker.pkg.github.com -u x -p ${{ secrets.GPR_TOKEN }}
-      - name: GRP pull
+      - name: GRP pull dependabot/dependabot-updater
         run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:latest
+      - name: GRP pull github/dependabot-update-job-proxy
+        run: docker pull docker.pkg.github.com/github/dependabot-update-job-proxy:latest
       - run: npm ci
       - name: Run integration test files
         run: npm run test-integration
