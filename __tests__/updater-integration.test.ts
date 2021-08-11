@@ -61,7 +61,7 @@ describe('Updater', () => {
     await removeDanglingUpdaterContainers()
   })
 
-  jest.setTimeout(25000)
+  jest.setTimeout(120000)
   it('should run the updater and create a pull request', async () => {
     // Skip the test when we haven't preloaded the updater image
     if (process.env.SKIP_INTEGRATION_TESTS) {

@@ -53,6 +53,7 @@ export class Updater {
     } finally {
       await this.proxy.container?.stop()
       await this.proxy.container?.remove()
+      await this.proxy.network?.remove()
     }
   }
 
@@ -123,7 +124,6 @@ export class Updater {
   }
 
   private async createContainer(updaterCommand: string): Promise<Container> {
-    core.info(`Proxy: ${this.proxy.url}`)
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       AttachStdout: true,
@@ -147,7 +147,7 @@ export class Updater {
         `/usr/sbin/update-ca-certificates && $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
       ],
       HostConfig: {
-        NetworkMode: 'job-test-network',
+        NetworkMode: this.proxy.networkName,
         Binds: [
           `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
           `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`

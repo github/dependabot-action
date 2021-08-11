@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker, {Container} from 'dockerode'
+import Docker, {Container, Network} from 'dockerode'
 import crypto from 'crypto'
 import {
   BasicAuthCredentials,
@@ -43,8 +43,10 @@ const CERT_SUBJECT = [
 
 export class Proxy {
   container?: Container
+  networkName: string
   url: string
   cert: string
+  network?: Network
 
   constructor(
     private readonly docker: Docker,
@@ -52,6 +54,7 @@ export class Proxy {
   ) {
     // TODO: this is obviously gnarly, decouple some things so we don't need to
     // initialize these as empty strings
+    this.networkName = ''
     this.url = ''
     this.cert = ''
   }
@@ -61,7 +64,11 @@ export class Proxy {
     const config = this.buildProxyConfig(credentials, details.id)
     this.cert = config.ca.cert
 
+    this.networkName = `job-${details.id}-network`
+    this.network = await this.ensureNetwork(this.networkName)
+
     this.container = await this.createContainer(details.id, name)
+
     await ContainerService.storeInput(
       CONFIG_FILE_NAME,
       CONFIG_FILE_PATH,
@@ -79,6 +86,17 @@ export class Proxy {
     this.container.start()
     this.url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
     core.info(this.url)
+  }
+
+  private async ensureNetwork(name: string): Promise<Network> {
+    const networks = await this.docker.listNetworks({
+      filters: JSON.stringify({name: [name]})
+    })
+    if (networks.length > 0) {
+      return this.docker.getNetwork(networks[0].Id)
+    } else {
+      return await this.docker.createNetwork({Name: name})
+    }
   }
 
   private buildProxyConfig(
@@ -130,7 +148,7 @@ export class Proxy {
       AttachStderr: true,
       Env: [`JOB_ID=${jobID}`],
       HostConfig: {
-        NetworkMode: `job-test-network` // TODO: Dynamically generate network
+        NetworkMode: this.networkName
       }
     })
 
