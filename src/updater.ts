@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
 import path from 'path'
 import fs from 'fs'
-import {Credential, JobDetails, APIClient} from './api-client'
+import {JobDetails, APIClient} from './api-client'
 import {ContainerService} from './container-service'
 import {base64DecodeDependencyFile} from './utils'
 import {DependencyFile, FetchedFiles, FileUpdaterInput} from './file-types'
@@ -36,12 +36,10 @@ export class Updater {
     try {
       const details = await this.apiClient.getJobDetails()
       const credentials = await this.apiClient.getCredentials()
-      // TODO: once the proxy is set up, remove credentials from the job details
-      details.credentials = credentials
 
       await this.proxy.run(details, credentials)
 
-      const files = await this.runFileFetcher(details, credentials)
+      const files = await this.runFileFetcher(details)
       if (!files) {
         core.error(`failed during fetch, skipping updater`)
         // TODO: report job runner_error?
@@ -59,18 +57,14 @@ export class Updater {
   }
 
   private async runFileFetcher(
-    details: JobDetails,
-    credentials: Credential[]
+    details: JobDetails
   ): Promise<void | FetchedFiles> {
     const container = await this.createContainer('fetch_files')
     await ContainerService.storeInput(
       JOB_INPUT_FILENAME,
       JOB_INPUT_PATH,
       container,
-      {
-        job: details,
-        credentials
-      }
+      {job: details}
     )
     await ContainerService.storeCert(
       CA_CERT_FILENAME,

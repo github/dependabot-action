@@ -8,7 +8,6 @@ export type FetchedFiles = {
 
 export type FileFetcherInput = {
   job: JobDetails
-  credentials: Credential[]
 }
 
 export type DependencyFile = {
