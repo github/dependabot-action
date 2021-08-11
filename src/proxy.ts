@@ -61,7 +61,6 @@ export class Proxy {
     const config = this.buildProxyConfig(credentials, details.id)
     this.cert = config.ca.cert
 
-    core.info(JSON.stringify(config)) // TODO: remove!
     this.container = await this.createContainer(details.id, name)
     await ContainerService.storeInput(
       CONFIG_FILE_NAME,
