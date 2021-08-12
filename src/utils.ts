@@ -1,5 +1,5 @@
 import stream, {Writable} from 'stream'
-import {DependencyFile} from './file-types'
+import {DependencyFile} from './config-types'
 
 const base64Decode = (str: string): string =>
   Buffer.from(str, 'base64').toString('binary')

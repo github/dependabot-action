@@ -5,7 +5,7 @@ import fs from 'fs'
 import {JobDetails, APIClient, Credential} from './api-client'
 import {ContainerService} from './container-service'
 import {base64DecodeDependencyFile} from './utils'
-import {DependencyFile, FetchedFiles, FileUpdaterInput} from './file-types'
+import {DependencyFile, FetchedFiles, FileUpdaterInput} from './config-types'
 import {ProxyBuilder, Proxy} from './proxy'
 
 const JOB_INPUT_FILENAME = 'job.json'

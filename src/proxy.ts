@@ -5,7 +5,7 @@ import {
   BasicAuthCredentials,
   CertificateAuthority,
   ProxyConfig
-} from './file-types'
+} from './config-types'
 import {ContainerService} from './container-service'
 import {Credential, JobDetails} from './api-client'
 import {pki} from 'node-forge'
