@@ -129,6 +129,11 @@ export class Updater {
     proxy: Proxy,
     updaterCommand: string
   ): Promise<Container> {
+    const cmd = `(echo > /etc/ca-certificates.conf) &&\
+     rm -Rf /usr/share/ca-certificates/ &&\
+      /usr/sbin/update-ca-certificates &&\
+       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
+
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       AttachStdout: true,
@@ -146,11 +151,7 @@ export class Updater {
         `https_proxy=${proxy.url}`,
         `HTTPS_PROXY=${proxy.url}`
       ],
-      Cmd: [
-        'sh',
-        '-c',
-        `/usr/sbin/update-ca-certificates && $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
-      ],
+      Cmd: ['sh', '-c', cmd],
       HostConfig: {
         NetworkMode: proxy.networkName,
         Binds: [
