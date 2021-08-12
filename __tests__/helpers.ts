@@ -20,6 +20,9 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
       }
     }
   }
+
+  await docker.pruneNetworks()
+  await docker.pruneContainers()
 }
 
 export const runFakeDependabotApi = async (port: number): Promise<Function> => {

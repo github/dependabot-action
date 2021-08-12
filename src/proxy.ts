@@ -48,6 +48,7 @@ export type Proxy = {
   networkName: string
   url: string
   cert: string
+  shutdown: () => Promise<void>
 }
 
 export class ProxyBuilder {
@@ -91,7 +92,12 @@ export class ProxyBuilder {
       network,
       networkName,
       url,
-      cert
+      cert,
+      shutdown: async () => {
+        await container.stop()
+        await container.remove()
+        await network.remove()
+      }
     }
   }
 

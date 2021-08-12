@@ -52,9 +52,8 @@ export class Updater {
         // TODO: report job runner_error?
         core.error(`Error ${e}`)
       } finally {
-        await proxy.container.stop()
-        await proxy.container.remove()
-        await proxy.network.remove()
+        await proxy.shutdown()
+        await this.docker.pruneNetworks()
       }
     } catch (e) {
       // TODO: report job runner_error?
