@@ -2,7 +2,7 @@ import axios from 'axios'
 
 import {APIClient, JobParameters} from '../src/api-client'
 import {ImageService} from '../src/image-service'
-import {UPDATER_IMAGE_NAME} from '../src/main'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 
 import {removeDanglingUpdaterContainers, runFakeDependabotApi} from './helpers'
@@ -27,7 +27,7 @@ describe('Updater', () => {
     process.env.DEPENDABOT_API_URL || fakeDependabotApiUrl
   // Used from within the updater container to update the job state and create prs
   const internalDockerHost =
-    process.platform === 'darwin' ? 'host.docker.internal' : 'localhost'
+    process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
   const internalDependabotApiUrl =
     process.env.DEPENDABOT_API_URL ||
     `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
@@ -40,7 +40,6 @@ describe('Updater', () => {
 
   const client = axios.create({baseURL: externalDependabotApiUrl})
   const apiClient = new APIClient(client, params)
-  const updater = new Updater(UPDATER_IMAGE_NAME, apiClient)
 
   beforeAll(async () => {
     // Skip the test when we haven't preloaded the updater image
@@ -49,6 +48,7 @@ describe('Updater', () => {
     }
 
     await ImageService.pull(UPDATER_IMAGE_NAME)
+    await ImageService.pull(PROXY_IMAGE_NAME)
 
     if (externalDependabotApiUrl === fakeDependabotApiUrl) {
       server = await runFakeDependabotApi(FAKE_SERVER_PORT)
@@ -60,12 +60,23 @@ describe('Updater', () => {
     await removeDanglingUpdaterContainers()
   })
 
-  jest.setTimeout(25000)
+  jest.setTimeout(120000)
   it('should run the updater and create a pull request', async () => {
     // Skip the test when we haven't preloaded the updater image
     if (process.env.SKIP_INTEGRATION_TESTS) {
       return
     }
+
+    const details = await apiClient.getJobDetails()
+    const credentials = await apiClient.getCredentials()
+
+    const updater = new Updater(
+      UPDATER_IMAGE_NAME,
+      PROXY_IMAGE_NAME,
+      apiClient,
+      details,
+      credentials
+    )
 
     await updater.runUpdater()
 

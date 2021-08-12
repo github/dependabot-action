@@ -1,17 +1,30 @@
 import * as core from '@actions/core'
 import {Container} from 'dockerode'
 import {pack} from 'tar-stream'
-import {FileFetcherInput, FileUpdaterInput} from './file-types'
+import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
+import {outStream, errStream} from './utils'
 
 export const ContainerService = {
   async storeInput(
     name: string,
     path: string,
     container: Container,
-    input: FileFetcherInput | FileUpdaterInput
+    input: FileFetcherInput | FileUpdaterInput | ProxyConfig
   ): Promise<void> {
     const tar = pack()
     tar.entry({name}, JSON.stringify(input))
+    tar.finalize()
+    await container.putArchive(tar, {path})
+  },
+
+  async storeCert(
+    name: string,
+    path: string,
+    container: Container,
+    cert: string
+  ): Promise<void> {
+    const tar = pack()
+    tar.entry({name}, cert)
     tar.finalize()
     await container.putArchive(tar, {path})
   },
@@ -23,7 +36,11 @@ export const ContainerService = {
         stdout: true,
         stderr: true
       })
-      container.modem.demuxStream(stream, process.stdout, process.stderr)
+      container.modem.demuxStream(
+        stream,
+        outStream('updater'),
+        errStream('updater')
+      )
 
       await container.start()
       await container.wait()
