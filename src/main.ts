@@ -16,7 +16,7 @@ async function run(): Promise<void> {
     // Decode JobParameters:
     const params = getJobParameters(github.context)
     if (params === null) {
-      return
+      return // No parameters, nothing to do
     }
 
     core.info(JSON.stringify(params))
