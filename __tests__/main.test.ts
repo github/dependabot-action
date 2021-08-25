@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {APIClient} from '../src/api-client'
 import {Updater} from '../src/updater'
+import {ImageService} from '../src/image-service'
 import * as inputs from '../src/inputs'
 import {run} from '../src/main'
 
@@ -178,6 +179,40 @@ describe('run', () => {
     })
   })
 
+  describe('when there is an error pulling images', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(ImageService, 'pull')
+        .mockImplementationOnce(
+          jest.fn(async () =>
+            Promise.reject(new Error('error pulling an image'))
+          )
+        )
+
+      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      context = new Context()
+    })
+
+    test('it fails the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('error pulling an image')
+      )
+    })
+
+    test('it relays a failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_image',
+        'error-detail': 'error pulling an image'
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
   describe('when there is an error running the update', () => {
     beforeEach(() => {
       jest
@@ -205,7 +240,7 @@ describe('run', () => {
       await run(context)
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
-        'error-type': 'actions_workflow_unknown',
+        'error-type': 'actions_workflow_updater',
         'error-detail': 'error running the update'
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
