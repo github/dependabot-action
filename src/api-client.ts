@@ -26,7 +26,7 @@ export type JobDetails = {
 }
 
 export enum JobErrorType {
-  Unknown = 'actions_runner_unknown'
+  Unknown = 'actions_workflow_unknown'
 }
 
 export type JobError = {

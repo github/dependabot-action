@@ -15,7 +15,19 @@ jest.mock('../src/updater')
 describe('run', () => {
   let context: Context
 
+  let failJobSpy: any
+  let markJobAsProcessedSpy: any
+  let reportJobErrorSpy: any
+
   beforeEach(async () => {
+    failJobSpy = jest.spyOn(APIClient.prototype, 'failJob')
+
+    markJobAsProcessedSpy = jest.spyOn(
+      APIClient.prototype,
+      'markJobAsProcessed'
+    )
+    reportJobErrorSpy = jest.spyOn(APIClient.prototype, 'reportJobError')
+
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
   })
@@ -39,6 +51,14 @@ describe('run', () => {
         expect.stringContaining('🤖 ~fin~')
       )
     })
+
+    test('it defers reporting back to dependabot-api to the updater itself', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(failJobSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
   })
 
   describe('when the action is triggered on an unsupported event', () => {
@@ -48,15 +68,19 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it explains the event is unsupported without logging to dependabot-api', async () => {
+    test('it fails the workflow', async () => {
       await run(context)
 
       expect(core.setFailed).not.toHaveBeenCalled()
       expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "Dependabot Updater Action does not support 'issue_created' events."
-        )
+        "Dependabot Updater Action does not support 'issue_created' events."
       )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(failJobSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -73,12 +97,18 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it relays an error to dependabot-api and marks the job as processed', async () => {
+    test('it fails the workflow with the raw error', async () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('unexpected error retrieving job params')
+        new Error('unexpected error retrieving job params')
       )
+    })
+
+    test('it does not inform dependabot-api as it cannot instantiate a client without the params', async () => {
+      await run(context)
+
+      expect(failJobSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -97,11 +127,19 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it relays an error to dependabot-api and marks the job as processed', async () => {
+    test('it fails the workflow', async () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
         expect.stringContaining('error getting job details')
+      )
+    })
+
+    test('it relays a failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(failJobSpy).toHaveBeenCalledWith(
+        new Error('error getting job details')
       )
     })
   })
@@ -121,17 +159,25 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it relays an error to dependabot-api and marks the job as processed', async () => {
+    test('it fails the workflow', async () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
         expect.stringContaining('error getting credentials')
       )
     })
+
+    test('it relays a failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(failJobSpy).toHaveBeenCalledWith(
+        new Error('error getting credentials')
+      )
+    })
   })
 
   describe('when there is an error running the update', () => {
-    beforeAll(() => {
+    beforeEach(() => {
       jest
         .spyOn(Updater.prototype, 'runUpdater')
         .mockImplementationOnce(
@@ -145,11 +191,19 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it relays an error to dependabot-api and marks the job as processed', async () => {
+    test('it fails the workflow', async () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
         expect.stringContaining('error running the update')
+      )
+    })
+
+    test('it relays a failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(failJobSpy).toHaveBeenCalledWith(
+        new Error('error running the update')
       )
     })
   })

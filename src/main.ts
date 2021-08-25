@@ -27,21 +27,33 @@ export async function run(context: Context): Promise<void> {
 
     const client = axios.create({baseURL: params.dependabotAPIURL})
     const apiClient = new APIClient(client, params)
-    const details = await apiClient.getJobDetails()
-    const credentials = await apiClient.getCredentials()
-    const updater = new Updater(
-      UPDATER_IMAGE_NAME,
-      PROXY_IMAGE_NAME,
-      apiClient,
-      details,
-      credentials
-    )
-    await ImageService.pull(UPDATER_IMAGE_NAME)
-    await ImageService.pull(PROXY_IMAGE_NAME)
 
-    await updater.runUpdater()
-    core.info('🤖 ~fin~')
+    try {
+      const details = await apiClient.getJobDetails()
+      const credentials = await apiClient.getCredentials()
+      const updater = new Updater(
+        UPDATER_IMAGE_NAME,
+        PROXY_IMAGE_NAME,
+        apiClient,
+        details,
+        credentials
+      )
+      await ImageService.pull(UPDATER_IMAGE_NAME)
+      await ImageService.pull(PROXY_IMAGE_NAME)
+
+      await updater.runUpdater()
+      core.info('🤖 ~fin~')
+    } catch (error) {
+      // Update Dependabot API on the job failure
+      apiClient.failJob(error)
+      core.setFailed(error.message)
+    }
   } catch (error) {
+    // If we've reached this point, we do not have a viable
+    // API client to report back to Dependabot API.
+    //
+    // We output the raw error in the Action logs and defer
+    // to workflow_run monitoring to detect the job failure.
     core.setFailed(error)
   }
 }
