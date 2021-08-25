@@ -49,23 +49,20 @@ export async function run(context: Context): Promise<void> {
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
       } catch (error) {
-        failJob(apiClient, error, DependabotErrorType.Image)
-        core.setFailed(error.message)
+        await failJob(apiClient, error, DependabotErrorType.Image)
         return
       }
 
       try {
         await updater.runUpdater()
       } catch (error) {
-        failJob(apiClient, error, DependabotErrorType.UpdateRun)
-        core.setFailed(error.message)
+        await failJob(apiClient, error, DependabotErrorType.UpdateRun)
         return
       }
       core.info('🤖 ~fin~')
     } catch (error) {
       // Update Dependabot API on the job failure
-      failJob(apiClient, error)
-      core.setFailed(error.message)
+      await failJob(apiClient, error)
     }
   } catch (error) {
     // If we've reached this point, we do not have a viable
@@ -87,6 +84,7 @@ async function failJob(
     'error-detail': error.message
   })
   await apiClient.markJobAsProcessed()
+  core.setFailed(error.message)
 }
 
 run(github.context)
