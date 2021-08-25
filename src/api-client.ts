@@ -25,12 +25,8 @@ export type JobDetails = {
   'package-manager': PackageManager
 }
 
-export enum JobErrorType {
-  Unknown = 'actions_workflow_unknown'
-}
-
 export type JobError = {
-  'error-type': JobErrorType
+  'error-type': string
   'error-detail': any
 }
 
@@ -94,20 +90,5 @@ export class APIClient {
     }
 
     return res.data.data.attributes
-  }
-
-  async failJob(error: Error): Promise<void> {
-    const jobError = this.jobErrorFor(error)
-    await this.reportJobError(jobError)
-    await this.markJobAsProcessed()
-  }
-
-  private jobErrorFor(error: Error): JobError {
-    const errorType = JobErrorType.Unknown
-
-    return {
-      'error-type': errorType,
-      'error-detail': error.message
-    }
   }
 }

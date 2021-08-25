@@ -12,6 +12,10 @@ export const UPDATER_IMAGE_NAME =
 export const PROXY_IMAGE_NAME =
   'docker.pkg.github.com/github/dependabot-update-job-proxy:latest'
 
+export enum DependabotErrorType {
+  Unknown = 'actions_workflow_unknown'
+}
+
 export async function run(context: Context): Promise<void> {
   try {
     // Decode JobParameters:
@@ -45,7 +49,7 @@ export async function run(context: Context): Promise<void> {
       core.info('🤖 ~fin~')
     } catch (error) {
       // Update Dependabot API on the job failure
-      apiClient.failJob(error)
+      failJob(apiClient, error)
       core.setFailed(error.message)
     }
   } catch (error) {
@@ -56,6 +60,18 @@ export async function run(context: Context): Promise<void> {
     // to workflow_run monitoring to detect the job failure.
     core.setFailed(error)
   }
+}
+
+async function failJob(
+  apiClient: APIClient,
+  error: Error,
+  errorType = DependabotErrorType.Unknown
+): Promise<void> {
+  await apiClient.reportJobError({
+    'error-type': errorType,
+    'error-detail': error.message
+  })
+  await apiClient.markJobAsProcessed()
 }
 
 run(github.context)

@@ -15,13 +15,10 @@ jest.mock('../src/updater')
 describe('run', () => {
   let context: Context
 
-  let failJobSpy: any
   let markJobAsProcessedSpy: any
   let reportJobErrorSpy: any
 
   beforeEach(async () => {
-    failJobSpy = jest.spyOn(APIClient.prototype, 'failJob')
-
     markJobAsProcessedSpy = jest.spyOn(
       APIClient.prototype,
       'markJobAsProcessed'
@@ -56,7 +53,6 @@ describe('run', () => {
       await run(context)
 
       expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
-      expect(failJobSpy).not.toHaveBeenCalled()
       expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
@@ -80,7 +76,8 @@ describe('run', () => {
     test('it does not report this failed run to dependabot-api', async () => {
       await run(context)
 
-      expect(failJobSpy).not.toHaveBeenCalled()
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -108,7 +105,8 @@ describe('run', () => {
     test('it does not inform dependabot-api as it cannot instantiate a client without the params', async () => {
       await run(context)
 
-      expect(failJobSpy).not.toHaveBeenCalled()
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -138,9 +136,11 @@ describe('run', () => {
     test('it relays a failure message to the dependabot service', async () => {
       await run(context)
 
-      expect(failJobSpy).toHaveBeenCalledWith(
-        new Error('error getting job details')
-      )
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_unknown',
+        'error-detail': 'error getting job details'
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
   })
 
@@ -170,9 +170,11 @@ describe('run', () => {
     test('it relays a failure message to the dependabot service', async () => {
       await run(context)
 
-      expect(failJobSpy).toHaveBeenCalledWith(
-        new Error('error getting credentials')
-      )
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_unknown',
+        'error-detail': 'error getting credentials'
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
   })
 
@@ -202,9 +204,11 @@ describe('run', () => {
     test('it relays a failure message to the dependabot service', async () => {
       await run(context)
 
-      expect(failJobSpy).toHaveBeenCalledWith(
-        new Error('error running the update')
-      )
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_unknown',
+        'error-detail': 'error running the update'
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
   })
 })
