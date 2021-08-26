@@ -1,0 +1,21 @@
+{
+  "inputs": {
+    "jobID": "1",
+    "jobToken": "xxx",
+    "credentialsToken": "yyy",
+    "dependabotAPIURL": "http://localhost:9000"
+  },
+  "ref": "main",
+  "repository": {
+    "owner": {
+      "login": "dependabot"
+    },
+    "name": "dependabot-core"
+  },
+  "sender": {
+    "type": "User"
+  },
+  "installation": null,
+  "organization": null,
+  "workflow": "--workflow-yaml-goes-here--"
+}

@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
 import {Updater} from './updater'
@@ -11,37 +12,79 @@ export const UPDATER_IMAGE_NAME =
 export const PROXY_IMAGE_NAME =
   'docker.pkg.github.com/github/dependabot-update-job-proxy:latest'
 
-async function run(): Promise<void> {
+export enum DependabotErrorType {
+  Unknown = 'actions_workflow_unknown',
+  Image = 'actions_workflow_image',
+  UpdateRun = 'actions_workflow_updater'
+}
+
+export async function run(context: Context): Promise<void> {
   try {
     // Decode JobParameters:
-    const params = getJobParameters(github.context)
+    const params = getJobParameters(context)
     if (params === null) {
       return // No parameters, nothing to do
     }
 
-    core.info(JSON.stringify(params))
+    core.debug(JSON.stringify(params))
 
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 
     const client = axios.create({baseURL: params.dependabotAPIURL})
     const apiClient = new APIClient(client, params)
-    const details = await apiClient.getJobDetails()
-    const credentials = await apiClient.getCredentials()
-    const updater = new Updater(
-      UPDATER_IMAGE_NAME,
-      PROXY_IMAGE_NAME,
-      apiClient,
-      details,
-      credentials
-    )
-    await ImageService.pull(UPDATER_IMAGE_NAME)
-    await ImageService.pull(PROXY_IMAGE_NAME)
 
-    await updater.runUpdater()
+    try {
+      const details = await apiClient.getJobDetails()
+      const credentials = await apiClient.getCredentials()
+      const updater = new Updater(
+        UPDATER_IMAGE_NAME,
+        PROXY_IMAGE_NAME,
+        apiClient,
+        details,
+        credentials
+      )
+
+      try {
+        await ImageService.pull(UPDATER_IMAGE_NAME)
+        await ImageService.pull(PROXY_IMAGE_NAME)
+      } catch (error) {
+        await failJob(apiClient, error, DependabotErrorType.Image)
+        return
+      }
+
+      try {
+        await updater.runUpdater()
+      } catch (error) {
+        await failJob(apiClient, error, DependabotErrorType.UpdateRun)
+        return
+      }
+      core.info('🤖 ~fin~')
+    } catch (error) {
+      // Update Dependabot API on the job failure
+      await failJob(apiClient, error)
+    }
   } catch (error) {
-    core.setFailed(error.message)
+    // If we've reached this point, we do not have a viable
+    // API client to report back to Dependabot API.
+    //
+    // We output the raw error in the Action logs and defer
+    // to workflow_run monitoring to detect the job failure.
+    core.setFailed(error)
   }
 }
 
-run()
+async function failJob(
+  apiClient: APIClient,
+  error: Error,
+  errorType = DependabotErrorType.Unknown
+): Promise<void> {
+  await apiClient.reportJobError({
+    'error-type': errorType,
+    'error-detail': error.message
+  })
+  await apiClient.markJobAsProcessed()
+  core.setFailed(error.message)
+}
+
+run(github.context)

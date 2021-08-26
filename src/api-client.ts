@@ -10,6 +10,8 @@ export class JobParameters {
   ) {}
 }
 
+// TODO: Populate with enabled values
+// TODO: Rescue unsupported values
 export enum PackageManager {
   NpmAndYarn = 'npm_and_yarn'
 }
@@ -21,6 +23,11 @@ export type JobDetails = {
   }[]
   id: string
   'package-manager': PackageManager
+}
+
+export type JobError = {
+  'error-type': string
+  'error-detail': any
 }
 
 export type Credential = {
@@ -50,8 +57,8 @@ export class APIClient {
   }
 
   async getCredentials(): Promise<Credential[]> {
-    const detailsURL = `/update_jobs/${this.params.jobID}/credentials`
-    const res = await this.client.get(detailsURL, {
+    const credentialsURL = `/update_jobs/${this.params.jobID}/credentials`
+    const res = await this.client.get(credentialsURL, {
       headers: {Authorization: this.params.credentialsToken}
     })
     if (res.status !== 200) {
@@ -59,5 +66,29 @@ export class APIClient {
     }
 
     return res.data.data.attributes.credentials
+  }
+
+  async reportJobError(error: JobError): Promise<void> {
+    const recordErrorURL = `/update_jobs/${this.params.jobID}/record_update_job_error`
+    const res = await this.client.post(recordErrorURL, error, {
+      headers: {Authorization: this.params.jobToken}
+    })
+    if (res.status !== 200) {
+      throw new Error(`Unexpected status code: ${res.status}`)
+    }
+
+    return res.data.data.attributes
+  }
+
+  async markJobAsProcessed(): Promise<void> {
+    const markAsProcessedURL = `/update_jobs/${this.params.jobID}/mark_as_processed`
+    const res = await this.client.get(markAsProcessedURL, {
+      headers: {Authorization: this.params.credentialsToken}
+    })
+    if (res.status !== 200) {
+      throw new Error(`Unexpected status code: ${res.status}`)
+    }
+
+    return res.data.data.attributes
   }
 }

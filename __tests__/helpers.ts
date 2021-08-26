@@ -25,7 +25,7 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
   await docker.pruneContainers()
 }
 
-export const runFakeDependabotApi = async (port: number): Promise<Function> => {
+export const runFakeDependabotApi = async (port = 9000): Promise<Function> => {
   const server = spawn('node', [
     `${path.join(__dirname, 'server/server.js')}`,
     `${port}`
@@ -43,4 +43,14 @@ export const runFakeDependabotApi = async (port: number): Promise<Function> => {
   return (): void => {
     server.kill()
   }
+}
+
+export const eventFixturePath = (fixtureName: string): string => {
+  return path.join(
+    __dirname,
+    '..',
+    '__fixtures__',
+    'events',
+    `${fixtureName}.json`
+  )
 }
