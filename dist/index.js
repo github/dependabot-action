@@ -70827,8 +70827,10 @@ __nccwpck_require__.r(__webpack_exports__);
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
+  "DependabotErrorType": () => (/* binding */ DependabotErrorType),
   "PROXY_IMAGE_NAME": () => (/* binding */ PROXY_IMAGE_NAME),
-  "UPDATER_IMAGE_NAME": () => (/* binding */ UPDATER_IMAGE_NAME)
+  "UPDATER_IMAGE_NAME": () => (/* binding */ UPDATER_IMAGE_NAME),
+  "run": () => (/* binding */ run)
 });
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
@@ -70854,6 +70856,8 @@ class JobParameters {
         this.dependabotAPIURL = dependabotAPIURL;
     }
 }
+// TODO: Populate with enabled values
+// TODO: Rescue unsupported values
 var PackageManager;
 (function (PackageManager) {
     PackageManager["NpmAndYarn"] = "npm_and_yarn";
@@ -70877,14 +70881,38 @@ class APIClient {
     }
     getCredentials() {
         return __awaiter(this, void 0, void 0, function* () {
-            const detailsURL = `/update_jobs/${this.params.jobID}/credentials`;
-            const res = yield this.client.get(detailsURL, {
+            const credentialsURL = `/update_jobs/${this.params.jobID}/credentials`;
+            const res = yield this.client.get(credentialsURL, {
                 headers: { Authorization: this.params.credentialsToken }
             });
             if (res.status !== 200) {
                 throw new Error(`Unexpected status code: ${res.status}`);
             }
             return res.data.data.attributes.credentials;
+        });
+    }
+    reportJobError(error) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const recordErrorURL = `/update_jobs/${this.params.jobID}/record_update_job_error`;
+            const res = yield this.client.post(recordErrorURL, error, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 200) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+            return res.data.data.attributes;
+        });
+    }
+    markJobAsProcessed() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const markAsProcessedURL = `/update_jobs/${this.params.jobID}/mark_as_processed`;
+            const res = yield this.client.get(markAsProcessedURL, {
+                headers: { Authorization: this.params.credentialsToken }
+            });
+            if (res.status !== 200) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+            return res.data.data.attributes;
         });
     }
 }
@@ -71343,32 +71371,72 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 const UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
 const PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
-function run() {
+var DependabotErrorType;
+(function (DependabotErrorType) {
+    DependabotErrorType["Unknown"] = "actions_workflow_unknown";
+    DependabotErrorType["Image"] = "actions_workflow_image";
+    DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
+})(DependabotErrorType || (DependabotErrorType = {}));
+function run(context) {
     return main_awaiter(this, void 0, void 0, function* () {
         try {
             // Decode JobParameters:
-            const params = getJobParameters(github.context);
+            const params = getJobParameters(context);
             if (params === null) {
                 return; // No parameters, nothing to do
             }
-            core.info(JSON.stringify(params));
+            core.debug(JSON.stringify(params));
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_default().create({ baseURL: params.dependabotAPIURL });
             const apiClient = new APIClient(client, params);
-            const details = yield apiClient.getJobDetails();
-            const credentials = yield apiClient.getCredentials();
-            const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
-            yield ImageService.pull(UPDATER_IMAGE_NAME);
-            yield ImageService.pull(PROXY_IMAGE_NAME);
-            yield updater.runUpdater();
+            try {
+                const details = yield apiClient.getJobDetails();
+                const credentials = yield apiClient.getCredentials();
+                const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
+                try {
+                    yield ImageService.pull(UPDATER_IMAGE_NAME);
+                    yield ImageService.pull(PROXY_IMAGE_NAME);
+                }
+                catch (error) {
+                    yield failJob(apiClient, error, DependabotErrorType.Image);
+                    return;
+                }
+                try {
+                    yield updater.runUpdater();
+                }
+                catch (error) {
+                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                    return;
+                }
+                core.info('🤖 ~fin~');
+            }
+            catch (error) {
+                // Update Dependabot API on the job failure
+                yield failJob(apiClient, error);
+            }
         }
         catch (error) {
-            core.setFailed(error.message);
+            // If we've reached this point, we do not have a viable
+            // API client to report back to Dependabot API.
+            //
+            // We output the raw error in the Action logs and defer
+            // to workflow_run monitoring to detect the job failure.
+            core.setFailed(error);
         }
     });
 }
-run();
+function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
+    return main_awaiter(this, void 0, void 0, function* () {
+        yield apiClient.reportJobError({
+            'error-type': errorType,
+            'error-detail': error.message
+        });
+        yield apiClient.markJobAsProcessed();
+        core.setFailed(error.message);
+    });
+}
+run(github.context);
 
 })();
 
