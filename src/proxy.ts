@@ -1,3 +1,4 @@
+import fs from 'fs'
 import * as core from '@actions/core'
 import Docker, {Container, Network} from 'dockerode'
 import crypto from 'crypto'
@@ -15,6 +16,8 @@ const KEY_SIZE = 2048
 const KEY_EXPIRY_YEARS = 2
 const CONFIG_FILE_PATH = '/'
 const CONFIG_FILE_NAME = 'config.json'
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates'
+const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt'
 const CERT_SUBJECT = [
   {
     name: 'commonName',
@@ -73,6 +76,19 @@ export class ProxyBuilder {
       container,
       config
     )
+
+    if (process.env.CUSTOM_CA_PATH) {
+      // read the file defined at the CUSTOM_CA_PATH environment variable
+      const customCert = fs
+        .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
+        .toString()
+      await ContainerService.storeCert(
+        CUSTOM_CA_CERT_NAME,
+        CA_CERT_INPUT_PATH,
+        container,
+        customCert
+      )
+    }
 
     const stream = await container.attach({
       stream: true,
@@ -161,6 +177,12 @@ export class ProxyBuilder {
       AttachStdout: true,
       AttachStderr: true,
       Env: [`JOB_ID=${jobID}`],
+      Cmd: [
+        'sh',
+        '-c',
+        '/usr/sbin/update-ca-certificates && /update-job-proxy'
+      ],
+
       HostConfig: {
         NetworkMode: networkName
       }
