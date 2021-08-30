@@ -26,6 +26,8 @@ export async function run(context: Context): Promise<void> {
       return // No parameters, nothing to do
     }
 
+    core.info('Starting updater')
+
     core.debug(JSON.stringify(params))
 
     core.setSecret(params.jobToken)
@@ -35,6 +37,8 @@ export async function run(context: Context): Promise<void> {
     const apiClient = new APIClient(client, params)
 
     try {
+      core.info('Fetching job details')
+
       const details = await apiClient.getJobDetails()
       const credentials = await apiClient.getCredentials()
       const updater = new Updater(
@@ -46,16 +50,23 @@ export async function run(context: Context): Promise<void> {
       )
 
       try {
+        core.info('Pulling updater and proxy images')
+
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
       } catch (error) {
+        core.error('Error fetching updater and proxy images')
+
         await failJob(apiClient, error, DependabotErrorType.Image)
         return
       }
 
       try {
+        core.info('Starting update process')
+
         await updater.runUpdater()
       } catch (error) {
+        core.error('Error performing update')
         await failJob(apiClient, error, DependabotErrorType.UpdateRun)
         return
       }
