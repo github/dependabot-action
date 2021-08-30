@@ -71385,27 +71385,33 @@ function run(context) {
             if (params === null) {
                 return; // No parameters, nothing to do
             }
+            core.info('Starting updater');
             core.debug(JSON.stringify(params));
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_default().create({ baseURL: params.dependabotAPIURL });
             const apiClient = new APIClient(client, params);
             try {
+                core.info('Fetching job details');
                 const details = yield apiClient.getJobDetails();
                 const credentials = yield apiClient.getCredentials();
                 const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
                 try {
+                    core.info('Pulling updater and proxy images');
                     yield ImageService.pull(UPDATER_IMAGE_NAME);
                     yield ImageService.pull(PROXY_IMAGE_NAME);
                 }
                 catch (error) {
+                    core.error('Error fetching updater and proxy images');
                     yield failJob(apiClient, error, DependabotErrorType.Image);
                     return;
                 }
                 try {
+                    core.info('Starting update process');
                     yield updater.runUpdater();
                 }
                 catch (error) {
+                    core.error('Error performing update');
                     yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
                     return;
                 }
