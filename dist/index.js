@@ -71089,10 +71089,13 @@ var proxy_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _ar
 
 
 
+
 const KEY_SIZE = 2048;
 const KEY_EXPIRY_YEARS = 2;
 const CONFIG_FILE_PATH = '/';
 const CONFIG_FILE_NAME = 'config.json';
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt';
 const CERT_SUBJECT = [
     {
         name: 'commonName',
@@ -71133,13 +71136,17 @@ class ProxyBuilder {
             const network = yield this.ensureNetwork(networkName);
             const container = yield this.createContainer(details.id, name, networkName);
             yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
+            if (process.env.CUSTOM_CA_PATH) {
+                const customCert = external_fs_default().readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
+                    .toString();
+                yield ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
+            }
             const stream = yield container.attach({
                 stream: true,
                 stdout: true,
                 stderr: true
             });
             container.modem.demuxStream(stream, outStream('  proxy'), errStream('  proxy'));
-            container.start();
             const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
             return {
                 container,
@@ -71202,6 +71209,11 @@ class ProxyBuilder {
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [`JOB_ID=${jobID}`],
+                Cmd: [
+                    'sh',
+                    '-c',
+                    '/usr/sbin/update-ca-certificates && /update-job-proxy'
+                ],
                 HostConfig: {
                     NetworkMode: networkName
                 }
@@ -71234,7 +71246,7 @@ const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
 const JOB_OUTPUT_FILENAME = 'output.json';
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
-const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const updater_CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
 class Updater {
     constructor(updaterImage, proxyImage, apiClient, details, credentials) {
@@ -71252,6 +71264,7 @@ class Updater {
         return updater_awaiter(this, void 0, void 0, function* () {
             try {
                 const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.details, this.credentials);
+                proxy.container.start();
                 try {
                     const files = yield this.runFileFetcher(proxy);
                     if (!files) {
@@ -71280,7 +71293,7 @@ class Updater {
         return updater_awaiter(this, void 0, void 0, function* () {
             const container = yield this.createContainer(proxy, 'fetch_files');
             yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
-            yield ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
+            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
             yield ContainerService.run(container);
             const outputPath = external_path_default().join(__dirname, '../output/output.json');
             if (!external_fs_default().existsSync(outputPath)) {
@@ -71307,7 +71320,7 @@ class Updater {
                 job: this.details
             };
             yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, containerInput);
-            yield ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
+            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
             yield ContainerService.run(container);
         });
     }
