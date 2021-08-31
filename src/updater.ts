@@ -38,6 +38,7 @@ export class Updater {
         this.details,
         this.credentials
       )
+      proxy.container.start()
 
       try {
         const files = await this.runFileFetcher(proxy)
