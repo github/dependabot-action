@@ -177,7 +177,7 @@ export class ProxyBuilder {
       AttachStdout: true,
       AttachStderr: true,
       Env: [`JOB_ID=${jobID}`],
-      Cmd: [
+      Entrypoint: [
         'sh',
         '-c',
         '/usr/sbin/update-ca-certificates && /update-job-proxy'

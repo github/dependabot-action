@@ -57,7 +57,7 @@ describe('ProxyBuilder', () => {
     const containerInfo = await proxy.container.inspect()
     expect(containerInfo.Name).toBe('/job-1-proxy')
     expect(containerInfo.HostConfig.NetworkMode).toBe('job-1-network')
-    expect(containerInfo.Config.Cmd).toEqual([
+    expect(containerInfo.Config.Entrypoint).toEqual([
       'sh',
       '-c',
       '/usr/sbin/update-ca-certificates && /update-job-proxy'

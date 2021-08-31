@@ -71137,6 +71137,7 @@ class ProxyBuilder {
             const container = yield this.createContainer(details.id, name, networkName);
             yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
             if (process.env.CUSTOM_CA_PATH) {
+                core.info('Detected custom CA certificate, adding to proxy');
                 const customCert = external_fs_default().readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
                     .toString();
                 yield ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
@@ -71209,7 +71210,7 @@ class ProxyBuilder {
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [`JOB_ID=${jobID}`],
-                Cmd: [
+                Entrypoint: [
                     'sh',
                     '-c',
                     '/usr/sbin/update-ca-certificates && /update-job-proxy'
