@@ -4,6 +4,9 @@ import {ImageService} from '../src/image-service'
 import {PROXY_IMAGE_NAME} from '../src/main'
 import {ProxyBuilder} from '../src/proxy'
 import {removeDanglingUpdaterContainers} from './helpers'
+import {spawnSync} from 'child_process'
+import fs from 'fs'
+import path from 'path'
 
 describe('ProxyBuilder', () => {
   const docker = new Docker()
@@ -46,6 +49,7 @@ describe('ProxyBuilder', () => {
     }
 
     const proxy = await builder.run(details, credentials)
+    await proxy.container.start()
 
     expect(proxy.networkName).toBe('job-1-network')
     expect(proxy.url).toMatch(/^http:\/\/1:.+job-1-proxy:1080$/)
@@ -63,6 +67,41 @@ describe('ProxyBuilder', () => {
     expect(networkInfo.Name).toBe('job-1-network')
     expect(networkInfo.Internal).toBe(false)
 
+    // run a bash command that executes docker and returns contents of /config.json
+    const id = proxy.container.id
+    const proc = spawnSync('docker', ['exec', id, 'cat', '/config.json'])
+    const stdout = proc.stdout.toString()
+    const config = JSON.parse(stdout)
+    expect(config.all_credentials).toEqual(credentials)
+
     await proxy.shutdown()
+  })
+
+  it('copies in a custom root CA if configured', async () => {
+    if (process.env.SKIP_INTEGRATION_TESTS) {
+      return
+    }
+
+    // make a tmp dir at the repo root unless it already exists
+    const tmpDir = path.join(__dirname, '../tmp')
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir)
+    }
+    const certPath = path.join(__dirname, '../tmp/custom-cert.crt')
+    fs.writeFileSync(certPath, 'ca-pem-contents')
+    process.env.CUSTOM_CA_PATH = certPath
+
+    const proxy = await builder.run(details, credentials)
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', [
+      'exec',
+      id,
+      'cat',
+      '/usr/local/share/ca-certificates/custom-ca-cert.crt'
+    ])
+    const stdout = proc.stdout.toString()
+    expect(stdout).toEqual('ca-pem-contents')
   })
 })

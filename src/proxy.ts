@@ -78,7 +78,6 @@ export class ProxyBuilder {
     )
 
     if (process.env.CUSTOM_CA_PATH) {
-      // read the file defined at the CUSTOM_CA_PATH environment variable
       const customCert = fs
         .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
         .toString()
@@ -101,7 +100,6 @@ export class ProxyBuilder {
       errStream('  proxy')
     )
 
-    container.start()
     const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
     return {
       container,
