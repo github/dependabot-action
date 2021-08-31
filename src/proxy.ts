@@ -78,6 +78,8 @@ export class ProxyBuilder {
     )
 
     if (process.env.CUSTOM_CA_PATH) {
+      core.info('Detected custom CA certificate, adding to proxy')
+
       const customCert = fs
         .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
         .toString()
