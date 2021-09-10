@@ -46,7 +46,7 @@
     "eslint-plugin-jest": "^24.4.0",
     "husky": "^7.0.1",
     "jest": "^27.0.6",
-    "jest-circus": "^27.0.4",
+    "jest-circus": "^27.1.0",
     "js-yaml": "^4.1.0",
     "json-server": "^0.16.3",
     "lint-staged": "^11.1.1",
