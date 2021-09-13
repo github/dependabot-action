@@ -70560,7 +70560,7 @@ module.exports = eval("require")("encoding");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"axios","version":"0.21.1","description":"Promise based HTTP client for the browser and node.js","main":"index.js","scripts":{"test":"grunt test && bundlesize","start":"node ./sandbox/server.js","build":"NODE_ENV=production grunt build","preversion":"npm test","version":"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json","postversion":"git push && git push --tags","examples":"node ./examples/server.js","coveralls":"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js","fix":"eslint --fix lib/**/*.js"},"repository":{"type":"git","url":"https://github.com/axios/axios.git"},"keywords":["xhr","http","ajax","promise","node"],"author":"Matt Zabriskie","license":"MIT","bugs":{"url":"https://github.com/axios/axios/issues"},"homepage":"https://github.com/axios/axios","devDependencies":{"bundlesize":"^0.17.0","coveralls":"^3.0.0","es6-promise":"^4.2.4","grunt":"^1.0.2","grunt-banner":"^0.6.0","grunt-cli":"^1.2.0","grunt-contrib-clean":"^1.1.0","grunt-contrib-watch":"^1.0.0","grunt-eslint":"^20.1.0","grunt-karma":"^2.0.0","grunt-mocha-test":"^0.13.3","grunt-ts":"^6.0.0-beta.19","grunt-webpack":"^1.0.18","istanbul-instrumenter-loader":"^1.0.0","jasmine-core":"^2.4.1","karma":"^1.3.0","karma-chrome-launcher":"^2.2.0","karma-coverage":"^1.1.1","karma-firefox-launcher":"^1.1.0","karma-jasmine":"^1.1.1","karma-jasmine-ajax":"^0.1.13","karma-opera-launcher":"^1.0.0","karma-safari-launcher":"^1.0.0","karma-sauce-launcher":"^1.2.0","karma-sinon":"^1.0.5","karma-sourcemap-loader":"^0.3.7","karma-webpack":"^1.7.0","load-grunt-tasks":"^3.5.2","minimist":"^1.2.0","mocha":"^5.2.0","sinon":"^4.5.0","typescript":"^2.8.1","url-search-params":"^0.10.0","webpack":"^1.13.1","webpack-dev-server":"^1.14.1"},"browser":{"./lib/adapters/http.js":"./lib/adapters/xhr.js"},"jsdelivr":"dist/axios.min.js","unpkg":"dist/axios.min.js","typings":"./index.d.ts","dependencies":{"follow-redirects":"^1.10.0"},"bundlesize":[{"path":"./dist/axios.min.js","threshold":"5kB"}]}');
+module.exports = JSON.parse('{"_args":[["axios@0.21.1","/Users/brrygrdn/Code/github/updater-action"]],"_from":"axios@0.21.1","_id":"axios@0.21.1","_inBundle":false,"_integrity":"sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==","_location":"/axios","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"axios@0.21.1","name":"axios","escapedName":"axios","rawSpec":"0.21.1","saveSpec":null,"fetchSpec":"0.21.1"},"_requiredBy":["/"],"_resolved":"https://registry.npmjs.org/axios/-/axios-0.21.1.tgz","_spec":"0.21.1","_where":"/Users/brrygrdn/Code/github/updater-action","author":{"name":"Matt Zabriskie"},"browser":{"./lib/adapters/http.js":"./lib/adapters/xhr.js"},"bugs":{"url":"https://github.com/axios/axios/issues"},"bundlesize":[{"path":"./dist/axios.min.js","threshold":"5kB"}],"dependencies":{"follow-redirects":"^1.10.0"},"description":"Promise based HTTP client for the browser and node.js","devDependencies":{"bundlesize":"^0.17.0","coveralls":"^3.0.0","es6-promise":"^4.2.4","grunt":"^1.0.2","grunt-banner":"^0.6.0","grunt-cli":"^1.2.0","grunt-contrib-clean":"^1.1.0","grunt-contrib-watch":"^1.0.0","grunt-eslint":"^20.1.0","grunt-karma":"^2.0.0","grunt-mocha-test":"^0.13.3","grunt-ts":"^6.0.0-beta.19","grunt-webpack":"^1.0.18","istanbul-instrumenter-loader":"^1.0.0","jasmine-core":"^2.4.1","karma":"^1.3.0","karma-chrome-launcher":"^2.2.0","karma-coverage":"^1.1.1","karma-firefox-launcher":"^1.1.0","karma-jasmine":"^1.1.1","karma-jasmine-ajax":"^0.1.13","karma-opera-launcher":"^1.0.0","karma-safari-launcher":"^1.0.0","karma-sauce-launcher":"^1.2.0","karma-sinon":"^1.0.5","karma-sourcemap-loader":"^0.3.7","karma-webpack":"^1.7.0","load-grunt-tasks":"^3.5.2","minimist":"^1.2.0","mocha":"^5.2.0","sinon":"^4.5.0","typescript":"^2.8.1","url-search-params":"^0.10.0","webpack":"^1.13.1","webpack-dev-server":"^1.14.1"},"homepage":"https://github.com/axios/axios","jsdelivr":"dist/axios.min.js","keywords":["xhr","http","ajax","promise","node"],"license":"MIT","main":"index.js","name":"axios","repository":{"type":"git","url":"git+https://github.com/axios/axios.git"},"scripts":{"build":"NODE_ENV=production grunt build","coveralls":"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js","examples":"node ./examples/server.js","fix":"eslint --fix lib/**/*.js","postversion":"git push && git push --tags","preversion":"npm test","start":"node ./sandbox/server.js","test":"grunt test && bundlesize","version":"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json"},"typings":"./index.d.ts","unpkg":"dist/axios.min.js","version":"0.21.1"}');
 
 /***/ }),
 
@@ -70849,11 +70849,11 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 };
 // JobParameters are the parameters to execute a job
 class JobParameters {
-    constructor(jobID, jobToken, credentialsToken, dependabotAPIURL) {
-        this.jobID = jobID;
+    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl) {
+        this.jobId = jobId;
         this.jobToken = jobToken;
         this.credentialsToken = credentialsToken;
-        this.dependabotAPIURL = dependabotAPIURL;
+        this.dependabotApiUrl = dependabotApiUrl;
     }
 }
 // TODO: Populate with enabled values
@@ -70869,7 +70869,7 @@ class APIClient {
     }
     getJobDetails() {
         return __awaiter(this, void 0, void 0, function* () {
-            const detailsURL = `/update_jobs/${this.params.jobID}/details`;
+            const detailsURL = `/update_jobs/${this.params.jobId}/details`;
             const res = yield this.client.get(detailsURL, {
                 headers: { Authorization: this.params.jobToken }
             });
@@ -70881,7 +70881,7 @@ class APIClient {
     }
     getCredentials() {
         return __awaiter(this, void 0, void 0, function* () {
-            const credentialsURL = `/update_jobs/${this.params.jobID}/credentials`;
+            const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
             const res = yield this.client.get(credentialsURL, {
                 headers: { Authorization: this.params.credentialsToken }
             });
@@ -70893,7 +70893,7 @@ class APIClient {
     }
     reportJobError(error) {
         return __awaiter(this, void 0, void 0, function* () {
-            const recordErrorURL = `/update_jobs/${this.params.jobID}/record_update_job_error`;
+            const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
             const res = yield this.client.post(recordErrorURL, error, {
                 headers: { Authorization: this.params.jobToken }
             });
@@ -70905,7 +70905,7 @@ class APIClient {
     }
     markJobAsProcessed() {
         return __awaiter(this, void 0, void 0, function* () {
-            const markAsProcessedURL = `/update_jobs/${this.params.jobID}/mark_as_processed`;
+            const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
             const res = yield this.client.get(markAsProcessedURL, {
                 headers: { Authorization: this.params.credentialsToken }
             });
@@ -70931,7 +70931,7 @@ function getJobParameters(ctx) {
 }
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;
-    return new JobParameters(parseInt(evt.inputs.jobID, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotAPIURL);
+    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl);
 }
 
 // EXTERNAL MODULE: ./node_modules/dockerode/lib/docker.js
@@ -71176,11 +71176,11 @@ class ProxyBuilder {
             }
         });
     }
-    buildProxyConfig(credentials, jobID) {
+    buildProxyConfig(credentials, jobId) {
         const ca = this.generateCertificateAuthority();
         const password = external_crypto_default().randomBytes(20).toString('hex');
         const proxy_auth = {
-            username: `${jobID}`,
+            username: `${jobId}`,
             password
         };
         const config = { all_credentials: credentials, ca, proxy_auth };
@@ -71202,14 +71202,14 @@ class ProxyBuilder {
         const key = lib.pki.privateKeyToPem(keys.privateKey);
         return { cert: pem, key };
     }
-    createContainer(jobID, containerName, networkName) {
+    createContainer(jobId, containerName, networkName) {
         return proxy_awaiter(this, void 0, void 0, function* () {
             const container = yield this.docker.createContainer({
                 Image: this.proxyImage,
                 name: containerName,
                 AttachStdout: true,
                 AttachStderr: true,
-                Env: [`JOB_ID=${jobID}`],
+                Env: [`JOB_ID=${jobId}`],
                 Entrypoint: [
                     'sh',
                     '-c',
@@ -71312,7 +71312,7 @@ class Updater {
     }
     runFileUpdater(proxy, files) {
         return updater_awaiter(this, void 0, void 0, function* () {
-            core.info(`Running update job ${this.apiClient.params.jobID}`);
+            core.info(`Running update job ${this.apiClient.params.jobId}`);
             const container = yield this.createContainer(proxy, 'update_files');
             const containerInput = {
                 base_commit_sha: files.base_commit_sha,
@@ -71336,12 +71336,12 @@ class Updater {
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [
-                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobID}`,
+                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
                     `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
                     `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
                     `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
                     `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`,
+                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiUrl}`,
                     `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
                     `http_proxy=${proxy.url}`,
                     `HTTP_PROXY=${proxy.url}`,
@@ -71403,7 +71403,7 @@ function run(context) {
             core.debug(JSON.stringify(params));
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
-            const client = axios_default().create({ baseURL: params.dependabotAPIURL });
+            const client = axios_default().create({ baseURL: params.dependabotApiUrl });
             const apiClient = new APIClient(client, params);
             try {
                 core.info('Fetching job details');

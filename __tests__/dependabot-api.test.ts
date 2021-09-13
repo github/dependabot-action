@@ -5,10 +5,10 @@ describe('APIClient', () => {
     get: jest.fn()
   }
   const api = new APIClient(mockAxios, {
-    jobID: 1,
+    jobId: 1,
     jobToken: 'xxx',
     credentialsToken: 'yyy',
-    dependabotAPIURL: 'https://localhost'
+    dependabotApiUrl: 'https://localhost'
   })
   beforeEach(jest.clearAllMocks)
 

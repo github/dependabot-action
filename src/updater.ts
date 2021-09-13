@@ -102,7 +102,7 @@ export class Updater {
     proxy: Proxy,
     files: FetchedFiles
   ): Promise<void> {
-    core.info(`Running update job ${this.apiClient.params.jobID}`)
+    core.info(`Running update job ${this.apiClient.params.jobId}`)
     const container = await this.createContainer(proxy, 'update_files')
     const containerInput: FileUpdaterInput = {
       base_commit_sha: files.base_commit_sha,
@@ -140,12 +140,12 @@ export class Updater {
       AttachStdout: true,
       AttachStderr: true,
       Env: [
-        `DEPENDABOT_JOB_ID=${this.apiClient.params.jobID}`,
+        `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
         `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotAPIURL}`,
+        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiUrl}`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
         `http_proxy=${proxy.url}`,
         `HTTP_PROXY=${proxy.url}`,

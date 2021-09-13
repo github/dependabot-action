@@ -18,9 +18,9 @@ export function getJobParameters(ctx: Context): JobParameters | null {
 function fromWorkflowInputs(ctx: Context): JobParameters {
   const evt = ctx.payload as WorkflowDispatchEvent
   return new JobParameters(
-    parseInt(evt.inputs.jobID as string, 10),
+    parseInt(evt.inputs.jobId as string, 10),
     evt.inputs.jobToken as string,
     evt.inputs.credentialsToken as string,
-    evt.inputs.dependabotAPIURL as string
+    evt.inputs.dependabotApiUrl as string
   )
 }

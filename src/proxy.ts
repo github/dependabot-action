@@ -130,12 +130,12 @@ export class ProxyBuilder {
 
   private buildProxyConfig(
     credentials: Credential[],
-    jobID: string
+    jobId: string
   ): ProxyConfig {
     const ca = this.generateCertificateAuthority()
     const password = crypto.randomBytes(20).toString('hex')
     const proxy_auth: BasicAuthCredentials = {
-      username: `${jobID}`,
+      username: `${jobId}`,
       password
     }
 
@@ -167,7 +167,7 @@ export class ProxyBuilder {
   }
 
   private async createContainer(
-    jobID: string,
+    jobId: string,
     containerName: string,
     networkName: string
   ): Promise<Container> {
@@ -176,7 +176,7 @@ export class ProxyBuilder {
       name: containerName,
       AttachStdout: true,
       AttachStderr: true,
-      Env: [`JOB_ID=${jobID}`],
+      Env: [`JOB_ID=${jobId}`],
       Entrypoint: [
         'sh',
         '-c',

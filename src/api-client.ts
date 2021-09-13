@@ -3,10 +3,10 @@ import {AxiosInstance} from 'axios'
 // JobParameters are the parameters to execute a job
 export class JobParameters {
   constructor(
-    readonly jobID: number,
+    readonly jobId: number,
     readonly jobToken: string,
     readonly credentialsToken: string,
-    readonly dependabotAPIURL: string
+    readonly dependabotApiUrl: string
   ) {}
 }
 
@@ -45,7 +45,7 @@ export class APIClient {
   ) {}
 
   async getJobDetails(): Promise<JobDetails> {
-    const detailsURL = `/update_jobs/${this.params.jobID}/details`
+    const detailsURL = `/update_jobs/${this.params.jobId}/details`
     const res = await this.client.get(detailsURL, {
       headers: {Authorization: this.params.jobToken}
     })
@@ -57,7 +57,7 @@ export class APIClient {
   }
 
   async getCredentials(): Promise<Credential[]> {
-    const credentialsURL = `/update_jobs/${this.params.jobID}/credentials`
+    const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`
     const res = await this.client.get(credentialsURL, {
       headers: {Authorization: this.params.credentialsToken}
     })
@@ -69,7 +69,7 @@ export class APIClient {
   }
 
   async reportJobError(error: JobError): Promise<void> {
-    const recordErrorURL = `/update_jobs/${this.params.jobID}/record_update_job_error`
+    const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`
     const res = await this.client.post(recordErrorURL, error, {
       headers: {Authorization: this.params.jobToken}
     })
@@ -81,7 +81,7 @@ export class APIClient {
   }
 
   async markJobAsProcessed(): Promise<void> {
-    const markAsProcessedURL = `/update_jobs/${this.params.jobID}/mark_as_processed`
+    const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`
     const res = await this.client.get(markAsProcessedURL, {
       headers: {Authorization: this.params.credentialsToken}
     })

@@ -14,14 +14,14 @@ test('loads dynamic', () => {
   ctx.eventName = 'dynamic'
   ctx.payload = {
     inputs: {
-      jobID: 1,
+      jobId: 1,
       jobToken: 'xxx',
       credentialsToken: 'yyy'
     }
   }
 
   const params = getJobParameters(ctx)
-  expect(params?.jobID).toEqual(1)
+  expect(params?.jobId).toEqual(1)
   expect(params?.jobToken).toEqual('xxx')
   expect(params?.credentialsToken).toEqual('yyy')
 })
@@ -31,14 +31,14 @@ test('loads workflow_dispatch', () => {
   ctx.eventName = 'workflow_dispatch'
   ctx.payload = {
     inputs: {
-      jobID: '1',
+      jobId: '1',
       jobToken: 'xxx',
       credentialsToken: 'yyy'
     }
   }
 
   const params = getJobParameters(ctx)
-  expect(params?.jobID).toEqual(1)
+  expect(params?.jobId).toEqual(1)
   expect(params?.jobToken).toEqual('xxx')
   expect(params?.credentialsToken).toEqual('yyy')
 })

@@ -14,7 +14,7 @@ describe('Updater', () => {
 
   // To run the js-code itself against API:
   // const params = {
-  //   jobID: 1,
+  //   jobId: 1,
   //   jobToken: 'xxx',
   //   credentialsToken: 'xxx',
   //   dependabotAPI: 'http://host.docker.internal:3001'

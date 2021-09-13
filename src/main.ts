@@ -33,7 +33,7 @@ export async function run(context: Context): Promise<void> {
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 
-    const client = axios.create({baseURL: params.dependabotAPIURL})
+    const client = axios.create({baseURL: params.dependabotApiUrl})
     const apiClient = new APIClient(client, params)
 
     try {
