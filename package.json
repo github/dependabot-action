@@ -11,7 +11,8 @@
     "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
-    "all": "npm run format && npm run lint && npm run package && npm test"
+    "all": "npm run format && npm run lint && npm run package && npm test",
+    "dependabot": "npx ts-node src/cli.ts"
   },
   "repository": {
     "type": "git",

@@ -145,7 +145,7 @@ export class Updater {
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiUrl}`,
+        `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiDockerUrl}`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
         `http_proxy=${proxy.url}`,
         `HTTP_PROXY=${proxy.url}`,

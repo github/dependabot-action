@@ -98,4 +98,7 @@ async function failJob(
   core.setFailed(error.message)
 }
 
-run(github.context)
+// Run the update in the current Actions context if called directly
+if (require.main === module) {
+  run(github.context)
+}

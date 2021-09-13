@@ -17,10 +17,15 @@ export function getJobParameters(ctx: Context): JobParameters | null {
 
 function fromWorkflowInputs(ctx: Context): JobParameters {
   const evt = ctx.payload as WorkflowDispatchEvent
+
+  const dependabotApiDockerUrl =
+    evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl
+
   return new JobParameters(
     parseInt(evt.inputs.jobId as string, 10),
     evt.inputs.jobToken as string,
     evt.inputs.credentialsToken as string,
-    evt.inputs.dependabotApiUrl as string
+    evt.inputs.dependabotApiUrl as string,
+    dependabotApiDockerUrl as string
   )
 }
