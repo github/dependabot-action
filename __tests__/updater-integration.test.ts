@@ -20,8 +20,8 @@ describe('Updater', () => {
   const dependabotApiDockerUrl = `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
   const params = new JobParameters(
     1,
-    process.env.JOB_TOKEN || 'job-token',
-    process.env.CREDENTIALS_TOKEN || 'cred-token',
+    'job-token',
+    'cred-token',
     dependabotApiUrl,
     dependabotApiDockerUrl
   )
