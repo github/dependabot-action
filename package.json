@@ -11,7 +11,8 @@
     "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
-    "all": "npm run format && npm run lint && npm run package && npm test"
+    "all": "npm run format && npm run lint && npm run package && npm test",
+    "dependabot": "npx ts-node src/cli.ts"
   },
   "repository": {
     "type": "git",
@@ -29,6 +30,7 @@
     "@actions/github": "^5.0.0",
     "@octokit/webhooks-definitions": "^3.67.3",
     "axios": "^0.21.1",
+    "commander": "^8.2.0",
     "dockerode": "^3.3.0",
     "tar-stream": "^2.2.0"
   },

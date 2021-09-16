@@ -2,8 +2,8 @@
   "action": "on-demand-test",
   "branch": "master",
   "client_payload": {
-    "dependabotAPIURL": "https://3c3fcfad18d1.ngrok.io",
-    "jobID": "8",
+    "dependabotApiUrl": "https://3c3fcfad18d1.ngrok.io",
+    "jobId": "8",
     "jobToken": "QkNM+m1lDFieJ0V6DAwUY+hG6PUKItjuS7EApTVsTQw=",
     "credentialsToken": "hMAqnnY+CJGUCQjKRUzSZnR+DnbW5YEA5nL2xh8zovk=",
     "updaterImage": "docker.io/library/dependabot-updater:latest",

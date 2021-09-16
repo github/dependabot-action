@@ -33,7 +33,7 @@ export async function run(context: Context): Promise<void> {
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 
-    const client = axios.create({baseURL: params.dependabotAPIURL})
+    const client = axios.create({baseURL: params.dependabotApiUrl})
     const apiClient = new APIClient(client, params)
 
     try {
@@ -98,4 +98,7 @@ async function failJob(
   core.setFailed(error.message)
 }
 
-run(github.context)
+// Run the update in the current Actions context if called directly
+if (require.main === module) {
+  run(github.context)
+}

@@ -12,33 +12,21 @@ const FAKE_SERVER_PORT = 9000
 describe('Updater', () => {
   let server: any
 
-  // To run the js-code itself against API:
-  // const params = {
-  //   jobID: 1,
-  //   jobToken: 'xxx',
-  //   credentialsToken: 'xxx',
-  //   dependabotAPI: 'http://host.docker.internal:3001'
-  // }
-
-  // This runs the tests against a fake dependabot-api server using json-server
-  const fakeDependabotApiUrl = `http://localhost:${FAKE_SERVER_PORT}`
   // Used from this action to get job details and credentials
-  const externalDependabotApiUrl =
-    process.env.DEPENDABOT_API_URL || fakeDependabotApiUrl
+  const dependabotApiUrl = `http://localhost:${FAKE_SERVER_PORT}`
   // Used from within the updater container to update the job state and create prs
   const internalDockerHost =
     process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
-  const internalDependabotApiUrl =
-    process.env.DEPENDABOT_API_URL ||
-    `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
+  const dependabotApiDockerUrl = `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
   const params = new JobParameters(
     1,
-    process.env.JOB_TOKEN || 'job-token',
-    process.env.CREDENTIALS_TOKEN || 'cred-token',
-    internalDependabotApiUrl
+    'job-token',
+    'cred-token',
+    dependabotApiUrl,
+    dependabotApiDockerUrl
   )
 
-  const client = axios.create({baseURL: externalDependabotApiUrl})
+  const client = axios.create({baseURL: dependabotApiUrl})
   const apiClient = new APIClient(client, params)
 
   beforeAll(async () => {
@@ -50,9 +38,7 @@ describe('Updater', () => {
     await ImageService.pull(UPDATER_IMAGE_NAME)
     await ImageService.pull(PROXY_IMAGE_NAME)
 
-    if (externalDependabotApiUrl === fakeDependabotApiUrl) {
-      server = await runFakeDependabotApi(FAKE_SERVER_PORT)
-    }
+    server = await runFakeDependabotApi(FAKE_SERVER_PORT)
   })
 
   afterEach(async () => {

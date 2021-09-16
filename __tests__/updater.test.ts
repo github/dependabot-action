@@ -7,10 +7,10 @@ describe('Updater', () => {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
     params: {
-      jobID: 1,
+      jobId: 1,
       jobToken: process.env.JOB_TOKEN,
       credentialsToken: process.env.CREDENTIALS_TOKEN,
-      dependabotAPIURL: 'http://host.docker.internal:3001'
+      dependabotApiUrl: 'http://host.docker.internal:3001'
     }
   }
   const mockJobDetails: any = {
