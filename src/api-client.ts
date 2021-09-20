@@ -78,7 +78,7 @@ export class ApiClient {
   async markJobAsProcessed(): Promise<void> {
     const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`
     const res = await this.client.get(markAsProcessedURL, {
-      headers: {Authorization: this.params.credentialsToken}
+      headers: {Authorization: this.params.jobToken}
     })
     if (res.status !== 200) {
       throw new Error(`Unexpected status code: ${res.status}`)
