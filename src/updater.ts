@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
 import path from 'path'
 import fs from 'fs'
-import {JobDetails, APIClient, Credential} from './api-client'
+import {JobDetails, ApiClient, Credential} from './api-client'
 import {ContainerService} from './container-service'
 import {base64DecodeDependencyFile} from './utils'
 import {DependencyFile, FetchedFiles, FileUpdaterInput} from './config-types'
@@ -22,7 +22,7 @@ export class Updater {
   constructor(
     private readonly updaterImage: string,
     private readonly proxyImage: string,
-    private readonly apiClient: APIClient,
+    private readonly apiClient: ApiClient,
     private readonly details: JobDetails,
     private readonly credentials: Credential[]
   ) {

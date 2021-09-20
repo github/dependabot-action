@@ -33,7 +33,7 @@ export type Credential = {
   token?: string
 }
 
-export class APIClient {
+export class ApiClient {
   constructor(
     private readonly client: AxiosInstance,
     readonly params: JobParameters
