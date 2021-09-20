@@ -1,10 +1,10 @@
-import {APIClient} from '../src/api-client'
+import {ApiClient} from '../src/api-client'
 
-describe('APIClient', () => {
+describe('ApiClient', () => {
   const mockAxios: any = {
     get: jest.fn()
   }
-  const api = new APIClient(mockAxios, {
+  const api = new ApiClient(mockAxios, {
     jobId: 1,
     jobToken: 'xxx',
     credentialsToken: 'yyy',

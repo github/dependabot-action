@@ -70887,13 +70887,7 @@ class JobParameters {
         this.dependabotApiDockerUrl = dependabotApiDockerUrl;
     }
 }
-// TODO: Populate with enabled values
-// TODO: Rescue unsupported values
-var PackageManager;
-(function (PackageManager) {
-    PackageManager["NpmAndYarn"] = "npm_and_yarn";
-})(PackageManager || (PackageManager = {}));
-class APIClient {
+class ApiClient {
     constructor(client, params) {
         this.client = client;
         this.params = params;
@@ -71438,7 +71432,7 @@ function run(context) {
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_default().create({ baseURL: params.dependabotApiUrl });
-            const apiClient = new APIClient(client, params);
+            const apiClient = new ApiClient(client, params);
             try {
                 core.info('Fetching job details');
                 const details = yield apiClient.getJobDetails();

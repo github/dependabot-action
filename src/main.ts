@@ -4,7 +4,7 @@ import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
 import {Updater} from './updater'
-import {APIClient} from './api-client'
+import {ApiClient} from './api-client'
 import axios from 'axios'
 
 export const UPDATER_IMAGE_NAME =
@@ -35,7 +35,7 @@ export async function run(context: Context): Promise<void> {
     core.setSecret(params.credentialsToken)
 
     const client = axios.create({baseURL: params.dependabotApiUrl})
-    const apiClient = new APIClient(client, params)
+    const apiClient = new ApiClient(client, params)
 
     try {
       core.info('Fetching job details')
@@ -87,7 +87,7 @@ export async function run(context: Context): Promise<void> {
 }
 
 async function failJob(
-  apiClient: APIClient,
+  apiClient: ApiClient,
   error: Error,
   errorType = DependabotErrorType.Unknown
 ): Promise<void> {
