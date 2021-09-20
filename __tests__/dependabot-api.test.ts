@@ -1,4 +1,4 @@
-import {APIClient, PackageManager} from '../src/api-client'
+import {APIClient} from '../src/api-client'
 
 describe('APIClient', () => {
   const mockAxios: any = {
@@ -34,6 +34,6 @@ describe('APIClient', () => {
 
     const jobDetails = await api.getJobDetails()
     expect(jobDetails['allowed-updates'].length).toBe(1)
-    expect(jobDetails['package-manager']).toBe(PackageManager.NpmAndYarn)
+    expect(jobDetails['package-manager']).toBe('npm_and_yarn')
   })
 })
