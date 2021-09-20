@@ -31,7 +31,7 @@ describe('ContainerService', () => {
         Image: 'alpine',
         AttachStdout: true,
         AttachStderr: true,
-        Cmd: ['/bin/sh', '-c']
+        Cmd: ['/bin/sh', '-c', 'nosuchccommand']
       })
     })
 

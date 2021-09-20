@@ -41,7 +41,7 @@ export class ApiClient {
     readonly params: JobParameters
   ) {}
 
-  // We use a static unknown SHA when making a job as complete from the action
+  // We use a static unknown SHA when marking a job as complete from the action
   // to remain in parity with the existing runner.
   UnknownSha = {
     'base-commit-sha': 'unknown'
