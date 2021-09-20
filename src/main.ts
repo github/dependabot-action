@@ -93,7 +93,9 @@ async function failJob(
 ): Promise<void> {
   await apiClient.reportJobError({
     'error-type': errorType,
-    'error-detail': error.message
+    'error-details': {
+      'action-error': error.message
+    }
   })
   await apiClient.markJobAsProcessed()
   core.setFailed(error.message)

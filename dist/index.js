@@ -71144,6 +71144,11 @@ class ApiClient {
     constructor(client, params) {
         this.client = client;
         this.params = params;
+        // We use a static unknown SHA when making a job as complete from the action
+        // to remain in parity with the existing runner.
+        this.UnknownSha = {
+            'base-commit-sha': 'unknown'
+        };
     }
     getJobDetails() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -71172,25 +71177,23 @@ class ApiClient {
     reportJobError(error) {
         return __awaiter(this, void 0, void 0, function* () {
             const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
-            const res = yield this.client.post(recordErrorURL, error, {
+            const res = yield this.client.post(recordErrorURL, { data: error }, {
                 headers: { Authorization: this.params.jobToken }
             });
-            if (res.status !== 200) {
+            if (res.status !== 204) {
                 throw new Error(`Unexpected status code: ${res.status}`);
             }
-            return res.data.data.attributes;
         });
     }
     markJobAsProcessed() {
         return __awaiter(this, void 0, void 0, function* () {
             const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
-            const res = yield this.client.get(markAsProcessedURL, {
+            const res = yield this.client.patch(markAsProcessedURL, { data: this.UnknownSha }, {
                 headers: { Authorization: this.params.jobToken }
             });
-            if (res.status !== 200) {
+            if (res.status !== 204) {
                 throw new Error(`Unexpected status code: ${res.status}`);
             }
-            return res.data.data.attributes;
         });
     }
 }
@@ -71747,7 +71750,9 @@ function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
     return main_awaiter(this, void 0, void 0, function* () {
         yield apiClient.reportJobError({
             'error-type': errorType,
-            'error-detail': error.message
+            'error-details': {
+                'action-error': error.message
+            }
         });
         yield apiClient.markJobAsProcessed();
         core.setFailed(error.message);
