@@ -71318,6 +71318,8 @@ var container_service_awaiter = (undefined && undefined.__awaiter) || function (
 
 
 
+class ContainerRuntimeError extends Error {
+}
 const ContainerService = {
     storeInput(name, path, container, input) {
         return container_service_awaiter(this, void 0, void 0, function* () {
@@ -71345,7 +71347,13 @@ const ContainerService = {
                 });
                 container.modem.demuxStream(stream, outStream('updater'), errStream('updater'));
                 yield container.start();
-                yield container.wait();
+                const outcome = yield container.wait();
+                if (outcome.StatusCode === 0) {
+                    return true;
+                }
+                else {
+                    throw new ContainerRuntimeError(`Failure running container ${container.id}`);
+                }
             }
             finally {
                 yield container.remove({ v: true });
