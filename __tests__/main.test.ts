@@ -139,7 +139,9 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_unknown',
-        'error-detail': 'error getting job details'
+        'error-details': {
+          'action-error': 'error getting job details'
+        }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
@@ -173,7 +175,9 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_unknown',
-        'error-detail': 'error getting credentials'
+        'error-details': {
+          'action-error': 'error getting credentials'
+        }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
@@ -207,7 +211,9 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_image',
-        'error-detail': 'error pulling an image'
+        'error-details': {
+          'action-error': 'error pulling an image'
+        }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
@@ -241,7 +247,9 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_updater',
-        'error-detail': 'error running the update'
+        'error-details': {
+          'action-error': 'error running the update'
+        }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })

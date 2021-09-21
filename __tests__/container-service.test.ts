@@ -7,18 +7,36 @@ describe('ContainerService', () => {
   const docker = new Docker()
   let container: any
 
-  beforeAll(async () => {
-    await ImageService.pull('alpine')
-    container = await docker.createContainer({
-      Image: 'alpine',
-      AttachStdout: true,
-      AttachStderr: true,
-      Cmd: ['/bin/sh', '-c', 'echo $VAR'],
-      Env: ['VAR=env-var']
+  describe('when a container runs successfully', () => {
+    beforeEach(async () => {
+      await ImageService.pull('alpine')
+      container = await docker.createContainer({
+        Image: 'alpine',
+        AttachStdout: true,
+        AttachStderr: true,
+        Cmd: ['/bin/sh', '-c', 'echo $VAR'],
+        Env: ['VAR=env-var']
+      })
+    })
+
+    test('it returns true', async () => {
+      expect(await ContainerService.run(container)).toBe(true)
     })
   })
 
-  test('runs containers', async () => {
-    await ContainerService.run(container)
+  describe('when a container runs unsuccessfully', () => {
+    beforeEach(async () => {
+      await ImageService.pull('alpine')
+      container = await docker.createContainer({
+        Image: 'alpine',
+        AttachStdout: true,
+        AttachStderr: true,
+        Cmd: ['/bin/sh', '-c', 'nosuchccommand']
+      })
+    })
+
+    test('raises an exception', async () => {
+      await expect(ContainerService.run(container)).rejects.toThrow()
+    })
   })
 })
