@@ -1,5 +1,6 @@
 name: 'test'
-on: # rebuild any PRs and main branch changes
+
+on:
   pull_request:
   push:
     branches:
