@@ -56,7 +56,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '__fixtures__/output/happy_path'
+      '../__fixtures__/output/happy_path/output.json'
     )
 
     beforeEach(async () => {
@@ -80,7 +80,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '__fixtures__/output/happy_path'
+      '../__fixtures__/output/happy_path/output.json'
     )
 
     beforeEach(async () => {
@@ -111,7 +111,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '__fixtures__/output/happy_path'
+      '../__fixtures__/output/happy_path/output.json'
     )
 
     beforeEach(async () => {
@@ -145,7 +145,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '__fixtures__/output/empty'
+      '../__fixtures__/output/empty/output.json'
     )
 
     beforeEach(async () => {
@@ -172,7 +172,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '__fixtures__/output/malformed'
+      '../__fixtures__/output/malformed/output.json'
     )
 
     beforeEach(async () => {
