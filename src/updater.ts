@@ -25,7 +25,7 @@ export class Updater {
     private readonly apiClient: ApiClient,
     private readonly details: JobDetails,
     private readonly credentials: Credential[],
-    private readonly outputPath = '../output/output.json'
+    private readonly outputFolder = 'output/'
   ) {
     this.docker = new Docker()
   }
@@ -67,7 +67,12 @@ export class Updater {
 
     await ContainerService.run(container)
 
-    const outputPath = path.join(__dirname, this.outputPath)
+    const outputPath = path.join(
+      __dirname,
+      '../',
+      this.outputFolder,
+      'output.json'
+    )
     if (!fs.existsSync(outputPath)) {
       throw new Error('No output.json created by the fetcher container')
     }
