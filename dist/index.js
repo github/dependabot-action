@@ -71050,7 +71050,7 @@ class Updater {
             yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
             yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
             yield ContainerService.run(container);
-            const outputPath = external_path_default().join(__dirname, '../', this.outputFolder, 'output.json');
+            const outputPath = external_path_default().join(__dirname, '../output/output.json');
             if (!external_fs_default().existsSync(outputPath)) {
                 throw new Error('No output.json created by the fetcher container');
             }

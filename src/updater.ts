@@ -67,12 +67,7 @@ export class Updater {
 
     await ContainerService.run(container)
 
-    const outputPath = path.join(
-      __dirname,
-      '../',
-      this.outputFolder,
-      'output.json'
-    )
+    const outputPath = path.join(__dirname, '../output/output.json')
     if (!fs.existsSync(outputPath)) {
       throw new Error('No output.json created by the fetcher container')
     }
