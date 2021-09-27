@@ -1,8 +1,9 @@
 import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
+import {PackageManager} from '../src/api-client'
 
 describe('Updater', () => {
-  const mockApiClient: any = {
+  const mockAPIClient: any = {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
     params: {
@@ -12,7 +13,6 @@ describe('Updater', () => {
       dependabotApiUrl: 'http://host.docker.internal:3001'
     }
   }
-
   const mockJobDetails: any = {
     id: '1',
     'allowed-updates': [
@@ -20,19 +20,19 @@ describe('Updater', () => {
         'dependency-type': 'all'
       }
     ],
-    'package-manager': 'npm-and-yarn'
+    'package-manage': PackageManager.NpmAndYarn
   }
 
   const updater = new Updater(
     UPDATER_IMAGE_NAME,
     PROXY_IMAGE_NAME,
-    mockApiClient,
+    mockAPIClient,
     mockJobDetails,
     []
   )
 
   it('should fetch job details', async () => {
-    mockApiClient.getJobDetails.mockImplementation(() => {
+    mockAPIClient.getJobDetails.mockImplementation(() => {
       throw new Error('kaboom')
     })
     updater.runUpdater()

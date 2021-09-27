@@ -1,10 +1,10 @@
-import {ApiClient} from '../src/api-client'
+import {APIClient, PackageManager} from '../src/api-client'
 
-describe('ApiClient', () => {
+describe('APIClient', () => {
   const mockAxios: any = {
     get: jest.fn()
   }
-  const api = new ApiClient(mockAxios, {
+  const api = new APIClient(mockAxios, {
     jobId: 1,
     jobToken: 'xxx',
     credentialsToken: 'yyy',
@@ -34,6 +34,6 @@ describe('ApiClient', () => {
 
     const jobDetails = await api.getJobDetails()
     expect(jobDetails['allowed-updates'].length).toBe(1)
-    expect(jobDetails['package-manager']).toBe('npm_and_yarn')
+    expect(jobDetails['package-manager']).toBe(PackageManager.NpmAndYarn)
   })
 })

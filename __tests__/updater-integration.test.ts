@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import {ApiClient, JobParameters} from '../src/api-client'
+import {APIClient, JobParameters} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
@@ -27,7 +27,7 @@ describe('Updater', () => {
   )
 
   const client = axios.create({baseURL: dependabotApiUrl})
-  const apiClient = new ApiClient(client, params)
+  const apiClient = new APIClient(client, params)
 
   beforeAll(async () => {
     // Skip the test when we haven't preloaded the updater image

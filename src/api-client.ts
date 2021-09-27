@@ -11,13 +11,19 @@ export class JobParameters {
   ) {}
 }
 
+// TODO: Populate with enabled values
+// TODO: Rescue unsupported values
+export enum PackageManager {
+  NpmAndYarn = 'npm_and_yarn'
+}
+
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {
   'allowed-updates': {
     'dependency-type': string
   }[]
   id: string
-  'package-manager': string
+  'package-manager': PackageManager
 }
 
 export type JobError = {
@@ -33,7 +39,7 @@ export type Credential = {
   token?: string
 }
 
-export class ApiClient {
+export class APIClient {
   constructor(
     private readonly client: AxiosInstance,
     readonly params: JobParameters
