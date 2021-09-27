@@ -15,6 +15,7 @@ jobs:
       - run: npm ci
       - run: npm run all
       # make sure the latest dist/ changes have been pushed
+      - run: git diff --text dist/index.js
       - run: git diff --quiet
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
