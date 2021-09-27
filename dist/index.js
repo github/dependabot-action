@@ -71017,13 +71017,13 @@ const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
 const updater_CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
 class Updater {
-    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputFolder = 'output/') {
+    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../output/output.json') {
         this.updaterImage = updaterImage;
         this.proxyImage = proxyImage;
         this.apiClient = apiClient;
         this.details = details;
         this.credentials = credentials;
-        this.outputFolder = outputFolder;
+        this.outputPath = outputPath;
         this.docker = new (docker_default())();
     }
     /**
@@ -71050,7 +71050,7 @@ class Updater {
             yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
             yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
             yield ContainerService.run(container);
-            const outputPath = external_path_default().join(__dirname, '../output/output.json');
+            const outputPath = external_path_default().join(__dirname, this.outputPath);
             if (!external_fs_default().existsSync(outputPath)) {
                 throw new Error('No output.json created by the fetcher container');
             }
