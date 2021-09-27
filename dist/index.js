@@ -134,7 +134,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getState = exports.saveState = exports.group = exports.endGroup = exports.startGroup = exports.info = exports.warning = exports.error = exports.debug = exports.isDebug = exports.setFailed = exports.setCommandEcho = exports.setOutput = exports.getBooleanInput = exports.getMultilineInput = exports.getInput = exports.addPath = exports.setSecret = exports.exportVariable = exports.ExitCode = void 0;
+exports.getState = exports.saveState = exports.group = exports.endGroup = exports.startGroup = exports.info = exports.notice = exports.warning = exports.error = exports.debug = exports.isDebug = exports.setFailed = exports.setCommandEcho = exports.setOutput = exports.getBooleanInput = exports.getMultilineInput = exports.getInput = exports.addPath = exports.setSecret = exports.exportVariable = exports.ExitCode = void 0;
 const command_1 = __nccwpck_require__(7351);
 const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(5278);
@@ -312,19 +312,30 @@ exports.debug = debug;
 /**
  * Adds an error issue
  * @param message error issue message. Errors will be converted to string via toString()
+ * @param properties optional properties to add to the annotation.
  */
-function error(message) {
-    command_1.issue('error', message instanceof Error ? message.toString() : message);
+function error(message, properties = {}) {
+    command_1.issueCommand('error', utils_1.toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 exports.error = error;
 /**
- * Adds an warning issue
+ * Adds a warning issue
  * @param message warning issue message. Errors will be converted to string via toString()
+ * @param properties optional properties to add to the annotation.
  */
-function warning(message) {
-    command_1.issue('warning', message instanceof Error ? message.toString() : message);
+function warning(message, properties = {}) {
+    command_1.issueCommand('warning', utils_1.toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 exports.warning = warning;
+/**
+ * Adds a notice issue
+ * @param message notice issue message. Errors will be converted to string via toString()
+ * @param properties optional properties to add to the annotation.
+ */
+function notice(message, properties = {}) {
+    command_1.issueCommand('notice', utils_1.toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+exports.notice = notice;
 /**
  * Writes info to log with console.log.
  * @param message info message
@@ -458,7 +469,7 @@ exports.issueCommand = issueCommand;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.toCommandValue = void 0;
+exports.toCommandProperties = exports.toCommandValue = void 0;
 /**
  * Sanitizes an input into a string so it can be passed into issueCommand safely
  * @param input input to sanitize into a string
@@ -473,6 +484,25 @@ function toCommandValue(input) {
     return JSON.stringify(input);
 }
 exports.toCommandValue = toCommandValue;
+/**
+ *
+ * @param annotationProperties
+ * @returns The command properties to send with the actual annotation command
+ * See IssueCommandProperties: https://github.com/actions/runner/blob/main/src/Runner.Worker/ActionCommandManager.cs#L646
+ */
+function toCommandProperties(annotationProperties) {
+    if (!Object.keys(annotationProperties).length) {
+        return {};
+    }
+    return {
+        title: annotationProperties.title,
+        line: annotationProperties.startLine,
+        endLine: annotationProperties.endLine,
+        col: annotationProperties.startColumn,
+        endColumn: annotationProperties.endColumn
+    };
+}
+exports.toCommandProperties = toCommandProperties;
 //# sourceMappingURL=utils.js.map
 
 /***/ }),
@@ -70548,6 +70578,649 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 1113:
+/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+// ESM COMPAT FLAG
+__nccwpck_require__.r(__webpack_exports__);
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  "DependabotErrorType": () => (/* binding */ DependabotErrorType),
+  "PROXY_IMAGE_NAME": () => (/* binding */ PROXY_IMAGE_NAME),
+  "UPDATER_IMAGE_NAME": () => (/* binding */ UPDATER_IMAGE_NAME),
+  "run": () => (/* binding */ run)
+});
+
+// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(2186);
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(5438);
+;// CONCATENATED MODULE: ./src/api-client.ts
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+// JobParameters are the parameters to execute a job
+class JobParameters {
+    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl) {
+        this.jobId = jobId;
+        this.jobToken = jobToken;
+        this.credentialsToken = credentialsToken;
+        this.dependabotApiUrl = dependabotApiUrl;
+        this.dependabotApiDockerUrl = dependabotApiDockerUrl;
+    }
+}
+class ApiClient {
+    constructor(client, params) {
+        this.client = client;
+        this.params = params;
+        // We use a static unknown SHA when marking a job as complete from the action
+        // to remain in parity with the existing runner.
+        this.UnknownSha = {
+            'base-commit-sha': 'unknown'
+        };
+    }
+    getJobDetails() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const detailsURL = `/update_jobs/${this.params.jobId}/details`;
+            const res = yield this.client.get(detailsURL, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 200) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+            return res.data.data.attributes;
+        });
+    }
+    getCredentials() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
+            const res = yield this.client.get(credentialsURL, {
+                headers: { Authorization: this.params.credentialsToken }
+            });
+            if (res.status !== 200) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+            return res.data.data.attributes.credentials;
+        });
+    }
+    reportJobError(error) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
+            const res = yield this.client.post(recordErrorURL, { data: error }, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 204) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+        });
+    }
+    markJobAsProcessed() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
+            const res = yield this.client.patch(markAsProcessedURL, { data: this.UnknownSha }, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 204) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+        });
+    }
+}
+
+;// CONCATENATED MODULE: ./src/inputs.ts
+
+
+function getJobParameters(ctx) {
+    switch (ctx.eventName) {
+        case 'dynamic':
+        case 'workflow_dispatch':
+            return fromWorkflowInputs(ctx);
+    }
+    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
+    return null;
+}
+function fromWorkflowInputs(ctx) {
+    const evt = ctx.payload;
+    const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
+    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl);
+}
+
+// EXTERNAL MODULE: ./node_modules/dockerode/lib/docker.js
+var lib_docker = __nccwpck_require__(4571);
+var docker_default = /*#__PURE__*/__nccwpck_require__.n(lib_docker);
+;// CONCATENATED MODULE: ./src/image-service.ts
+var image_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+const endOfStream = (docker, stream) => image_service_awaiter(void 0, void 0, void 0, function* () {
+    return new Promise((resolve, reject) => {
+        docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
+    });
+});
+const ImageService = {
+    /** Fetch the configured updater image, if it isn't already available. */
+    pull(imageName, force = false) {
+        return image_service_awaiter(this, void 0, void 0, function* () {
+            const docker = new (docker_default())();
+            try {
+                const image = yield docker.getImage(imageName).inspect();
+                if (!force) {
+                    core.info(`Resolved ${imageName} to existing ${image.Id}`);
+                    return;
+                } // else fallthrough to pull
+            }
+            catch (e) {
+                if (!e.message.includes('no such image')) {
+                    throw e;
+                } // else fallthrough to pull
+            }
+            core.info(`Pulling image ${imageName}...`);
+            const auth = {
+                username: 'x',
+                password: process.env.GPR_TOKEN
+            };
+            const stream = yield docker.pull(imageName, { authconfig: auth });
+            yield endOfStream(docker, stream);
+            core.info(`Pulled image ${imageName}`);
+        });
+    }
+};
+
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(5622);
+var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
+// EXTERNAL MODULE: external "fs"
+var external_fs_ = __nccwpck_require__(5747);
+var external_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_fs_);
+// EXTERNAL MODULE: ./node_modules/tar-stream/index.js
+var tar_stream = __nccwpck_require__(2283);
+// EXTERNAL MODULE: external "stream"
+var external_stream_ = __nccwpck_require__(2413);
+var external_stream_default = /*#__PURE__*/__nccwpck_require__.n(external_stream_);
+;// CONCATENATED MODULE: ./src/utils.ts
+
+const base64Decode = (str) => Buffer.from(str, 'base64').toString('binary');
+const base64DecodeDependencyFile = (file) => {
+    const fileCopy = JSON.parse(JSON.stringify(file));
+    fileCopy.content = base64Decode(fileCopy.content);
+    return fileCopy;
+};
+const outStream = (prefix) => {
+    return new (external_stream_default()).Writable({
+        write(chunk, _, next) {
+            process.stderr.write(`${prefix} | ${chunk.toString()}`);
+            next();
+        }
+    });
+};
+const errStream = (prefix) => {
+    return new (external_stream_default()).Writable({
+        write(chunk, _, next) {
+            process.stderr.write(`${prefix} | ${chunk.toString()}`);
+            next();
+        }
+    });
+};
+
+;// CONCATENATED MODULE: ./src/container-service.ts
+var container_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+class ContainerRuntimeError extends Error {
+}
+const ContainerService = {
+    storeInput(name, path, container, input) {
+        return container_service_awaiter(this, void 0, void 0, function* () {
+            const tar = (0,tar_stream.pack)();
+            tar.entry({ name }, JSON.stringify(input));
+            tar.finalize();
+            yield container.putArchive(tar, { path });
+        });
+    },
+    storeCert(name, path, container, cert) {
+        return container_service_awaiter(this, void 0, void 0, function* () {
+            const tar = (0,tar_stream.pack)();
+            tar.entry({ name }, cert);
+            tar.finalize();
+            yield container.putArchive(tar, { path });
+        });
+    },
+    run(container) {
+        return container_service_awaiter(this, void 0, void 0, function* () {
+            try {
+                const stream = yield container.attach({
+                    stream: true,
+                    stdout: true,
+                    stderr: true
+                });
+                container.modem.demuxStream(stream, outStream('updater'), errStream('updater'));
+                yield container.start();
+                const outcome = yield container.wait();
+                if (outcome.StatusCode === 0) {
+                    return true;
+                }
+                else {
+                    throw new ContainerRuntimeError(`Failure running container ${container.id}`);
+                }
+            }
+            finally {
+                yield container.remove();
+                core.info(`Cleaned up container ${container.id}`);
+            }
+        });
+    }
+};
+
+// EXTERNAL MODULE: external "crypto"
+var external_crypto_ = __nccwpck_require__(6417);
+var external_crypto_default = /*#__PURE__*/__nccwpck_require__.n(external_crypto_);
+// EXTERNAL MODULE: ./node_modules/node-forge/lib/index.js
+var lib = __nccwpck_require__(7655);
+;// CONCATENATED MODULE: ./src/proxy.ts
+var proxy_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+
+
+const KEY_SIZE = 2048;
+const KEY_EXPIRY_YEARS = 2;
+const CONFIG_FILE_PATH = '/';
+const CONFIG_FILE_NAME = 'config.json';
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt';
+const CERT_SUBJECT = [
+    {
+        name: 'commonName',
+        value: 'Dependabot Internal CA'
+    },
+    {
+        name: 'organizationName',
+        value: 'GitHub ic.'
+    },
+    {
+        shortName: 'OU',
+        value: 'Dependabot'
+    },
+    {
+        name: 'countryName',
+        value: 'US'
+    },
+    {
+        shortName: 'ST',
+        value: 'California'
+    },
+    {
+        name: 'localityName',
+        value: 'San Francisco'
+    }
+];
+class ProxyBuilder {
+    constructor(docker, proxyImage) {
+        this.docker = docker;
+        this.proxyImage = proxyImage;
+    }
+    run(details, credentials) {
+        return proxy_awaiter(this, void 0, void 0, function* () {
+            const name = `job-${details.id}-proxy`;
+            const config = this.buildProxyConfig(credentials, details.id);
+            const cert = config.ca.cert;
+            const networkName = `job-${details.id}-network`;
+            const network = yield this.ensureNetwork(networkName);
+            const container = yield this.createContainer(details.id, name, networkName);
+            yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
+            if (process.env.CUSTOM_CA_PATH) {
+                core.info('Detected custom CA certificate, adding to proxy');
+                const customCert = external_fs_default().readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
+                    .toString();
+                yield ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
+            }
+            const stream = yield container.attach({
+                stream: true,
+                stdout: true,
+                stderr: true
+            });
+            container.modem.demuxStream(stream, outStream('  proxy'), errStream('  proxy'));
+            const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
+            return {
+                container,
+                network,
+                networkName,
+                url,
+                cert,
+                shutdown: () => proxy_awaiter(this, void 0, void 0, function* () {
+                    yield container.stop();
+                    yield container.remove();
+                    yield network.remove();
+                })
+            };
+        });
+    }
+    ensureNetwork(name) {
+        return proxy_awaiter(this, void 0, void 0, function* () {
+            const networks = yield this.docker.listNetworks({
+                filters: JSON.stringify({ name: [name] })
+            });
+            if (networks.length > 0) {
+                return this.docker.getNetwork(networks[0].Id);
+            }
+            else {
+                return yield this.docker.createNetwork({ Name: name });
+            }
+        });
+    }
+    buildProxyConfig(credentials, jobId) {
+        const ca = this.generateCertificateAuthority();
+        const password = external_crypto_default().randomBytes(20).toString('hex');
+        const proxy_auth = {
+            username: `${jobId}`,
+            password
+        };
+        const config = { all_credentials: credentials, ca, proxy_auth };
+        return config;
+    }
+    generateCertificateAuthority() {
+        const keys = lib.pki.rsa.generateKeyPair(KEY_SIZE);
+        const cert = lib.pki.createCertificate();
+        cert.publicKey = keys.publicKey;
+        cert.serialNumber = '01';
+        cert.validity.notBefore = new Date();
+        cert.validity.notAfter = new Date();
+        cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + KEY_EXPIRY_YEARS);
+        cert.setSubject(CERT_SUBJECT);
+        cert.setIssuer(CERT_SUBJECT);
+        cert.setExtensions([{ name: 'basicConstraints', cA: true }]);
+        cert.sign(keys.privateKey);
+        const pem = lib.pki.certificateToPem(cert);
+        const key = lib.pki.privateKeyToPem(keys.privateKey);
+        return { cert: pem, key };
+    }
+    createContainer(jobId, containerName, networkName) {
+        return proxy_awaiter(this, void 0, void 0, function* () {
+            const container = yield this.docker.createContainer({
+                Image: this.proxyImage,
+                name: containerName,
+                AttachStdout: true,
+                AttachStderr: true,
+                Env: [`JOB_ID=${jobId}`],
+                Entrypoint: [
+                    'sh',
+                    '-c',
+                    '/usr/sbin/update-ca-certificates && /update-job-proxy'
+                ],
+                HostConfig: {
+                    NetworkMode: networkName
+                }
+            });
+            core.info(`Created proxy container: ${container.id}`);
+            return container;
+        });
+    }
+}
+
+;// CONCATENATED MODULE: ./src/updater.ts
+var updater_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+
+
+
+const JOB_INPUT_FILENAME = 'job.json';
+const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
+const JOB_OUTPUT_FILENAME = 'output.json';
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
+const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
+const updater_CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const CA_CERT_FILENAME = 'dbot-ca.crt';
+class Updater {
+    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputFolder = 'output/') {
+        this.updaterImage = updaterImage;
+        this.proxyImage = proxyImage;
+        this.apiClient = apiClient;
+        this.details = details;
+        this.credentials = credentials;
+        this.outputFolder = outputFolder;
+        this.docker = new (docker_default())();
+    }
+    /**
+     * Execute an update job and report the result to Dependabot API.
+     */
+    runUpdater() {
+        return updater_awaiter(this, void 0, void 0, function* () {
+            const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.details, this.credentials);
+            proxy.container.start();
+            try {
+                const files = yield this.runFileFetcher(proxy);
+                yield this.runFileUpdater(proxy, files);
+                return true;
+            }
+            finally {
+                yield proxy.shutdown();
+                yield this.docker.pruneNetworks();
+            }
+        });
+    }
+    runFileFetcher(proxy) {
+        return updater_awaiter(this, void 0, void 0, function* () {
+            const container = yield this.createContainer(proxy, 'fetch_files');
+            yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
+            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
+            yield ContainerService.run(container);
+            const outputPath = external_path_default().join(__dirname, '../', this.outputFolder, 'output.json');
+            if (!external_fs_default().existsSync(outputPath)) {
+                throw new Error('No output.json created by the fetcher container');
+            }
+            const fileFetcherSync = external_fs_default().readFileSync(outputPath).toString();
+            const fileFetcherOutput = JSON.parse(fileFetcherSync);
+            const fetchedFiles = {
+                base_commit_sha: fileFetcherOutput.base_commit_sha,
+                base64_dependency_files: fileFetcherOutput.base64_dependency_files,
+                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => base64DecodeDependencyFile(file))
+            };
+            return fetchedFiles;
+        });
+    }
+    runFileUpdater(proxy, files) {
+        return updater_awaiter(this, void 0, void 0, function* () {
+            core.info(`Running update job ${this.apiClient.params.jobId}`);
+            const container = yield this.createContainer(proxy, 'update_files');
+            const containerInput = {
+                base_commit_sha: files.base_commit_sha,
+                base64_dependency_files: files.base64_dependency_files,
+                dependency_files: files.dependency_files,
+                job: this.details
+            };
+            yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, containerInput);
+            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
+            yield ContainerService.run(container);
+        });
+    }
+    createContainer(proxy, updaterCommand) {
+        return updater_awaiter(this, void 0, void 0, function* () {
+            const cmd = `(echo > /etc/ca-certificates.conf) &&\
+     rm -Rf /usr/share/ca-certificates/ &&\
+      /usr/sbin/update-ca-certificates &&\
+       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
+            const container = yield this.docker.createContainer({
+                Image: this.updaterImage,
+                AttachStdout: true,
+                AttachStderr: true,
+                Env: [
+                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
+                    `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
+                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
+                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
+                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
+                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiDockerUrl}`,
+                    `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
+                    `http_proxy=${proxy.url}`,
+                    `HTTP_PROXY=${proxy.url}`,
+                    `https_proxy=${proxy.url}`,
+                    `HTTPS_PROXY=${proxy.url}`
+                ],
+                Cmd: ['sh', '-c', cmd],
+                HostConfig: {
+                    NetworkMode: proxy.networkName,
+                    Binds: [
+                        `${external_path_default().join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
+                        `${external_path_default().join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
+                    ]
+                }
+            });
+            core.info(`Created ${updaterCommand} container: ${container.id}`);
+            return container;
+        });
+    }
+}
+
+// EXTERNAL MODULE: ./node_modules/axios/index.js
+var axios = __nccwpck_require__(6545);
+var axios_default = /*#__PURE__*/__nccwpck_require__.n(axios);
+;// CONCATENATED MODULE: ./src/main.ts
+/* module decorator */ module = __nccwpck_require__.hmd(module);
+var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+
+
+
+const UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
+const PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
+var DependabotErrorType;
+(function (DependabotErrorType) {
+    DependabotErrorType["Unknown"] = "actions_workflow_unknown";
+    DependabotErrorType["Image"] = "actions_workflow_image";
+    DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
+})(DependabotErrorType || (DependabotErrorType = {}));
+function run(context) {
+    return main_awaiter(this, void 0, void 0, function* () {
+        try {
+            // Decode JobParameters:
+            const params = getJobParameters(context);
+            if (params === null) {
+                return; // No parameters, nothing to do
+            }
+            core.info('Starting updater');
+            core.debug(JSON.stringify(params));
+            core.setSecret(params.jobToken);
+            core.setSecret(params.credentialsToken);
+            const client = axios_default().create({ baseURL: params.dependabotApiUrl });
+            const apiClient = new ApiClient(client, params);
+            try {
+                core.info('Fetching job details');
+                const details = yield apiClient.getJobDetails();
+                const credentials = yield apiClient.getCredentials();
+                const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
+                try {
+                    core.info('Pulling updater and proxy images');
+                    yield ImageService.pull(UPDATER_IMAGE_NAME);
+                    yield ImageService.pull(PROXY_IMAGE_NAME);
+                }
+                catch (error) {
+                    core.error('Error fetching updater and proxy images');
+                    yield failJob(apiClient, error, DependabotErrorType.Image);
+                    return;
+                }
+                try {
+                    core.info('Starting update process');
+                    yield updater.runUpdater();
+                }
+                catch (error) {
+                    core.error('Error performing update');
+                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                    return;
+                }
+                core.info('🤖 ~fin~');
+            }
+            catch (error) {
+                // Update Dependabot API on the job failure
+                yield failJob(apiClient, error);
+            }
+        }
+        catch (error) {
+            // If we've reached this point, we do not have a viable
+            // API client to report back to Dependabot API.
+            //
+            // We output the raw error in the Action logs and defer
+            // to workflow_run monitoring to detect the job failure.
+            core.setFailed(error);
+        }
+    });
+}
+function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
+    return main_awaiter(this, void 0, void 0, function* () {
+        yield apiClient.reportJobError({
+            'error-type': errorType,
+            'error-details': {
+                'action-error': error.message
+            }
+        });
+        yield apiClient.markJobAsProcessed();
+        core.setFailed(error.message);
+    });
+}
+// Run the update in the current Actions context if called directly
+if (__nccwpck_require__.c[__nccwpck_require__.s] === module) {
+    run(github.context);
+}
+
+
+/***/ }),
+
 /***/ 2877:
 /***/ ((module) => {
 
@@ -70560,7 +71233,7 @@ module.exports = eval("require")("encoding");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"_args":[["axios@0.21.1","/Users/brrygrdn/Code/github/updater-action"]],"_from":"axios@0.21.1","_id":"axios@0.21.1","_inBundle":false,"_integrity":"sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==","_location":"/axios","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"axios@0.21.1","name":"axios","escapedName":"axios","rawSpec":"0.21.1","saveSpec":null,"fetchSpec":"0.21.1"},"_requiredBy":["/"],"_resolved":"https://registry.npmjs.org/axios/-/axios-0.21.1.tgz","_spec":"0.21.1","_where":"/Users/brrygrdn/Code/github/updater-action","author":{"name":"Matt Zabriskie"},"browser":{"./lib/adapters/http.js":"./lib/adapters/xhr.js"},"bugs":{"url":"https://github.com/axios/axios/issues"},"bundlesize":[{"path":"./dist/axios.min.js","threshold":"5kB"}],"dependencies":{"follow-redirects":"^1.10.0"},"description":"Promise based HTTP client for the browser and node.js","devDependencies":{"bundlesize":"^0.17.0","coveralls":"^3.0.0","es6-promise":"^4.2.4","grunt":"^1.0.2","grunt-banner":"^0.6.0","grunt-cli":"^1.2.0","grunt-contrib-clean":"^1.1.0","grunt-contrib-watch":"^1.0.0","grunt-eslint":"^20.1.0","grunt-karma":"^2.0.0","grunt-mocha-test":"^0.13.3","grunt-ts":"^6.0.0-beta.19","grunt-webpack":"^1.0.18","istanbul-instrumenter-loader":"^1.0.0","jasmine-core":"^2.4.1","karma":"^1.3.0","karma-chrome-launcher":"^2.2.0","karma-coverage":"^1.1.1","karma-firefox-launcher":"^1.1.0","karma-jasmine":"^1.1.1","karma-jasmine-ajax":"^0.1.13","karma-opera-launcher":"^1.0.0","karma-safari-launcher":"^1.0.0","karma-sauce-launcher":"^1.2.0","karma-sinon":"^1.0.5","karma-sourcemap-loader":"^0.3.7","karma-webpack":"^1.7.0","load-grunt-tasks":"^3.5.2","minimist":"^1.2.0","mocha":"^5.2.0","sinon":"^4.5.0","typescript":"^2.8.1","url-search-params":"^0.10.0","webpack":"^1.13.1","webpack-dev-server":"^1.14.1"},"homepage":"https://github.com/axios/axios","jsdelivr":"dist/axios.min.js","keywords":["xhr","http","ajax","promise","node"],"license":"MIT","main":"index.js","name":"axios","repository":{"type":"git","url":"git+https://github.com/axios/axios.git"},"scripts":{"build":"NODE_ENV=production grunt build","coveralls":"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js","examples":"node ./examples/server.js","fix":"eslint --fix lib/**/*.js","postversion":"git push && git push --tags","preversion":"npm test","start":"node ./sandbox/server.js","test":"grunt test && bundlesize","version":"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json"},"typings":"./index.d.ts","unpkg":"dist/axios.min.js","version":"0.21.1"}');
+module.exports = JSON.parse('{"name":"axios","version":"0.21.1","description":"Promise based HTTP client for the browser and node.js","main":"index.js","scripts":{"test":"grunt test && bundlesize","start":"node ./sandbox/server.js","build":"NODE_ENV=production grunt build","preversion":"npm test","version":"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json","postversion":"git push && git push --tags","examples":"node ./examples/server.js","coveralls":"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js","fix":"eslint --fix lib/**/*.js"},"repository":{"type":"git","url":"https://github.com/axios/axios.git"},"keywords":["xhr","http","ajax","promise","node"],"author":"Matt Zabriskie","license":"MIT","bugs":{"url":"https://github.com/axios/axios/issues"},"homepage":"https://github.com/axios/axios","devDependencies":{"bundlesize":"^0.17.0","coveralls":"^3.0.0","es6-promise":"^4.2.4","grunt":"^1.0.2","grunt-banner":"^0.6.0","grunt-cli":"^1.2.0","grunt-contrib-clean":"^1.1.0","grunt-contrib-watch":"^1.0.0","grunt-eslint":"^20.1.0","grunt-karma":"^2.0.0","grunt-mocha-test":"^0.13.3","grunt-ts":"^6.0.0-beta.19","grunt-webpack":"^1.0.18","istanbul-instrumenter-loader":"^1.0.0","jasmine-core":"^2.4.1","karma":"^1.3.0","karma-chrome-launcher":"^2.2.0","karma-coverage":"^1.1.1","karma-firefox-launcher":"^1.1.0","karma-jasmine":"^1.1.1","karma-jasmine-ajax":"^0.1.13","karma-opera-launcher":"^1.0.0","karma-safari-launcher":"^1.0.0","karma-sauce-launcher":"^1.2.0","karma-sinon":"^1.0.5","karma-sourcemap-loader":"^0.3.7","karma-webpack":"^1.7.0","load-grunt-tasks":"^3.5.2","minimist":"^1.2.0","mocha":"^5.2.0","sinon":"^4.5.0","typescript":"^2.8.1","url-search-params":"^0.10.0","webpack":"^1.13.1","webpack-dev-server":"^1.14.1"},"browser":{"./lib/adapters/http.js":"./lib/adapters/xhr.js"},"jsdelivr":"dist/axios.min.js","unpkg":"dist/axios.min.js","typings":"./index.d.ts","dependencies":{"follow-redirects":"^1.10.0"},"bundlesize":[{"path":"./dist/axios.min.js","threshold":"5kB"}]}');
 
 /***/ }),
 
@@ -70754,8 +71427,8 @@ module.exports = require("zlib");
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			// no module.id needed
-/******/ 			// no module.loaded needed
+/******/ 			id: moduleId,
+/******/ 			loaded: false,
 /******/ 			exports: {}
 /******/ 		};
 /******/ 	
@@ -70768,9 +71441,15 @@ module.exports = require("zlib");
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
 /******/ 		}
 /******/ 	
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
+/******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
+/******/ 	
+/******/ 	// expose the module cache
+/******/ 	__nccwpck_require__.c = __webpack_module_cache__;
 /******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat get default export */
@@ -70797,6 +71476,21 @@ module.exports = require("zlib");
 /******/ 		};
 /******/ 	})();
 /******/ 	
+/******/ 	/* webpack/runtime/harmony module decorator */
+/******/ 	(() => {
+/******/ 		__nccwpck_require__.hmd = (module) => {
+/******/ 			module = Object.create(module);
+/******/ 			if (!module.children) module.children = [];
+/******/ 			Object.defineProperty(module, 'exports', {
+/******/ 				enumerable: true,
+/******/ 				set: () => {
+/******/ 					throw new Error('ES Modules may not assign module.exports or exports.*, Use ESM export syntax, instead: ' + module.id);
+/******/ 				}
+/******/ 			});
+/******/ 			return module;
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
@@ -70818,649 +71512,13 @@ module.exports = require("zlib");
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be in strict mode.
-(() => {
-"use strict";
-// ESM COMPAT FLAG
-__nccwpck_require__.r(__webpack_exports__);
-
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  "DependabotErrorType": () => (/* binding */ DependabotErrorType),
-  "PROXY_IMAGE_NAME": () => (/* binding */ PROXY_IMAGE_NAME),
-  "UPDATER_IMAGE_NAME": () => (/* binding */ UPDATER_IMAGE_NAME),
-  "run": () => (/* binding */ run)
-});
-
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var github = __nccwpck_require__(5438);
-;// CONCATENATED MODULE: ./src/api-client.ts
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-// JobParameters are the parameters to execute a job
-class JobParameters {
-    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl) {
-        this.jobId = jobId;
-        this.jobToken = jobToken;
-        this.credentialsToken = credentialsToken;
-        this.dependabotApiUrl = dependabotApiUrl;
-    }
-}
-// TODO: Populate with enabled values
-// TODO: Rescue unsupported values
-var PackageManager;
-(function (PackageManager) {
-    PackageManager["NpmAndYarn"] = "npm_and_yarn";
-})(PackageManager || (PackageManager = {}));
-class APIClient {
-    constructor(client, params) {
-        this.client = client;
-        this.params = params;
-    }
-    getJobDetails() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const detailsURL = `/update_jobs/${this.params.jobId}/details`;
-            const res = yield this.client.get(detailsURL, {
-                headers: { Authorization: this.params.jobToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            return res.data.data.attributes;
-        });
-    }
-    getCredentials() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
-            const res = yield this.client.get(credentialsURL, {
-                headers: { Authorization: this.params.credentialsToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            return res.data.data.attributes.credentials;
-        });
-    }
-    reportJobError(error) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
-            const res = yield this.client.post(recordErrorURL, error, {
-                headers: { Authorization: this.params.jobToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            return res.data.data.attributes;
-        });
-    }
-    markJobAsProcessed() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
-            const res = yield this.client.get(markAsProcessedURL, {
-                headers: { Authorization: this.params.credentialsToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            return res.data.data.attributes;
-        });
-    }
-}
-
-;// CONCATENATED MODULE: ./src/inputs.ts
-
-
-function getJobParameters(ctx) {
-    switch (ctx.eventName) {
-        case 'dynamic':
-        case 'workflow_dispatch':
-            return fromWorkflowInputs(ctx);
-    }
-    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
-    return null;
-}
-function fromWorkflowInputs(ctx) {
-    const evt = ctx.payload;
-    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl);
-}
-
-// EXTERNAL MODULE: ./node_modules/dockerode/lib/docker.js
-var lib_docker = __nccwpck_require__(4571);
-var docker_default = /*#__PURE__*/__nccwpck_require__.n(lib_docker);
-;// CONCATENATED MODULE: ./src/image-service.ts
-var image_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-const endOfStream = (docker, stream) => image_service_awaiter(void 0, void 0, void 0, function* () {
-    return new Promise((resolve, reject) => {
-        docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
-    });
-});
-const ImageService = {
-    /** Fetch the configured updater image, if it isn't already available. */
-    pull(imageName, force = false) {
-        return image_service_awaiter(this, void 0, void 0, function* () {
-            const docker = new (docker_default())();
-            try {
-                const image = yield docker.getImage(imageName).inspect();
-                if (!force) {
-                    core.info(`Resolved ${imageName} to existing ${image.Id}`);
-                    return;
-                } // else fallthrough to pull
-            }
-            catch (e) {
-                if (!e.message.includes('no such image')) {
-                    throw e;
-                } // else fallthrough to pull
-            }
-            core.info(`Pulling image ${imageName}...`);
-            const auth = {
-                username: 'x',
-                password: process.env.GPR_TOKEN
-            };
-            const stream = yield docker.pull(imageName, { authconfig: auth });
-            yield endOfStream(docker, stream);
-            core.info(`Pulled image ${imageName}`);
-        });
-    }
-};
-
-// EXTERNAL MODULE: external "path"
-var external_path_ = __nccwpck_require__(5622);
-var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
-// EXTERNAL MODULE: external "fs"
-var external_fs_ = __nccwpck_require__(5747);
-var external_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_fs_);
-// EXTERNAL MODULE: ./node_modules/tar-stream/index.js
-var tar_stream = __nccwpck_require__(2283);
-// EXTERNAL MODULE: external "stream"
-var external_stream_ = __nccwpck_require__(2413);
-var external_stream_default = /*#__PURE__*/__nccwpck_require__.n(external_stream_);
-;// CONCATENATED MODULE: ./src/utils.ts
-
-const base64Decode = (str) => Buffer.from(str, 'base64').toString('binary');
-const base64DecodeDependencyFile = (file) => {
-    const fileCopy = JSON.parse(JSON.stringify(file));
-    fileCopy.content = base64Decode(fileCopy.content);
-    return fileCopy;
-};
-const outStream = (prefix) => {
-    return new (external_stream_default()).Writable({
-        write(chunk, _, next) {
-            process.stderr.write(`${prefix} | ${chunk.toString()}`);
-            next();
-        }
-    });
-};
-const errStream = (prefix) => {
-    return new (external_stream_default()).Writable({
-        write(chunk, _, next) {
-            process.stderr.write(`${prefix} | ${chunk.toString()}`);
-            next();
-        }
-    });
-};
-
-;// CONCATENATED MODULE: ./src/container-service.ts
-var container_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-const ContainerService = {
-    storeInput(name, path, container, input) {
-        return container_service_awaiter(this, void 0, void 0, function* () {
-            const tar = (0,tar_stream.pack)();
-            tar.entry({ name }, JSON.stringify(input));
-            tar.finalize();
-            yield container.putArchive(tar, { path });
-        });
-    },
-    storeCert(name, path, container, cert) {
-        return container_service_awaiter(this, void 0, void 0, function* () {
-            const tar = (0,tar_stream.pack)();
-            tar.entry({ name }, cert);
-            tar.finalize();
-            yield container.putArchive(tar, { path });
-        });
-    },
-    run(container) {
-        return container_service_awaiter(this, void 0, void 0, function* () {
-            try {
-                const stream = yield container.attach({
-                    stream: true,
-                    stdout: true,
-                    stderr: true
-                });
-                container.modem.demuxStream(stream, outStream('updater'), errStream('updater'));
-                yield container.start();
-                yield container.wait();
-            }
-            finally {
-                yield container.remove();
-                core.info(`Cleaned up container ${container.id}`);
-            }
-        });
-    }
-};
-
-// EXTERNAL MODULE: external "crypto"
-var external_crypto_ = __nccwpck_require__(6417);
-var external_crypto_default = /*#__PURE__*/__nccwpck_require__.n(external_crypto_);
-// EXTERNAL MODULE: ./node_modules/node-forge/lib/index.js
-var lib = __nccwpck_require__(7655);
-;// CONCATENATED MODULE: ./src/proxy.ts
-var proxy_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-
-
-
-const KEY_SIZE = 2048;
-const KEY_EXPIRY_YEARS = 2;
-const CONFIG_FILE_PATH = '/';
-const CONFIG_FILE_NAME = 'config.json';
-const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
-const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt';
-const CERT_SUBJECT = [
-    {
-        name: 'commonName',
-        value: 'Dependabot Internal CA'
-    },
-    {
-        name: 'organizationName',
-        value: 'GitHub ic.'
-    },
-    {
-        shortName: 'OU',
-        value: 'Dependabot'
-    },
-    {
-        name: 'countryName',
-        value: 'US'
-    },
-    {
-        shortName: 'ST',
-        value: 'California'
-    },
-    {
-        name: 'localityName',
-        value: 'San Francisco'
-    }
-];
-class ProxyBuilder {
-    constructor(docker, proxyImage) {
-        this.docker = docker;
-        this.proxyImage = proxyImage;
-    }
-    run(details, credentials) {
-        return proxy_awaiter(this, void 0, void 0, function* () {
-            const name = `job-${details.id}-proxy`;
-            const config = this.buildProxyConfig(credentials, details.id);
-            const cert = config.ca.cert;
-            const networkName = `job-${details.id}-network`;
-            const network = yield this.ensureNetwork(networkName);
-            const container = yield this.createContainer(details.id, name, networkName);
-            yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
-            if (process.env.CUSTOM_CA_PATH) {
-                core.info('Detected custom CA certificate, adding to proxy');
-                const customCert = external_fs_default().readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
-                    .toString();
-                yield ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
-            }
-            const stream = yield container.attach({
-                stream: true,
-                stdout: true,
-                stderr: true
-            });
-            container.modem.demuxStream(stream, outStream('  proxy'), errStream('  proxy'));
-            const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
-            return {
-                container,
-                network,
-                networkName,
-                url,
-                cert,
-                shutdown: () => proxy_awaiter(this, void 0, void 0, function* () {
-                    yield container.stop();
-                    yield container.remove();
-                    yield network.remove();
-                })
-            };
-        });
-    }
-    ensureNetwork(name) {
-        return proxy_awaiter(this, void 0, void 0, function* () {
-            const networks = yield this.docker.listNetworks({
-                filters: JSON.stringify({ name: [name] })
-            });
-            if (networks.length > 0) {
-                return this.docker.getNetwork(networks[0].Id);
-            }
-            else {
-                return yield this.docker.createNetwork({ Name: name });
-            }
-        });
-    }
-    buildProxyConfig(credentials, jobId) {
-        const ca = this.generateCertificateAuthority();
-        const password = external_crypto_default().randomBytes(20).toString('hex');
-        const proxy_auth = {
-            username: `${jobId}`,
-            password
-        };
-        const config = { all_credentials: credentials, ca, proxy_auth };
-        return config;
-    }
-    generateCertificateAuthority() {
-        const keys = lib.pki.rsa.generateKeyPair(KEY_SIZE);
-        const cert = lib.pki.createCertificate();
-        cert.publicKey = keys.publicKey;
-        cert.serialNumber = '01';
-        cert.validity.notBefore = new Date();
-        cert.validity.notAfter = new Date();
-        cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + KEY_EXPIRY_YEARS);
-        cert.setSubject(CERT_SUBJECT);
-        cert.setIssuer(CERT_SUBJECT);
-        cert.setExtensions([{ name: 'basicConstraints', cA: true }]);
-        cert.sign(keys.privateKey);
-        const pem = lib.pki.certificateToPem(cert);
-        const key = lib.pki.privateKeyToPem(keys.privateKey);
-        return { cert: pem, key };
-    }
-    createContainer(jobId, containerName, networkName) {
-        return proxy_awaiter(this, void 0, void 0, function* () {
-            const container = yield this.docker.createContainer({
-                Image: this.proxyImage,
-                name: containerName,
-                AttachStdout: true,
-                AttachStderr: true,
-                Env: [`JOB_ID=${jobId}`],
-                Entrypoint: [
-                    'sh',
-                    '-c',
-                    '/usr/sbin/update-ca-certificates && /update-job-proxy'
-                ],
-                HostConfig: {
-                    NetworkMode: networkName
-                }
-            });
-            core.info(`Created proxy container: ${container.id}`);
-            return container;
-        });
-    }
-}
-
-;// CONCATENATED MODULE: ./src/updater.ts
-var updater_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-
-
-
-
-const JOB_INPUT_FILENAME = 'job.json';
-const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
-const JOB_OUTPUT_FILENAME = 'output.json';
-const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
-const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
-const updater_CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
-const CA_CERT_FILENAME = 'dbot-ca.crt';
-class Updater {
-    constructor(updaterImage, proxyImage, apiClient, details, credentials) {
-        this.updaterImage = updaterImage;
-        this.proxyImage = proxyImage;
-        this.apiClient = apiClient;
-        this.details = details;
-        this.credentials = credentials;
-        this.docker = new (docker_default())();
-    }
-    /**
-     * Execute an update job and report the result to Dependabot API.
-     */
-    runUpdater() {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            try {
-                const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.details, this.credentials);
-                proxy.container.start();
-                try {
-                    const files = yield this.runFileFetcher(proxy);
-                    if (!files) {
-                        core.error(`failed during fetch, skipping updater`);
-                        // TODO: report job runner_error?
-                        return;
-                    }
-                    yield this.runFileUpdater(proxy, files);
-                }
-                catch (e) {
-                    // TODO: report job runner_error?
-                    core.error(`Error ${e}`);
-                }
-                finally {
-                    yield proxy.shutdown();
-                    yield this.docker.pruneNetworks();
-                }
-            }
-            catch (e) {
-                // TODO: report job runner_error?
-                core.error(`Error ${e}`);
-            }
-        });
-    }
-    runFileFetcher(proxy) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            const container = yield this.createContainer(proxy, 'fetch_files');
-            yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
-            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
-            yield ContainerService.run(container);
-            const outputPath = external_path_default().join(__dirname, '../output/output.json');
-            if (!external_fs_default().existsSync(outputPath)) {
-                return;
-            }
-            const fileFetcherSync = external_fs_default().readFileSync(outputPath).toString();
-            const fileFetcherOutput = JSON.parse(fileFetcherSync);
-            const fetchedFiles = {
-                base_commit_sha: fileFetcherOutput.base_commit_sha,
-                base64_dependency_files: fileFetcherOutput.base64_dependency_files,
-                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => base64DecodeDependencyFile(file))
-            };
-            return fetchedFiles;
-        });
-    }
-    runFileUpdater(proxy, files) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            core.info(`Running update job ${this.apiClient.params.jobId}`);
-            const container = yield this.createContainer(proxy, 'update_files');
-            const containerInput = {
-                base_commit_sha: files.base_commit_sha,
-                base64_dependency_files: files.base64_dependency_files,
-                dependency_files: files.dependency_files,
-                job: this.details
-            };
-            yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, containerInput);
-            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
-            yield ContainerService.run(container);
-        });
-    }
-    createContainer(proxy, updaterCommand) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            const cmd = `(echo > /etc/ca-certificates.conf) &&\
-     rm -Rf /usr/share/ca-certificates/ &&\
-      /usr/sbin/update-ca-certificates &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
-            const container = yield this.docker.createContainer({
-                Image: this.updaterImage,
-                AttachStdout: true,
-                AttachStderr: true,
-                Env: [
-                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
-                    `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
-                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
-                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
-                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiUrl}`,
-                    `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-                    `http_proxy=${proxy.url}`,
-                    `HTTP_PROXY=${proxy.url}`,
-                    `https_proxy=${proxy.url}`,
-                    `HTTPS_PROXY=${proxy.url}`
-                ],
-                Cmd: ['sh', '-c', cmd],
-                HostConfig: {
-                    NetworkMode: proxy.networkName,
-                    Binds: [
-                        `${external_path_default().join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
-                        `${external_path_default().join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
-                    ]
-                }
-            });
-            core.info(`Created ${updaterCommand} container: ${container.id}`);
-            return container;
-        });
-    }
-}
-
-// EXTERNAL MODULE: ./node_modules/axios/index.js
-var axios = __nccwpck_require__(6545);
-var axios_default = /*#__PURE__*/__nccwpck_require__.n(axios);
-;// CONCATENATED MODULE: ./src/main.ts
-var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-
-
-
-
-const UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
-const PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
-var DependabotErrorType;
-(function (DependabotErrorType) {
-    DependabotErrorType["Unknown"] = "actions_workflow_unknown";
-    DependabotErrorType["Image"] = "actions_workflow_image";
-    DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
-})(DependabotErrorType || (DependabotErrorType = {}));
-function run(context) {
-    return main_awaiter(this, void 0, void 0, function* () {
-        try {
-            // Decode JobParameters:
-            const params = getJobParameters(context);
-            if (params === null) {
-                return; // No parameters, nothing to do
-            }
-            core.info('Starting updater');
-            core.debug(JSON.stringify(params));
-            core.setSecret(params.jobToken);
-            core.setSecret(params.credentialsToken);
-            const client = axios_default().create({ baseURL: params.dependabotApiUrl });
-            const apiClient = new APIClient(client, params);
-            try {
-                core.info('Fetching job details');
-                const details = yield apiClient.getJobDetails();
-                const credentials = yield apiClient.getCredentials();
-                const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
-                try {
-                    core.info('Pulling updater and proxy images');
-                    yield ImageService.pull(UPDATER_IMAGE_NAME);
-                    yield ImageService.pull(PROXY_IMAGE_NAME);
-                }
-                catch (error) {
-                    core.error('Error fetching updater and proxy images');
-                    yield failJob(apiClient, error, DependabotErrorType.Image);
-                    return;
-                }
-                try {
-                    core.info('Starting update process');
-                    yield updater.runUpdater();
-                }
-                catch (error) {
-                    core.error('Error performing update');
-                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
-                    return;
-                }
-                core.info('🤖 ~fin~');
-            }
-            catch (error) {
-                // Update Dependabot API on the job failure
-                yield failJob(apiClient, error);
-            }
-        }
-        catch (error) {
-            // If we've reached this point, we do not have a viable
-            // API client to report back to Dependabot API.
-            //
-            // We output the raw error in the Action logs and defer
-            // to workflow_run monitoring to detect the job failure.
-            core.setFailed(error);
-        }
-    });
-}
-function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
-    return main_awaiter(this, void 0, void 0, function* () {
-        yield apiClient.reportJobError({
-            'error-type': errorType,
-            'error-detail': error.message
-        });
-        yield apiClient.markJobAsProcessed();
-        core.setFailed(error.message);
-    });
-}
-run(github.context);
-
-})();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// module cache are used so entry inlining is disabled
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	var __webpack_exports__ = __nccwpck_require__(__nccwpck_require__.s = 1113);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
