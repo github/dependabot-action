@@ -45,7 +45,7 @@ export const ContainerService = {
       await container.start()
       await container.wait()
     } finally {
-      await container.remove()
+      await container.remove({v: true})
       core.info(`Cleaned up container ${container.id}`)
     }
   }
