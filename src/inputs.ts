@@ -20,8 +20,6 @@ export function getJobParameters(ctx: Context): JobParameters | null {
 function fromWorkflowInputs(ctx: Context): JobParameters {
   const evt = ctx.payload as WorkflowDispatchEvent
 
-  core.debug(JSON.stringify(evt.inputs))
-
   const dependabotApiDockerUrl =
     evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl
 

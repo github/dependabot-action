@@ -70933,7 +70933,6 @@ function getJobParameters(ctx) {
 }
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;
-    core.debug(JSON.stringify(evt.inputs));
     const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
     return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl);
 }
@@ -71402,7 +71401,6 @@ function run(context) {
             // Decode JobParameters:
             const params = getJobParameters(context);
             if (params === null) {
-                core.setFailed('no parameters!');
                 return; // No parameters, nothing to do
             }
             core.info('Starting updater');
