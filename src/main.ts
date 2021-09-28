@@ -20,9 +20,11 @@ export enum DependabotErrorType {
 
 export async function run(context: Context): Promise<void> {
   try {
+    core.info('🤖 ~start~')
     // Decode JobParameters:
     const params = getJobParameters(context)
     if (params === null) {
+      core.setFailed('no parameters!')
       return // No parameters, nothing to do
     }
 

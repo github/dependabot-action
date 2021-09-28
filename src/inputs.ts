@@ -4,6 +4,8 @@ import {WorkflowDispatchEvent} from '@octokit/webhooks-definitions/schema'
 import {JobParameters} from './api-client'
 
 export function getJobParameters(ctx: Context): JobParameters | null {
+  core.debug(`Detecting '${ctx.eventName}' event.`)
+
   switch (ctx.eventName) {
     case 'dynamic':
     case 'workflow_dispatch':
@@ -17,6 +19,8 @@ export function getJobParameters(ctx: Context): JobParameters | null {
 
 function fromWorkflowInputs(ctx: Context): JobParameters {
   const evt = ctx.payload as WorkflowDispatchEvent
+
+  core.debug(JSON.stringify(evt.inputs))
 
   const dependabotApiDockerUrl =
     evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl
