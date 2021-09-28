@@ -68,7 +68,7 @@ describe('run', () => {
     test('it fails the workflow', async () => {
       await run(context)
 
-      expect(core.setFailed).toHaveBeenCalled()
+      expect(core.setFailed).not.toHaveBeenCalled()
       expect(core.info).toHaveBeenCalledWith(
         "Dependabot Updater Action does not support 'issue_created' events."
       )

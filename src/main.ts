@@ -24,7 +24,6 @@ export async function run(context: Context): Promise<void> {
     // Decode JobParameters:
     const params = getJobParameters(context)
     if (params === null) {
-      core.setFailed('no parameters!')
       return // No parameters, nothing to do
     }
 
@@ -100,7 +99,4 @@ async function failJob(
   core.setFailed(error.message)
 }
 
-// Run the update in the current Actions context if called directly
-if (require.main === module) {
-  run(github.context)
-}
+run(github.context)
