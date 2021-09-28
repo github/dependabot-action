@@ -1,5 +1,5 @@
 import Docker from 'dockerode'
-import {Credential, JobDetails} from '../src/api-client'
+import {Credential, JobDetails, PackageManager} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {PROXY_IMAGE_NAME} from '../src/main'
 import {ProxyBuilder} from '../src/proxy'
@@ -17,7 +17,7 @@ describe('ProxyBuilder', () => {
         'dependency-type': 'all'
       }
     ],
-    'package-manager': 'npm_and_yarn'
+    'package-manager': PackageManager.NpmAndYarn
   }
   const credentials: Credential[] = [
     {

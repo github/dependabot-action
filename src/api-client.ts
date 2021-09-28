@@ -11,20 +11,24 @@ export class JobParameters {
   ) {}
 }
 
+// TODO: Populate with enabled values
+// TODO: Rescue unsupported values
+export enum PackageManager {
+  NpmAndYarn = 'npm_and_yarn'
+}
+
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {
   'allowed-updates': {
     'dependency-type': string
   }[]
   id: string
-  'package-manager': string
+  'package-manager': PackageManager
 }
 
 export type JobError = {
   'error-type': string
-  'error-details': {
-    'action-error': string
-  }
+  'error-detail': any
 }
 
 export type Credential = {
@@ -35,17 +39,11 @@ export type Credential = {
   token?: string
 }
 
-export class ApiClient {
+export class APIClient {
   constructor(
     private readonly client: AxiosInstance,
     readonly params: JobParameters
   ) {}
-
-  // We use a static unknown SHA when marking a job as complete from the action
-  // to remain in parity with the existing runner.
-  UnknownSha = {
-    'base-commit-sha': 'unknown'
-  }
 
   async getJobDetails(): Promise<JobDetails> {
     const detailsURL = `/update_jobs/${this.params.jobId}/details`
@@ -73,29 +71,25 @@ export class ApiClient {
 
   async reportJobError(error: JobError): Promise<void> {
     const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`
-    const res = await this.client.post(
-      recordErrorURL,
-      {data: error},
-      {
-        headers: {Authorization: this.params.jobToken}
-      }
-    )
-    if (res.status !== 204) {
+    const res = await this.client.post(recordErrorURL, error, {
+      headers: {Authorization: this.params.jobToken}
+    })
+    if (res.status !== 200) {
       throw new Error(`Unexpected status code: ${res.status}`)
     }
+
+    return res.data.data.attributes
   }
 
   async markJobAsProcessed(): Promise<void> {
     const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`
-    const res = await this.client.patch(
-      markAsProcessedURL,
-      {data: this.UnknownSha},
-      {
-        headers: {Authorization: this.params.jobToken}
-      }
-    )
-    if (res.status !== 204) {
+    const res = await this.client.get(markAsProcessedURL, {
+      headers: {Authorization: this.params.credentialsToken}
+    })
+    if (res.status !== 200) {
       throw new Error(`Unexpected status code: ${res.status}`)
     }
+
+    return res.data.data.attributes
   }
 }

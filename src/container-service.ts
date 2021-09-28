@@ -4,8 +4,6 @@ import {pack} from 'tar-stream'
 import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
 import {outStream, errStream} from './utils'
 
-class ContainerRuntimeError extends Error {}
-
 export const ContainerService = {
   async storeInput(
     name: string,
@@ -31,7 +29,7 @@ export const ContainerService = {
     await container.putArchive(tar, {path})
   },
 
-  async run(container: Container): Promise<boolean> {
+  async run(container: Container): Promise<void> {
     try {
       const stream = await container.attach({
         stream: true,
@@ -45,15 +43,7 @@ export const ContainerService = {
       )
 
       await container.start()
-      const outcome = await container.wait()
-
-      if (outcome.StatusCode === 0) {
-        return true
-      } else {
-        throw new ContainerRuntimeError(
-          `Failure running container ${container.id}`
-        )
-      }
+      await container.wait()
     } finally {
       await container.remove()
       core.info(`Cleaned up container ${container.id}`)

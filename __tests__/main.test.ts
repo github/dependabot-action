@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
-import {ApiClient} from '../src/api-client'
+import {APIClient} from '../src/api-client'
 import {Updater} from '../src/updater'
 import {ImageService} from '../src/image-service'
 import * as inputs from '../src/inputs'
@@ -21,10 +21,10 @@ describe('run', () => {
 
   beforeEach(async () => {
     markJobAsProcessedSpy = jest.spyOn(
-      ApiClient.prototype,
+      APIClient.prototype,
       'markJobAsProcessed'
     )
-    reportJobErrorSpy = jest.spyOn(ApiClient.prototype, 'reportJobError')
+    reportJobErrorSpy = jest.spyOn(APIClient.prototype, 'reportJobError')
 
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
@@ -114,7 +114,7 @@ describe('run', () => {
   describe('when there is an error retrieving job details from DependabotAPI', () => {
     beforeEach(() => {
       jest
-        .spyOn(ApiClient.prototype, 'getJobDetails')
+        .spyOn(APIClient.prototype, 'getJobDetails')
         .mockImplementationOnce(
           jest.fn(async () =>
             Promise.reject(new Error('error getting job details'))
@@ -139,9 +139,7 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_unknown',
-        'error-details': {
-          'action-error': 'error getting job details'
-        }
+        'error-detail': 'error getting job details'
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
@@ -150,7 +148,7 @@ describe('run', () => {
   describe('when there is an error retrieving job credentials from DependabotAPI', () => {
     beforeEach(() => {
       jest
-        .spyOn(ApiClient.prototype, 'getCredentials')
+        .spyOn(APIClient.prototype, 'getCredentials')
         .mockImplementationOnce(
           jest.fn(async () =>
             Promise.reject(new Error('error getting credentials'))
@@ -175,9 +173,7 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_unknown',
-        'error-details': {
-          'action-error': 'error getting credentials'
-        }
+        'error-detail': 'error getting credentials'
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
@@ -211,9 +207,7 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_image',
-        'error-details': {
-          'action-error': 'error pulling an image'
-        }
+        'error-detail': 'error pulling an image'
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
@@ -247,9 +241,7 @@ describe('run', () => {
 
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_updater',
-        'error-details': {
-          'action-error': 'error running the update'
-        }
+        'error-detail': 'error running the update'
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
     })
