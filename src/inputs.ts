@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
-import {WorkflowDispatchEvent} from '@octokit/webhooks-definitions/schema'
+import {WorkflowDispatchEvent} from '@octokit/webhooks-types'
 import {JobParameters} from './api-client'
 
 export function getJobParameters(ctx: Context): JobParameters | null {
@@ -19,6 +19,10 @@ export function getJobParameters(ctx: Context): JobParameters | null {
 
 function fromWorkflowInputs(ctx: Context): JobParameters {
   const evt = ctx.payload as WorkflowDispatchEvent
+
+  if (!evt.inputs) {
+    throw new Error('Missing inputs in WorkflowDispatchEvent')
+  }
 
   const dependabotApiDockerUrl =
     evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl
