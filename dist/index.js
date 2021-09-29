@@ -71210,6 +71210,9 @@ function getJobParameters(ctx) {
 }
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;
+    if (!evt.inputs) {
+        throw new Error('Missing inputs in WorkflowDispatchEvent');
+    }
     const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
     return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl);
 }
