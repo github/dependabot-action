@@ -2,13 +2,14 @@
 
 ### Prerequisites
 
-**node**: e.g. `brew install node` on Mac
+**Node Version Manager**: e.g. `brew install nvm` on Mac
 
-**docker**: e.g. `brew install docker` on Mac
+**Docker**: e.g. `brew install docker` on Mac
 
 ### Project dependencies
 
 ```bash
+$ nvm use
 $ npm install
 ```
 
