@@ -53,8 +53,7 @@ export class Updater {
         // TODO: report job runner_error?
         core.error(`Error ${e}`)
       } finally {
-        await proxy.shutdown()
-        await this.docker.pruneNetworks()
+        await this.cleanup(proxy)
       }
     } catch (e) {
       // TODO: report job runner_error?
@@ -164,5 +163,21 @@ export class Updater {
 
     core.info(`Created ${updaterCommand} container: ${container.id}`)
     return container
+  }
+
+  private async cleanup(proxy: Proxy): Promise<void> {
+    await proxy.shutdown()
+    await this.docker.pruneNetworks()
+
+    const outputDir = path.join(__dirname, '../output')
+    const repoDir = path.join(__dirname, '../repo')
+
+    if (fs.existsSync(outputDir)) {
+      fs.rmdirSync(outputDir, {recursive: true})
+    }
+
+    if (fs.existsSync(repoDir)) {
+      fs.rmdirSync(repoDir, {recursive: true})
+    }
   }
 }
