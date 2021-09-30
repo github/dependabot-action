@@ -21,7 +21,7 @@ jobs:
           node-version: ${{ steps.nvm.outputs.NVMRC }}
       - run: npm ci
       - run: npm run all
-      - run: git diff --quiet
+      - run: git diff --quiet dist/
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:

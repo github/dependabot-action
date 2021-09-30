@@ -24,7 +24,8 @@ export class Updater {
     private readonly proxyImage: string,
     private readonly apiClient: ApiClient,
     private readonly details: JobDetails,
-    private readonly credentials: Credential[]
+    private readonly credentials: Credential[],
+    private readonly outputPath = '../output/output.json'
   ) {
     this.docker = new Docker()
   }
@@ -32,36 +33,23 @@ export class Updater {
   /**
    * Execute an update job and report the result to Dependabot API.
    */
-  async runUpdater(): Promise<void> {
+  async runUpdater(): Promise<boolean> {
+    const proxy = await new ProxyBuilder(this.docker, this.proxyImage).run(
+      this.details,
+      this.credentials
+    )
+    proxy.container.start()
+
     try {
-      const proxy = await new ProxyBuilder(this.docker, this.proxyImage).run(
-        this.details,
-        this.credentials
-      )
-      proxy.container.start()
-
-      try {
-        const files = await this.runFileFetcher(proxy)
-        if (!files) {
-          core.error(`failed during fetch, skipping updater`)
-          // TODO: report job runner_error?
-          return
-        }
-
-        await this.runFileUpdater(proxy, files)
-      } catch (e) {
-        // TODO: report job runner_error?
-        core.error(`Error ${e}`)
-      } finally {
-        await this.cleanup(proxy)
-      }
-    } catch (e) {
-      // TODO: report job runner_error?
-      core.error(`Error ${e}`)
+      const files = await this.runFileFetcher(proxy)
+      await this.runFileUpdater(proxy, files)
+      return true
+    } finally {
+      await this.cleanup(proxy)
     }
   }
 
-  private async runFileFetcher(proxy: Proxy): Promise<void | FetchedFiles> {
+  private async runFileFetcher(proxy: Proxy): Promise<FetchedFiles> {
     const container = await this.createContainer(proxy, 'fetch_files')
     await ContainerService.storeInput(
       JOB_INPUT_FILENAME,
@@ -78,9 +66,9 @@ export class Updater {
 
     await ContainerService.run(container)
 
-    const outputPath = path.join(__dirname, '../output/output.json')
+    const outputPath = path.join(__dirname, this.outputPath)
     if (!fs.existsSync(outputPath)) {
-      return
+      throw new Error('No output.json created by the fetcher container')
     }
 
     const fileFetcherSync = fs.readFileSync(outputPath).toString()

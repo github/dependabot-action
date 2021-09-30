@@ -71144,6 +71144,11 @@ class ApiClient {
     constructor(client, params) {
         this.client = client;
         this.params = params;
+        // We use a static unknown SHA when marking a job as complete from the action
+        // to remain in parity with the existing runner.
+        this.UnknownSha = {
+            'base-commit-sha': 'unknown'
+        };
     }
     getJobDetails() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -71172,25 +71177,23 @@ class ApiClient {
     reportJobError(error) {
         return __awaiter(this, void 0, void 0, function* () {
             const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
-            const res = yield this.client.post(recordErrorURL, error, {
+            const res = yield this.client.post(recordErrorURL, { data: error }, {
                 headers: { Authorization: this.params.jobToken }
             });
-            if (res.status !== 200) {
+            if (res.status !== 204) {
                 throw new Error(`Unexpected status code: ${res.status}`);
             }
-            return res.data.data.attributes;
         });
     }
     markJobAsProcessed() {
         return __awaiter(this, void 0, void 0, function* () {
             const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
-            const res = yield this.client.get(markAsProcessedURL, {
-                headers: { Authorization: this.params.credentialsToken }
+            const res = yield this.client.patch(markAsProcessedURL, { data: this.UnknownSha }, {
+                headers: { Authorization: this.params.jobToken }
             });
-            if (res.status !== 200) {
+            if (res.status !== 204) {
                 throw new Error(`Unexpected status code: ${res.status}`);
             }
-            return res.data.data.attributes;
         });
     }
 }
@@ -71315,6 +71318,8 @@ var container_service_awaiter = (undefined && undefined.__awaiter) || function (
 
 
 
+class ContainerRuntimeError extends Error {
+}
 const ContainerService = {
     storeInput(name, path, container, input) {
         return container_service_awaiter(this, void 0, void 0, function* () {
@@ -71342,7 +71347,13 @@ const ContainerService = {
                 });
                 container.modem.demuxStream(stream, outStream('updater'), errStream('updater'));
                 yield container.start();
-                yield container.wait();
+                const outcome = yield container.wait();
+                if (outcome.StatusCode === 0) {
+                    return true;
+                }
+                else {
+                    throw new ContainerRuntimeError(`Failure running container ${container.id}`);
+                }
             }
             finally {
                 yield container.remove({ v: true });
@@ -71533,12 +71544,13 @@ const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
 const updater_CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
 class Updater {
-    constructor(updaterImage, proxyImage, apiClient, details, credentials) {
+    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../output/output.json') {
         this.updaterImage = updaterImage;
         this.proxyImage = proxyImage;
         this.apiClient = apiClient;
         this.details = details;
         this.credentials = credentials;
+        this.outputPath = outputPath;
         this.docker = new (docker_default())();
     }
     /**
@@ -71546,29 +71558,15 @@ class Updater {
      */
     runUpdater() {
         return updater_awaiter(this, void 0, void 0, function* () {
+            const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.details, this.credentials);
+            proxy.container.start();
             try {
-                const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.details, this.credentials);
-                proxy.container.start();
-                try {
-                    const files = yield this.runFileFetcher(proxy);
-                    if (!files) {
-                        core.error(`failed during fetch, skipping updater`);
-                        // TODO: report job runner_error?
-                        return;
-                    }
-                    yield this.runFileUpdater(proxy, files);
-                }
-                catch (e) {
-                    // TODO: report job runner_error?
-                    core.error(`Error ${e}`);
-                }
-                finally {
-                    yield this.cleanup(proxy);
-                }
+                const files = yield this.runFileFetcher(proxy);
+                yield this.runFileUpdater(proxy, files);
+                return true;
             }
-            catch (e) {
-                // TODO: report job runner_error?
-                core.error(`Error ${e}`);
+            finally {
+                yield this.cleanup(proxy);
             }
         });
     }
@@ -71578,9 +71576,9 @@ class Updater {
             yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
             yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
             yield ContainerService.run(container);
-            const outputPath = external_path_default().join(__dirname, '../output/output.json');
+            const outputPath = external_path_default().join(__dirname, this.outputPath);
             if (!external_fs_default().existsSync(outputPath)) {
-                return;
+                throw new Error('No output.json created by the fetcher container');
             }
             const fileFetcherSync = external_fs_default().readFileSync(outputPath).toString();
             const fileFetcherOutput = JSON.parse(fileFetcherSync);
@@ -71747,7 +71745,9 @@ function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
     return main_awaiter(this, void 0, void 0, function* () {
         yield apiClient.reportJobError({
             'error-type': errorType,
-            'error-detail': error.message
+            'error-details': {
+                'action-error': error.message
+            }
         });
         yield apiClient.markJobAsProcessed();
         core.setFailed(error.message);
