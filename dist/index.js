@@ -71688,30 +71688,34 @@ var DependabotErrorType;
 function run(context) {
     return main_awaiter(this, void 0, void 0, function* () {
         try {
-            core.info('🤖 ~start~');
-            // Decode JobParameters:
+            core.info('🤖 ~ starting update ~');
+            // Decode JobParameters
             const params = getJobParameters(context);
             if (params === null) {
-                return; // No parameters, nothing to do
+                core.info('No job parameters');
+                core.info('🤖 ~ finished: nothing to do ~');
+                return;
             }
-            core.info('Starting updater');
-            core.debug(JSON.stringify(params));
+            core.debug(`Job parameters: ${JSON.stringify(params)}`);
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_default().create({ baseURL: params.dependabotApiUrl });
             const apiClient = new ApiClient(client, params);
+            core.info('Fetching job details');
+            // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
+            // so we do not try attempt to report back an exception if this fails and instead rely on the the workflow run
+            // webhook as it anticipates scenarios where jobs have failed while 'enqueued'.
+            const details = yield apiClient.getJobDetails();
             try {
-                core.info('Fetching job details');
-                const details = yield apiClient.getJobDetails();
                 const credentials = yield apiClient.getCredentials();
                 const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
                 try {
-                    core.info('Pulling updater and proxy images');
+                    core.info('Pulling updater images');
                     yield ImageService.pull(UPDATER_IMAGE_NAME);
                     yield ImageService.pull(PROXY_IMAGE_NAME);
                 }
                 catch (error) {
-                    core.error('Error fetching updater and proxy images');
+                    core.error('Error fetching updater images');
                     yield failJob(apiClient, error, DependabotErrorType.Image);
                     return;
                 }
@@ -71724,11 +71728,11 @@ function run(context) {
                     yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
                     return;
                 }
-                core.info('🤖 ~fin~');
+                core.info('🤖 ~ finished ~');
             }
             catch (error) {
-                // Update Dependabot API on the job failure
                 yield failJob(apiClient, error);
+                return;
             }
         }
         catch (error) {
@@ -71738,6 +71742,7 @@ function run(context) {
             // We output the raw error in the Action logs and defer
             // to workflow_run monitoring to detect the job failure.
             core.setFailed(error);
+            core.info('🤖 ~ finished: unexpected error ~');
         }
     });
 }
@@ -71751,6 +71756,7 @@ function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
         });
         yield apiClient.markJobAsProcessed();
         core.setFailed(error.message);
+        core.info('🤖 ~ finished: error reported to Dependabot ~');
     });
 }
 run(github.context);

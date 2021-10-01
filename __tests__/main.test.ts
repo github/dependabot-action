@@ -46,7 +46,7 @@ describe('run', () => {
 
       expect(core.setFailed).not.toHaveBeenCalled()
       expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining('🤖 ~fin~')
+        expect.stringContaining('🤖 ~ finished ~')
       )
     })
 
@@ -126,24 +126,19 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it fails the workflow', async () => {
+    test('it fails the workflow with the raw error', async () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('error getting job details')
+        new Error('error getting job details')
       )
     })
 
-    test('it relays a failure message to the dependabot service', async () => {
+    test('it does not inform dependabot-api as the job may not be in a writeable state', async () => {
       await run(context)
 
-      expect(reportJobErrorSpy).toHaveBeenCalledWith({
-        'error-type': 'actions_workflow_unknown',
-        'error-details': {
-          'action-error': 'error getting job details'
-        }
-      })
-      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 
