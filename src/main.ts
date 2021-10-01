@@ -20,16 +20,16 @@ export enum DependabotErrorType {
 
 export async function run(context: Context): Promise<void> {
   try {
-    core.info('🤖 ~start~')
-    // Decode JobParameters:
+    core.info('🤖 ~ starting update ~')
+    // Decode JobParameters
     const params = getJobParameters(context)
     if (params === null) {
-      return // No parameters, nothing to do
+      core.info('No job parameters')
+      core.info('🤖 ~ finished: nothing to do ~')
+      return
     }
 
-    core.info('Starting updater')
-
-    core.debug(JSON.stringify(params))
+    core.debug(`Job parameters: ${JSON.stringify(params)}`)
 
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
@@ -37,10 +37,14 @@ export async function run(context: Context): Promise<void> {
     const client = axios.create({baseURL: params.dependabotApiUrl})
     const apiClient = new ApiClient(client, params)
 
-    try {
-      core.info('Fetching job details')
+    core.info('Fetching job details')
 
-      const details = await apiClient.getJobDetails()
+    // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
+    // so we do not try attempt to report back an exception if this fails and instead rely on the the workflow run
+    // webhook as it anticipates scenarios where jobs have failed while 'enqueued'.
+    const details = await apiClient.getJobDetails()
+
+    try {
       const credentials = await apiClient.getCredentials()
       const updater = new Updater(
         UPDATER_IMAGE_NAME,
@@ -51,12 +55,12 @@ export async function run(context: Context): Promise<void> {
       )
 
       try {
-        core.info('Pulling updater and proxy images')
+        core.info('Pulling updater images')
 
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
       } catch (error) {
-        core.error('Error fetching updater and proxy images')
+        core.error('Error fetching updater images')
 
         await failJob(apiClient, error, DependabotErrorType.Image)
         return
@@ -71,10 +75,10 @@ export async function run(context: Context): Promise<void> {
         await failJob(apiClient, error, DependabotErrorType.UpdateRun)
         return
       }
-      core.info('🤖 ~fin~')
+      core.info('🤖 ~ finished ~')
     } catch (error) {
-      // Update Dependabot API on the job failure
       await failJob(apiClient, error)
+      return
     }
   } catch (error) {
     // If we've reached this point, we do not have a viable
@@ -83,6 +87,7 @@ export async function run(context: Context): Promise<void> {
     // We output the raw error in the Action logs and defer
     // to workflow_run monitoring to detect the job failure.
     core.setFailed(error)
+    core.info('🤖 ~ finished: unexpected error ~')
   }
 }
 
@@ -99,6 +104,7 @@ async function failJob(
   })
   await apiClient.markJobAsProcessed()
   core.setFailed(error.message)
+  core.info('🤖 ~ finished: error reported to Dependabot ~')
 }
 
 run(github.context)
