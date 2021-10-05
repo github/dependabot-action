@@ -1,5 +1,5 @@
 import Docker from 'dockerode'
-import {Credential, JobDetails} from '../src/api-client'
+import {Credential} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {PROXY_IMAGE_NAME} from '../src/main'
 import {ProxyBuilder} from '../src/proxy'
@@ -10,15 +10,7 @@ import path from 'path'
 
 describe('ProxyBuilder', () => {
   const docker = new Docker()
-  const details: JobDetails = {
-    id: '1',
-    'allowed-updates': [
-      {
-        'dependency-type': 'all'
-      }
-    ],
-    'package-manager': 'npm_and_yarn'
-  }
+  const jobId = 1
   const credentials: Credential[] = [
     {
       type: 'git_source',
@@ -48,7 +40,7 @@ describe('ProxyBuilder', () => {
       return
     }
 
-    const proxy = await builder.run(details, credentials)
+    const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
     expect(proxy.networkName).toBe('job-1-network')
@@ -91,7 +83,7 @@ describe('ProxyBuilder', () => {
     fs.writeFileSync(certPath, 'ca-pem-contents')
     process.env.CUSTOM_CA_PATH = certPath
 
-    const proxy = await builder.run(details, credentials)
+    const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
     const id = proxy.container.id

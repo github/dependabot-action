@@ -71421,14 +71421,14 @@ class ProxyBuilder {
         this.docker = docker;
         this.proxyImage = proxyImage;
     }
-    run(details, credentials) {
+    run(jobId, credentials) {
         return proxy_awaiter(this, void 0, void 0, function* () {
-            const name = `job-${details.id}-proxy`;
-            const config = this.buildProxyConfig(credentials, details.id);
+            const name = `job-${jobId}-proxy`;
+            const config = this.buildProxyConfig(credentials, jobId);
             const cert = config.ca.cert;
-            const networkName = `job-${details.id}-network`;
+            const networkName = `job-${jobId}-network`;
             const network = yield this.ensureNetwork(networkName);
-            const container = yield this.createContainer(details.id, name, networkName);
+            const container = yield this.createContainer(jobId, name, networkName);
             yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
             if (process.env.CUSTOM_CA_PATH) {
                 core.info('Detected custom CA certificate, adding to proxy');
@@ -71558,7 +71558,7 @@ class Updater {
      */
     runUpdater() {
         return updater_awaiter(this, void 0, void 0, function* () {
-            const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.details, this.credentials);
+            const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
             proxy.container.start();
             try {
                 const files = yield this.runFileFetcher(proxy);
