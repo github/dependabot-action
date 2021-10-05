@@ -8,7 +8,7 @@ import {
   ProxyConfig
 } from './config-types'
 import {ContainerService} from './container-service'
-import {Credential, JobDetails} from './api-client'
+import {Credential} from './api-client'
 import {pki} from 'node-forge'
 import {outStream, errStream} from './utils'
 
@@ -60,15 +60,15 @@ export class ProxyBuilder {
     private readonly proxyImage: string
   ) {}
 
-  async run(details: JobDetails, credentials: Credential[]): Promise<Proxy> {
-    const name = `job-${details.id}-proxy`
-    const config = this.buildProxyConfig(credentials, details.id)
+  async run(jobId: number, credentials: Credential[]): Promise<Proxy> {
+    const name = `job-${jobId}-proxy`
+    const config = this.buildProxyConfig(credentials, jobId)
     const cert = config.ca.cert
 
-    const networkName = `job-${details.id}-network`
+    const networkName = `job-${jobId}-network`
     const network = await this.ensureNetwork(networkName)
 
-    const container = await this.createContainer(details.id, name, networkName)
+    const container = await this.createContainer(jobId, name, networkName)
 
     await ContainerService.storeInput(
       CONFIG_FILE_NAME,
@@ -130,7 +130,7 @@ export class ProxyBuilder {
 
   private buildProxyConfig(
     credentials: Credential[],
-    jobId: string
+    jobId: number
   ): ProxyConfig {
     const ca = this.generateCertificateAuthority()
     const password = crypto.randomBytes(20).toString('hex')
@@ -167,7 +167,7 @@ export class ProxyBuilder {
   }
 
   private async createContainer(
-    jobId: string,
+    jobId: number,
     containerName: string,
     networkName: string
   ): Promise<Container> {

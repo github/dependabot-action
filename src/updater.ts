@@ -35,7 +35,7 @@ export class Updater {
    */
   async runUpdater(): Promise<boolean> {
     const proxy = await new ProxyBuilder(this.docker, this.proxyImage).run(
-      this.details,
+      this.apiClient.params.jobId,
       this.credentials
     )
     proxy.container.start()
