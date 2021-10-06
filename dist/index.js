@@ -71423,10 +71423,10 @@ class ProxyBuilder {
     }
     run(jobId, credentials) {
         return proxy_awaiter(this, void 0, void 0, function* () {
-            const name = `job-${jobId}-proxy`;
+            const name = `dependabot-job-${jobId}-proxy`;
             const config = this.buildProxyConfig(credentials, jobId);
             const cert = config.ca.cert;
-            const networkName = `job-${jobId}-network`;
+            const networkName = `dependabot-job-${jobId}-network`;
             const network = yield this.ensureNetwork(networkName);
             const container = yield this.createContainer(jobId, name, networkName);
             yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
@@ -71572,7 +71572,8 @@ class Updater {
     }
     runFileFetcher(proxy) {
         return updater_awaiter(this, void 0, void 0, function* () {
-            const container = yield this.createContainer(proxy, 'fetch_files');
+            const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`;
+            const container = yield this.createContainer(proxy, name, 'fetch_files');
             yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
             yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
             yield ContainerService.run(container);
@@ -71593,7 +71594,8 @@ class Updater {
     runFileUpdater(proxy, files) {
         return updater_awaiter(this, void 0, void 0, function* () {
             core.info(`Running update job ${this.apiClient.params.jobId}`);
-            const container = yield this.createContainer(proxy, 'update_files');
+            const name = `dependabot-job-${this.apiClient.params.jobId}-updater`;
+            const container = yield this.createContainer(proxy, name, 'update_files');
             const containerInput = {
                 base_commit_sha: files.base_commit_sha,
                 base64_dependency_files: files.base64_dependency_files,
@@ -71605,7 +71607,7 @@ class Updater {
             yield ContainerService.run(container);
         });
     }
-    createContainer(proxy, updaterCommand) {
+    createContainer(proxy, containerName, updaterCommand) {
         return updater_awaiter(this, void 0, void 0, function* () {
             const cmd = `(echo > /etc/ca-certificates.conf) &&\
      rm -Rf /usr/share/ca-certificates/ &&\
@@ -71613,6 +71615,7 @@ class Updater {
        $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
+                name: containerName,
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [

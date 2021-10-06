@@ -61,11 +61,11 @@ export class ProxyBuilder {
   ) {}
 
   async run(jobId: number, credentials: Credential[]): Promise<Proxy> {
-    const name = `job-${jobId}-proxy`
+    const name = `dependabot-job-${jobId}-proxy`
     const config = this.buildProxyConfig(credentials, jobId)
     const cert = config.ca.cert
 
-    const networkName = `job-${jobId}-network`
+    const networkName = `dependabot-job-${jobId}-network`
     const network = await this.ensureNetwork(networkName)
 
     const container = await this.createContainer(jobId, name, networkName)
