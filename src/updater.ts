@@ -50,7 +50,8 @@ export class Updater {
   }
 
   private async runFileFetcher(proxy: Proxy): Promise<FetchedFiles> {
-    const container = await this.createContainer(proxy, 'fetch_files')
+    const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`
+    const container = await this.createContainer(proxy, name, 'fetch_files')
     await ContainerService.storeInput(
       JOB_INPUT_FILENAME,
       JOB_INPUT_PATH,
@@ -90,7 +91,8 @@ export class Updater {
     files: FetchedFiles
   ): Promise<void> {
     core.info(`Running update job ${this.apiClient.params.jobId}`)
-    const container = await this.createContainer(proxy, 'update_files')
+    const name = `dependabot-job-${this.apiClient.params.jobId}-updater`
+    const container = await this.createContainer(proxy, name, 'update_files')
     const containerInput: FileUpdaterInput = {
       base_commit_sha: files.base_commit_sha,
       base64_dependency_files: files.base64_dependency_files,
@@ -115,6 +117,7 @@ export class Updater {
 
   private async createContainer(
     proxy: Proxy,
+    containerName: string,
     updaterCommand: string
   ): Promise<Container> {
     const cmd = `(echo > /etc/ca-certificates.conf) &&\
@@ -124,6 +127,7 @@ export class Updater {
 
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
+      name: containerName,
       AttachStdout: true,
       AttachStderr: true,
       Env: [
