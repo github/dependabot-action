@@ -145,6 +145,7 @@ export class Updater {
       ],
       Cmd: ['sh', '-c', cmd],
       HostConfig: {
+        Memory: 8 * 1024 * 1024 * 1024, // 8GB in bytes
         NetworkMode: proxy.networkName,
         Binds: [
           `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
