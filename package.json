@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
+  "name": "dependabot-updater-action",
   "version": "0.0.0",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "Runs Dependabot workloads via GitHub Actions.",
   "main": "src/main.ts",
   "scripts": {
     "format": "prettier --write **/*.ts",
@@ -20,10 +20,10 @@
   },
   "keywords": [
     "actions",
-    "node",
-    "setup"
+    "dependabot",
+    "dependencies"
   ],
-  "author": "",
+  "author": "GitHub",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.5.0",
