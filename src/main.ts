@@ -29,8 +29,6 @@ export async function run(context: Context): Promise<void> {
       return
     }
 
-    core.debug(`Job parameters: ${JSON.stringify(params)}`)
-
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 

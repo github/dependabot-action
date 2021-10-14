@@ -71202,7 +71202,6 @@ class ApiClient {
 
 
 function getJobParameters(ctx) {
-    core.debug(`Detecting '${ctx.eventName}' event.`);
     switch (ctx.eventName) {
         case 'dynamic':
         case 'workflow_dispatch':
@@ -71700,7 +71699,6 @@ function run(context) {
                 core.info('🤖 ~ finished: nothing to do ~');
                 return;
             }
-            core.debug(`Job parameters: ${JSON.stringify(params)}`);
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_default().create({ baseURL: params.dependabotApiUrl });
