@@ -38,6 +38,7 @@ describe('run', () => {
     beforeAll(() => {
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -58,10 +59,36 @@ describe('run', () => {
     })
   })
 
+  describe('when the action is triggered on by a different actor', () => {
+    beforeAll(() => {
+      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'classic-rando'
+      context = new Context()
+    })
+
+    test('it fails the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        'This workflow can only be triggered by Dependabot.'
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
   describe('when the action is triggered on an unsupported event', () => {
     beforeAll(() => {
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'issue_created'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -92,6 +119,7 @@ describe('run', () => {
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -123,6 +151,7 @@ describe('run', () => {
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -154,6 +183,7 @@ describe('run', () => {
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -190,6 +220,7 @@ describe('run', () => {
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -226,6 +257,7 @@ describe('run', () => {
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
       process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
