@@ -71201,14 +71201,15 @@ class ApiClient {
 ;// CONCATENATED MODULE: ./src/inputs.ts
 
 
+const DYNAMIC = 'dynamic';
 function getJobParameters(ctx) {
-    switch (ctx.eventName) {
-        case 'dynamic':
-        case 'workflow_dispatch':
-            return fromWorkflowInputs(ctx);
+    if (ctx.eventName === DYNAMIC) {
+        return fromWorkflowInputs(ctx);
     }
-    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
-    return null;
+    else {
+        core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
+        return null;
+    }
 }
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;

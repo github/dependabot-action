@@ -25,20 +25,3 @@ test('loads dynamic', () => {
   expect(params?.jobToken).toEqual('xxx')
   expect(params?.credentialsToken).toEqual('yyy')
 })
-
-test('loads workflow_dispatch', () => {
-  const ctx = new Context()
-  ctx.eventName = 'workflow_dispatch'
-  ctx.payload = {
-    inputs: {
-      jobId: '1',
-      jobToken: 'xxx',
-      credentialsToken: 'yyy'
-    }
-  }
-
-  const params = getJobParameters(ctx)
-  expect(params?.jobId).toEqual(1)
-  expect(params?.jobToken).toEqual('xxx')
-  expect(params?.credentialsToken).toEqual('yyy')
-})

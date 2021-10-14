@@ -3,16 +3,17 @@ import {Context} from '@actions/github/lib/context'
 import {WorkflowDispatchEvent} from '@octokit/webhooks-types'
 import {JobParameters} from './api-client'
 
+const DYNAMIC = 'dynamic'
+
 export function getJobParameters(ctx: Context): JobParameters | null {
-  switch (ctx.eventName) {
-    case 'dynamic':
-    case 'workflow_dispatch':
-      return fromWorkflowInputs(ctx)
+  if (ctx.eventName === DYNAMIC) {
+    return fromWorkflowInputs(ctx)
+  } else {
+    core.info(
+      `Dependabot Updater Action does not support '${ctx.eventName}' events.`
+    )
+    return null
   }
-  core.info(
-    `Dependabot Updater Action does not support '${ctx.eventName}' events.`
-  )
-  return null
 }
 
 function fromWorkflowInputs(ctx: Context): JobParameters {

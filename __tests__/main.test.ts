@@ -37,7 +37,7 @@ describe('run', () => {
   describe('when the run follows the happy path', () => {
     beforeAll(() => {
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
@@ -62,7 +62,7 @@ describe('run', () => {
   describe('when the action is triggered on by a different actor', () => {
     beforeAll(() => {
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'classic-rando'
       context = new Context()
     })
@@ -118,7 +118,7 @@ describe('run', () => {
       )
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
@@ -150,7 +150,7 @@ describe('run', () => {
         )
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
@@ -182,7 +182,7 @@ describe('run', () => {
         )
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
@@ -219,7 +219,7 @@ describe('run', () => {
         )
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
@@ -256,7 +256,7 @@ describe('run', () => {
         )
 
       process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+      process.env.GITHUB_EVENT_NAME = 'dynamic'
       process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
