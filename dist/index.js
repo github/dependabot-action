@@ -71259,7 +71259,7 @@ const ImageService = {
             core.info(`Pulling image ${imageName}...`);
             const auth = {
                 username: 'x',
-                password: process.env.GPR_TOKEN
+                password: process.env.GITHUB_TOKEN
             };
             const stream = yield docker.pull(imageName, { authconfig: auth });
             yield endOfStream(docker, stream);
