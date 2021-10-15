@@ -10,9 +10,9 @@ import axios from 'axios'
 const DEPENDABOT_ACTOR = 'dependabot[bot]'
 
 export const UPDATER_IMAGE_NAME =
-  'docker.pkg.github.com/dependabot/dependabot-updater:latest'
+  'docker.pkg.github.com/dependabot/dependabot-updater:v1'
 export const PROXY_IMAGE_NAME =
-  'docker.pkg.github.com/github/dependabot-update-job-proxy:latest'
+  'docker.pkg.github.com/github/dependabot-update-job-proxy:v1'
 
 export enum DependabotErrorType {
   Unknown = 'actions_workflow_unknown',
