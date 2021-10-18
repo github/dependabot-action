@@ -7,7 +7,7 @@
   "scripts": {
     "format": "prettier --write **/*.ts",
     "lint": "eslint --fix **/*.ts",
-    "package": "ncc build src/main.ts --source-map --license licenses.txt",
+    "package": "ncc build -o dist/main src/main.ts --source-map --license licenses.txt && ncc build -o dist/cleanup src/cleanup.ts --source-map --license licenses.txt",
     "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
