@@ -7,7 +7,8 @@ export class JobParameters {
     readonly jobToken: string,
     readonly credentialsToken: string,
     readonly dependabotApiUrl: string,
-    readonly dependabotApiDockerUrl: string
+    readonly dependabotApiDockerUrl: string,
+    readonly workingDirectory: string
   ) {}
 }
 

@@ -31,6 +31,7 @@ function fromWorkflowInputs(ctx: Context): JobParameters {
     evt.inputs.jobToken as string,
     evt.inputs.credentialsToken as string,
     evt.inputs.dependabotApiUrl as string,
-    dependabotApiDockerUrl as string
+    dependabotApiDockerUrl as string,
+    evt.inputs.workingDirectory as string
   )
 }

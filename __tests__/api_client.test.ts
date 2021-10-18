@@ -9,7 +9,8 @@ describe('ApiClient', () => {
     jobToken: 'xxx',
     credentialsToken: 'yyy',
     dependabotApiUrl: 'https://localhost',
-    dependabotApiDockerUrl: 'https://localhost'
+    dependabotApiDockerUrl: 'https://localhost',
+    workingDirectory: 'nyi'
   })
   beforeEach(jest.clearAllMocks)
 

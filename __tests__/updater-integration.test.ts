@@ -23,7 +23,8 @@ describe('Updater', () => {
     'job-token',
     'cred-token',
     dependabotApiUrl,
-    dependabotApiDockerUrl
+    dependabotApiDockerUrl,
+    'nyi-workingDirectory'
   )
 
   const client = axios.create({baseURL: dependabotApiUrl})
