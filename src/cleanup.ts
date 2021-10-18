@@ -4,8 +4,9 @@ import Docker from 'dockerode'
 export async function run(): Promise<void> {
   try {
     const docker = new Docker()
-    await docker.pruneNetworks({filters: {until: '24h'}})
-    await docker.pruneContainers({filters: {until: '24h'}})
+    const untilFilter = JSON.stringify({until: '24h'})
+    await docker.pruneNetworks({filters: untilFilter})
+    await docker.pruneContainers({filters: untilFilter})
   } catch (error) {
     core.debug(`Error cleaning up: ${error.message}`)
   }

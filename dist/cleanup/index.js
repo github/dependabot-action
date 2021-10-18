@@ -33138,8 +33138,9 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const docker = new dockerode_1.default();
-            yield docker.pruneNetworks({ filters: { until: '24h' } });
-            yield docker.pruneContainers({ filters: { until: '24h' } });
+            const untilFilter = JSON.stringify({ until: '24h' });
+            yield docker.pruneNetworks({ filters: untilFilter });
+            yield docker.pruneContainers({ filters: untilFilter });
         }
         catch (error) {
             core.debug(`Error cleaning up: ${error.message}`);
