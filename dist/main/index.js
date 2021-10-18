@@ -71624,7 +71624,7 @@ const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
 class Updater {
-    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../output/output.json') {
+    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../../output/output.json') {
         this.updaterImage = updaterImage;
         this.proxyImage = proxyImage;
         this.apiClient = apiClient;
@@ -71716,8 +71716,8 @@ class Updater {
                     Memory: 8 * 1024 * 1024 * 1024,
                     NetworkMode: proxy.networkName,
                     Binds: [
-                        `${path_1.default.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
-                        `${path_1.default.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
+                        `${path_1.default.join(__dirname, '../../output')}:${JOB_OUTPUT_PATH}:rw`,
+                        `${path_1.default.join(__dirname, '../../repo')}:${REPO_CONTENTS_PATH}:rw`
                     ]
                 }
             });
@@ -71728,8 +71728,8 @@ class Updater {
     cleanup(proxy) {
         return __awaiter(this, void 0, void 0, function* () {
             yield proxy.shutdown();
-            const outputDir = path_1.default.join(__dirname, '../output');
-            const repoDir = path_1.default.join(__dirname, '../repo');
+            const outputDir = path_1.default.join(__dirname, '../../output');
+            const repoDir = path_1.default.join(__dirname, '../../repo');
             if (fs_1.default.existsSync(outputDir)) {
                 fs_1.default.rmdirSync(outputDir, { recursive: true });
             }

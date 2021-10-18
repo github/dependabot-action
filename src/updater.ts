@@ -25,7 +25,7 @@ export class Updater {
     private readonly apiClient: ApiClient,
     private readonly details: JobDetails,
     private readonly credentials: Credential[],
-    private readonly outputPath = '../output/output.json'
+    private readonly outputPath = '../../output/output.json'
   ) {
     this.docker = new Docker()
   }
@@ -148,8 +148,8 @@ export class Updater {
         Memory: 8 * 1024 * 1024 * 1024, // 8GB in bytes
         NetworkMode: proxy.networkName,
         Binds: [
-          `${path.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
-          `${path.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
+          `${path.join(__dirname, '../../output')}:${JOB_OUTPUT_PATH}:rw`,
+          `${path.join(__dirname, '../../repo')}:${REPO_CONTENTS_PATH}:rw`
         ]
       }
     })
@@ -161,8 +161,8 @@ export class Updater {
   private async cleanup(proxy: Proxy): Promise<void> {
     await proxy.shutdown()
 
-    const outputDir = path.join(__dirname, '../output')
-    const repoDir = path.join(__dirname, '../repo')
+    const outputDir = path.join(__dirname, '../../output')
+    const repoDir = path.join(__dirname, '../../repo')
 
     if (fs.existsSync(outputDir)) {
       fs.rmdirSync(outputDir, {recursive: true})
