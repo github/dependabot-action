@@ -4472,9 +4472,11 @@ var httpFollow = __nccwpck_require__(7707).http;
 var httpsFollow = __nccwpck_require__(7707).https;
 var url = __nccwpck_require__(8835);
 var zlib = __nccwpck_require__(8761);
-var pkg = __nccwpck_require__(696);
+var VERSION = __nccwpck_require__(4322).version;
 var createError = __nccwpck_require__(5226);
 var enhanceError = __nccwpck_require__(1516);
+var defaults = __nccwpck_require__(8190);
+var Cancel = __nccwpck_require__(8875);
 
 var isHttps = /https:?/;
 
@@ -4506,27 +4508,43 @@ function setProxy(options, proxy, location) {
 /*eslint consistent-return:0*/
 module.exports = function httpAdapter(config) {
   return new Promise(function dispatchHttpRequest(resolvePromise, rejectPromise) {
+    var onCanceled;
+    function done() {
+      if (config.cancelToken) {
+        config.cancelToken.unsubscribe(onCanceled);
+      }
+
+      if (config.signal) {
+        config.signal.removeEventListener('abort', onCanceled);
+      }
+    }
     var resolve = function resolve(value) {
+      done();
       resolvePromise(value);
     };
     var reject = function reject(value) {
+      done();
       rejectPromise(value);
     };
     var data = config.data;
     var headers = config.headers;
+    var headerNames = {};
+
+    Object.keys(headers).forEach(function storeLowerName(name) {
+      headerNames[name.toLowerCase()] = name;
+    });
 
     // Set User-Agent (required by some servers)
     // See https://github.com/axios/axios/issues/69
-    if ('User-Agent' in headers || 'user-agent' in headers) {
+    if ('user-agent' in headerNames) {
       // User-Agent is specified; handle case where no UA header is desired
-      if (!headers['User-Agent'] && !headers['user-agent']) {
-        delete headers['User-Agent'];
-        delete headers['user-agent'];
+      if (!headers[headerNames['user-agent']]) {
+        delete headers[headerNames['user-agent']];
       }
       // Otherwise, use specified value
     } else {
       // Only set header if it hasn't been set in config
-      headers['User-Agent'] = 'axios/' + pkg.version;
+      headers['User-Agent'] = 'axios/' + VERSION;
     }
 
     if (data && !utils.isStream(data)) {
@@ -4544,7 +4562,9 @@ module.exports = function httpAdapter(config) {
       }
 
       // Add Content-Length header if data exists
-      headers['Content-Length'] = data.length;
+      if (!headerNames['content-length']) {
+        headers['Content-Length'] = data.length;
+      }
     }
 
     // HTTP basic authentication
@@ -4567,8 +4587,8 @@ module.exports = function httpAdapter(config) {
       auth = urlUsername + ':' + urlPassword;
     }
 
-    if (auth) {
-      delete headers.Authorization;
+    if (auth && headerNames.authorization) {
+      delete headers[headerNames.authorization];
     }
 
     var isHttpsRequest = isHttps.test(protocol);
@@ -4658,6 +4678,10 @@ module.exports = function httpAdapter(config) {
 
     if (config.maxBodyLength > -1) {
       options.maxBodyLength = config.maxBodyLength;
+    }
+
+    if (config.insecureHTTPParser) {
+      options.insecureHTTPParser = config.insecureHTTPParser;
     }
 
     // Create the request
@@ -4762,24 +4786,32 @@ module.exports = function httpAdapter(config) {
       // ClientRequest.setTimeout will be fired on the specify milliseconds, and can make sure that abort() will be fired after connect.
       req.setTimeout(timeout, function handleRequestTimeout() {
         req.abort();
+        var transitional = config.transitional || defaults.transitional;
         reject(createError(
           'timeout of ' + timeout + 'ms exceeded',
           config,
-          config.transitional && config.transitional.clarifyTimeoutError ? 'ETIMEDOUT' : 'ECONNABORTED',
+          transitional.clarifyTimeoutError ? 'ETIMEDOUT' : 'ECONNABORTED',
           req
         ));
       });
     }
 
-    if (config.cancelToken) {
+    if (config.cancelToken || config.signal) {
       // Handle cancellation
-      config.cancelToken.promise.then(function onCanceled(cancel) {
+      // eslint-disable-next-line func-names
+      onCanceled = function(cancel) {
         if (req.aborted) return;
 
         req.abort();
-        reject(cancel);
-      });
+        reject(!cancel || (cancel && cancel.type) ? new Cancel('canceled') : cancel);
+      };
+
+      config.cancelToken && config.cancelToken.subscribe(onCanceled);
+      if (config.signal) {
+        config.signal.aborted ? onCanceled() : config.signal.addEventListener('abort', onCanceled);
+      }
     }
+
 
     // Send the request
     if (utils.isStream(data)) {
@@ -4809,12 +4841,24 @@ var buildFullPath = __nccwpck_require__(1934);
 var parseHeaders = __nccwpck_require__(6455);
 var isURLSameOrigin = __nccwpck_require__(3608);
 var createError = __nccwpck_require__(5226);
+var defaults = __nccwpck_require__(8190);
+var Cancel = __nccwpck_require__(8875);
 
 module.exports = function xhrAdapter(config) {
   return new Promise(function dispatchXhrRequest(resolve, reject) {
     var requestData = config.data;
     var requestHeaders = config.headers;
     var responseType = config.responseType;
+    var onCanceled;
+    function done() {
+      if (config.cancelToken) {
+        config.cancelToken.unsubscribe(onCanceled);
+      }
+
+      if (config.signal) {
+        config.signal.removeEventListener('abort', onCanceled);
+      }
+    }
 
     if (utils.isFormData(requestData)) {
       delete requestHeaders['Content-Type']; // Let the browser set it
@@ -4852,7 +4896,13 @@ module.exports = function xhrAdapter(config) {
         request: request
       };
 
-      settle(resolve, reject, response);
+      settle(function _resolve(value) {
+        resolve(value);
+        done();
+      }, function _reject(err) {
+        reject(err);
+        done();
+      }, response);
 
       // Clean up request
       request = null;
@@ -4905,14 +4955,15 @@ module.exports = function xhrAdapter(config) {
 
     // Handle timeout
     request.ontimeout = function handleTimeout() {
-      var timeoutErrorMessage = 'timeout of ' + config.timeout + 'ms exceeded';
+      var timeoutErrorMessage = config.timeout ? 'timeout of ' + config.timeout + 'ms exceeded' : 'timeout exceeded';
+      var transitional = config.transitional || defaults.transitional;
       if (config.timeoutErrorMessage) {
         timeoutErrorMessage = config.timeoutErrorMessage;
       }
       reject(createError(
         timeoutErrorMessage,
         config,
-        config.transitional && config.transitional.clarifyTimeoutError ? 'ETIMEDOUT' : 'ECONNABORTED',
+        transitional.clarifyTimeoutError ? 'ETIMEDOUT' : 'ECONNABORTED',
         request));
 
       // Clean up request
@@ -4966,18 +5017,22 @@ module.exports = function xhrAdapter(config) {
       request.upload.addEventListener('progress', config.onUploadProgress);
     }
 
-    if (config.cancelToken) {
+    if (config.cancelToken || config.signal) {
       // Handle cancellation
-      config.cancelToken.promise.then(function onCanceled(cancel) {
+      // eslint-disable-next-line func-names
+      onCanceled = function(cancel) {
         if (!request) {
           return;
         }
-
+        reject(!cancel || (cancel && cancel.type) ? new Cancel('canceled') : cancel);
         request.abort();
-        reject(cancel);
-        // Clean up request
         request = null;
-      });
+      };
+
+      config.cancelToken && config.cancelToken.subscribe(onCanceled);
+      if (config.signal) {
+        config.signal.aborted ? onCanceled() : config.signal.addEventListener('abort', onCanceled);
+      }
     }
 
     if (!requestData) {
@@ -5020,6 +5075,11 @@ function createInstance(defaultConfig) {
   // Copy context to instance
   utils.extend(instance, context);
 
+  // Factory for creating new instances
+  instance.create = function create(instanceConfig) {
+    return createInstance(mergeConfig(defaultConfig, instanceConfig));
+  };
+
   return instance;
 }
 
@@ -5029,15 +5089,11 @@ var axios = createInstance(defaults);
 // Expose Axios class to allow class inheritance
 axios.Axios = Axios;
 
-// Factory for creating new instances
-axios.create = function create(instanceConfig) {
-  return createInstance(mergeConfig(axios.defaults, instanceConfig));
-};
-
 // Expose Cancel & CancelToken
 axios.Cancel = __nccwpck_require__(8875);
 axios.CancelToken = __nccwpck_require__(1587);
 axios.isCancel = __nccwpck_require__(4057);
+axios.VERSION = __nccwpck_require__(4322).version;
 
 // Expose all/spread
 axios.all = function all(promises) {
@@ -5103,11 +5159,42 @@ function CancelToken(executor) {
   }
 
   var resolvePromise;
+
   this.promise = new Promise(function promiseExecutor(resolve) {
     resolvePromise = resolve;
   });
 
   var token = this;
+
+  // eslint-disable-next-line func-names
+  this.promise.then(function(cancel) {
+    if (!token._listeners) return;
+
+    var i;
+    var l = token._listeners.length;
+
+    for (i = 0; i < l; i++) {
+      token._listeners[i](cancel);
+    }
+    token._listeners = null;
+  });
+
+  // eslint-disable-next-line func-names
+  this.promise.then = function(onfulfilled) {
+    var _resolve;
+    // eslint-disable-next-line func-names
+    var promise = new Promise(function(resolve) {
+      token.subscribe(resolve);
+      _resolve = resolve;
+    }).then(onfulfilled);
+
+    promise.cancel = function reject() {
+      token.unsubscribe(_resolve);
+    };
+
+    return promise;
+  };
+
   executor(function cancel(message) {
     if (token.reason) {
       // Cancellation has already been requested
@@ -5125,6 +5212,37 @@ function CancelToken(executor) {
 CancelToken.prototype.throwIfRequested = function throwIfRequested() {
   if (this.reason) {
     throw this.reason;
+  }
+};
+
+/**
+ * Subscribe to the cancel signal
+ */
+
+CancelToken.prototype.subscribe = function subscribe(listener) {
+  if (this.reason) {
+    listener(this.reason);
+    return;
+  }
+
+  if (this._listeners) {
+    this._listeners.push(listener);
+  } else {
+    this._listeners = [listener];
+  }
+};
+
+/**
+ * Unsubscribe from the cancel signal
+ */
+
+CancelToken.prototype.unsubscribe = function unsubscribe(listener) {
+  if (!this._listeners) {
+    return;
+  }
+  var index = this._listeners.indexOf(listener);
+  if (index !== -1) {
+    this._listeners.splice(index, 1);
   }
 };
 
@@ -5218,9 +5336,9 @@ Axios.prototype.request = function request(config) {
 
   if (transitional !== undefined) {
     validator.assertOptions(transitional, {
-      silentJSONParsing: validators.transitional(validators.boolean, '1.0.0'),
-      forcedJSONParsing: validators.transitional(validators.boolean, '1.0.0'),
-      clarifyTimeoutError: validators.transitional(validators.boolean, '1.0.0')
+      silentJSONParsing: validators.transitional(validators.boolean),
+      forcedJSONParsing: validators.transitional(validators.boolean),
+      clarifyTimeoutError: validators.transitional(validators.boolean)
     }, false);
   }
 
@@ -5443,6 +5561,7 @@ var utils = __nccwpck_require__(328);
 var transformData = __nccwpck_require__(9812);
 var isCancel = __nccwpck_require__(4057);
 var defaults = __nccwpck_require__(8190);
+var Cancel = __nccwpck_require__(8875);
 
 /**
  * Throws a `Cancel` if cancellation has been requested.
@@ -5450,6 +5569,10 @@ var defaults = __nccwpck_require__(8190);
 function throwIfCancellationRequested(config) {
   if (config.cancelToken) {
     config.cancelToken.throwIfRequested();
+  }
+
+  if (config.signal && config.signal.aborted) {
+    throw new Cancel('canceled');
   }
 }
 
@@ -5564,7 +5687,8 @@ module.exports = function enhanceError(error, config, code, request, response) {
       stack: this.stack,
       // Axios
       config: this.config,
-      code: this.code
+      code: this.code,
+      status: this.response && this.response.status ? this.response.status : null
     };
   };
   return error;
@@ -5594,17 +5718,6 @@ module.exports = function mergeConfig(config1, config2) {
   config2 = config2 || {};
   var config = {};
 
-  var valueFromConfig2Keys = ['url', 'method', 'data'];
-  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy', 'params'];
-  var defaultToConfig2Keys = [
-    'baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer',
-    'timeout', 'timeoutMessage', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName',
-    'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'decompress',
-    'maxContentLength', 'maxBodyLength', 'maxRedirects', 'transport', 'httpAgent',
-    'httpsAgent', 'cancelToken', 'socketPath', 'responseEncoding'
-  ];
-  var directMergeKeys = ['validateStatus'];
-
   function getMergedValue(target, source) {
     if (utils.isPlainObject(target) && utils.isPlainObject(source)) {
       return utils.merge(target, source);
@@ -5616,51 +5729,74 @@ module.exports = function mergeConfig(config1, config2) {
     return source;
   }
 
+  // eslint-disable-next-line consistent-return
   function mergeDeepProperties(prop) {
     if (!utils.isUndefined(config2[prop])) {
-      config[prop] = getMergedValue(config1[prop], config2[prop]);
+      return getMergedValue(config1[prop], config2[prop]);
     } else if (!utils.isUndefined(config1[prop])) {
-      config[prop] = getMergedValue(undefined, config1[prop]);
+      return getMergedValue(undefined, config1[prop]);
     }
   }
 
-  utils.forEach(valueFromConfig2Keys, function valueFromConfig2(prop) {
+  // eslint-disable-next-line consistent-return
+  function valueFromConfig2(prop) {
     if (!utils.isUndefined(config2[prop])) {
-      config[prop] = getMergedValue(undefined, config2[prop]);
+      return getMergedValue(undefined, config2[prop]);
     }
-  });
+  }
 
-  utils.forEach(mergeDeepPropertiesKeys, mergeDeepProperties);
-
-  utils.forEach(defaultToConfig2Keys, function defaultToConfig2(prop) {
+  // eslint-disable-next-line consistent-return
+  function defaultToConfig2(prop) {
     if (!utils.isUndefined(config2[prop])) {
-      config[prop] = getMergedValue(undefined, config2[prop]);
+      return getMergedValue(undefined, config2[prop]);
     } else if (!utils.isUndefined(config1[prop])) {
-      config[prop] = getMergedValue(undefined, config1[prop]);
+      return getMergedValue(undefined, config1[prop]);
     }
-  });
+  }
 
-  utils.forEach(directMergeKeys, function merge(prop) {
+  // eslint-disable-next-line consistent-return
+  function mergeDirectKeys(prop) {
     if (prop in config2) {
-      config[prop] = getMergedValue(config1[prop], config2[prop]);
+      return getMergedValue(config1[prop], config2[prop]);
     } else if (prop in config1) {
-      config[prop] = getMergedValue(undefined, config1[prop]);
+      return getMergedValue(undefined, config1[prop]);
     }
+  }
+
+  var mergeMap = {
+    'url': valueFromConfig2,
+    'method': valueFromConfig2,
+    'data': valueFromConfig2,
+    'baseURL': defaultToConfig2,
+    'transformRequest': defaultToConfig2,
+    'transformResponse': defaultToConfig2,
+    'paramsSerializer': defaultToConfig2,
+    'timeout': defaultToConfig2,
+    'timeoutMessage': defaultToConfig2,
+    'withCredentials': defaultToConfig2,
+    'adapter': defaultToConfig2,
+    'responseType': defaultToConfig2,
+    'xsrfCookieName': defaultToConfig2,
+    'xsrfHeaderName': defaultToConfig2,
+    'onUploadProgress': defaultToConfig2,
+    'onDownloadProgress': defaultToConfig2,
+    'decompress': defaultToConfig2,
+    'maxContentLength': defaultToConfig2,
+    'maxBodyLength': defaultToConfig2,
+    'transport': defaultToConfig2,
+    'httpAgent': defaultToConfig2,
+    'httpsAgent': defaultToConfig2,
+    'cancelToken': defaultToConfig2,
+    'socketPath': defaultToConfig2,
+    'responseEncoding': defaultToConfig2,
+    'validateStatus': mergeDirectKeys
+  };
+
+  utils.forEach(Object.keys(config1).concat(Object.keys(config2)), function computeConfigValue(prop) {
+    var merge = mergeMap[prop] || mergeDeepProperties;
+    var configValue = merge(prop);
+    (utils.isUndefined(configValue) && merge !== mergeDirectKeys) || (config[prop] = configValue);
   });
-
-  var axiosKeys = valueFromConfig2Keys
-    .concat(mergeDeepPropertiesKeys)
-    .concat(defaultToConfig2Keys)
-    .concat(directMergeKeys);
-
-  var otherKeys = Object
-    .keys(config1)
-    .concat(Object.keys(config2))
-    .filter(function filterAxiosKeys(key) {
-      return axiosKeys.indexOf(key) === -1;
-    });
-
-  utils.forEach(otherKeys, mergeDeepProperties);
 
   return config;
 };
@@ -5816,7 +5952,7 @@ var defaults = {
   }],
 
   transformResponse: [function transformResponse(data) {
-    var transitional = this.transitional;
+    var transitional = this.transitional || defaults.transitional;
     var silentJSONParsing = transitional && transitional.silentJSONParsing;
     var forcedJSONParsing = transitional && transitional.forcedJSONParsing;
     var strictJSONParsing = !silentJSONParsing && this.responseType === 'json';
@@ -5851,12 +5987,12 @@ var defaults = {
 
   validateStatus: function validateStatus(status) {
     return status >= 200 && status < 300;
-  }
-};
+  },
 
-defaults.headers = {
-  common: {
-    'Accept': 'application/json, text/plain, */*'
+  headers: {
+    common: {
+      'Accept': 'application/json, text/plain, */*'
+    }
   }
 };
 
@@ -5870,6 +6006,15 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 
 module.exports = defaults;
 
+
+/***/ }),
+
+/***/ 4322:
+/***/ ((module) => {
+
+module.exports = {
+  "version": "0.23.0"
+};
 
 /***/ }),
 
@@ -6292,7 +6437,7 @@ module.exports = function spread(callback) {
 "use strict";
 
 
-var pkg = __nccwpck_require__(696);
+var VERSION = __nccwpck_require__(4322).version;
 
 var validators = {};
 
@@ -6304,48 +6449,26 @@ var validators = {};
 });
 
 var deprecatedWarnings = {};
-var currentVerArr = pkg.version.split('.');
-
-/**
- * Compare package versions
- * @param {string} version
- * @param {string?} thanVersion
- * @returns {boolean}
- */
-function isOlderVersion(version, thanVersion) {
-  var pkgVersionArr = thanVersion ? thanVersion.split('.') : currentVerArr;
-  var destVer = version.split('.');
-  for (var i = 0; i < 3; i++) {
-    if (pkgVersionArr[i] > destVer[i]) {
-      return true;
-    } else if (pkgVersionArr[i] < destVer[i]) {
-      return false;
-    }
-  }
-  return false;
-}
 
 /**
  * Transitional option validator
- * @param {function|boolean?} validator
- * @param {string?} version
- * @param {string} message
+ * @param {function|boolean?} validator - set to false if the transitional option has been removed
+ * @param {string?} version - deprecated version / removed since version
+ * @param {string?} message - some message with additional info
  * @returns {function}
  */
 validators.transitional = function transitional(validator, version, message) {
-  var isDeprecated = version && isOlderVersion(version);
-
   function formatMessage(opt, desc) {
-    return '[Axios v' + pkg.version + '] Transitional option \'' + opt + '\'' + desc + (message ? '. ' + message : '');
+    return '[Axios v' + VERSION + '] Transitional option \'' + opt + '\'' + desc + (message ? '. ' + message : '');
   }
 
   // eslint-disable-next-line func-names
   return function(value, opt, opts) {
     if (validator === false) {
-      throw new Error(formatMessage(opt, ' has been removed in ' + version));
+      throw new Error(formatMessage(opt, ' has been removed' + (version ? ' in ' + version : '')));
     }
 
-    if (isDeprecated && !deprecatedWarnings[opt]) {
+    if (version && !deprecatedWarnings[opt]) {
       deprecatedWarnings[opt] = true;
       // eslint-disable-next-line no-console
       console.warn(
@@ -6391,7 +6514,6 @@ function assertOptions(options, schema, allowUnknown) {
 }
 
 module.exports = {
-  isOlderVersion: isOlderVersion,
   assertOptions: assertOptions,
   validators: validators
 };
@@ -70831,19 +70953,842 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 5707:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ApiClient = exports.JobParameters = void 0;
+// JobParameters are the parameters to execute a job
+class JobParameters {
+    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl) {
+        this.jobId = jobId;
+        this.jobToken = jobToken;
+        this.credentialsToken = credentialsToken;
+        this.dependabotApiUrl = dependabotApiUrl;
+        this.dependabotApiDockerUrl = dependabotApiDockerUrl;
+    }
+}
+exports.JobParameters = JobParameters;
+class ApiClient {
+    constructor(client, params) {
+        this.client = client;
+        this.params = params;
+        // We use a static unknown SHA when marking a job as complete from the action
+        // to remain in parity with the existing runner.
+        this.UnknownSha = {
+            'base-commit-sha': 'unknown'
+        };
+    }
+    getJobDetails() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const detailsURL = `/update_jobs/${this.params.jobId}/details`;
+            const res = yield this.client.get(detailsURL, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 200) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+            return res.data.data.attributes;
+        });
+    }
+    getCredentials() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
+            const res = yield this.client.get(credentialsURL, {
+                headers: { Authorization: this.params.credentialsToken }
+            });
+            if (res.status !== 200) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+            return res.data.data.attributes.credentials;
+        });
+    }
+    reportJobError(error) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
+            const res = yield this.client.post(recordErrorURL, { data: error }, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 204) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+        });
+    }
+    markJobAsProcessed() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
+            const res = yield this.client.patch(markAsProcessedURL, { data: this.UnknownSha }, {
+                headers: { Authorization: this.params.jobToken }
+            });
+            if (res.status !== 204) {
+                throw new Error(`Unexpected status code: ${res.status}`);
+            }
+        });
+    }
+}
+exports.ApiClient = ApiClient;
+
+
+/***/ }),
+
+/***/ 2429:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ContainerService = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const tar_stream_1 = __nccwpck_require__(2283);
+const utils_1 = __nccwpck_require__(1314);
+class ContainerRuntimeError extends Error {
+}
+exports.ContainerService = {
+    storeInput(name, path, container, input) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const tar = tar_stream_1.pack();
+            tar.entry({ name }, JSON.stringify(input));
+            tar.finalize();
+            yield container.putArchive(tar, { path });
+        });
+    },
+    storeCert(name, path, container, cert) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const tar = tar_stream_1.pack();
+            tar.entry({ name }, cert);
+            tar.finalize();
+            yield container.putArchive(tar, { path });
+        });
+    },
+    run(container) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const stream = yield container.attach({
+                    stream: true,
+                    stdout: true,
+                    stderr: true
+                });
+                container.modem.demuxStream(stream, utils_1.outStream('updater'), utils_1.errStream('updater'));
+                yield container.start();
+                const outcome = yield container.wait();
+                if (outcome.StatusCode === 0) {
+                    return true;
+                }
+                else {
+                    throw new ContainerRuntimeError(`Failure running container ${container.id}`);
+                }
+            }
+            finally {
+                yield container.remove({ v: true });
+                core.info(`Cleaned up container ${container.id}`);
+            }
+        });
+    }
+};
+
+
+/***/ }),
+
+/***/ 2715:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ImageService = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const dockerode_1 = __importDefault(__nccwpck_require__(4571));
+const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
+    return new Promise((resolve, reject) => {
+        docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
+    });
+});
+exports.ImageService = {
+    /** Fetch the configured updater image, if it isn't already available. */
+    pull(imageName, force = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const docker = new dockerode_1.default();
+            try {
+                const image = yield docker.getImage(imageName).inspect();
+                if (!force) {
+                    core.info(`Resolved ${imageName} to existing ${image.Id}`);
+                    return;
+                } // else fallthrough to pull
+            }
+            catch (e) {
+                if (!e.message.includes('no such image')) {
+                    throw e;
+                } // else fallthrough to pull
+            }
+            core.info(`Pulling image ${imageName}...`);
+            const auth = {
+                username: 'x',
+                password: process.env.GITHUB_TOKEN
+            };
+            const stream = yield docker.pull(imageName, { authconfig: auth });
+            yield endOfStream(docker, stream);
+            core.info(`Pulled image ${imageName}`);
+        });
+    }
+};
+
+
+/***/ }),
+
+/***/ 7063:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getJobParameters = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const api_client_1 = __nccwpck_require__(5707);
+function getJobParameters(ctx) {
+    switch (ctx.eventName) {
+        case 'dynamic':
+        case 'workflow_dispatch':
+            return fromWorkflowInputs(ctx);
+    }
+    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
+    return null;
+}
+exports.getJobParameters = getJobParameters;
+function fromWorkflowInputs(ctx) {
+    const evt = ctx.payload;
+    if (!evt.inputs) {
+        throw new Error('Missing inputs in WorkflowDispatchEvent');
+    }
+    const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
+    return new api_client_1.JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl);
+}
+
+
+/***/ }),
+
+/***/ 399:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = exports.DependabotErrorType = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const github = __importStar(__nccwpck_require__(5438));
+const inputs_1 = __nccwpck_require__(7063);
+const image_service_1 = __nccwpck_require__(2715);
+const updater_1 = __nccwpck_require__(4186);
+const api_client_1 = __nccwpck_require__(5707);
+const axios_1 = __importDefault(__nccwpck_require__(6545));
+exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
+exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
+var DependabotErrorType;
+(function (DependabotErrorType) {
+    DependabotErrorType["Unknown"] = "actions_workflow_unknown";
+    DependabotErrorType["Image"] = "actions_workflow_image";
+    DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
+})(DependabotErrorType = exports.DependabotErrorType || (exports.DependabotErrorType = {}));
+function run(context) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            core.info('🤖 ~ starting update ~');
+            // Decode JobParameters
+            const params = inputs_1.getJobParameters(context);
+            if (params === null) {
+                core.info('No job parameters');
+                core.info('🤖 ~ finished: nothing to do ~');
+                return;
+            }
+            core.setSecret(params.jobToken);
+            core.setSecret(params.credentialsToken);
+            const client = axios_1.default.create({ baseURL: params.dependabotApiUrl });
+            const apiClient = new api_client_1.ApiClient(client, params);
+            core.info('Fetching job details');
+            // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
+            // so we do not try attempt to report back an exception if this fails and instead rely on the the workflow run
+            // webhook as it anticipates scenarios where jobs have failed while 'enqueued'.
+            const details = yield apiClient.getJobDetails();
+            try {
+                const credentials = yield apiClient.getCredentials();
+                const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials);
+                try {
+                    core.info('Pulling updater images');
+                    yield image_service_1.ImageService.pull(exports.UPDATER_IMAGE_NAME);
+                    yield image_service_1.ImageService.pull(exports.PROXY_IMAGE_NAME);
+                }
+                catch (error) {
+                    core.error('Error fetching updater images');
+                    yield failJob(apiClient, error, DependabotErrorType.Image);
+                    return;
+                }
+                try {
+                    core.info('Starting update process');
+                    yield updater.runUpdater();
+                }
+                catch (error) {
+                    core.error('Error performing update');
+                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                    return;
+                }
+                core.info('🤖 ~ finished ~');
+            }
+            catch (error) {
+                yield failJob(apiClient, error);
+                return;
+            }
+        }
+        catch (error) {
+            // If we've reached this point, we do not have a viable
+            // API client to report back to Dependabot API.
+            //
+            // We output the raw error in the Action logs and defer
+            // to workflow_run monitoring to detect the job failure.
+            core.setFailed(error);
+            core.info('🤖 ~ finished: unexpected error ~');
+        }
+    });
+}
+exports.run = run;
+function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield apiClient.reportJobError({
+            'error-type': errorType,
+            'error-details': {
+                'action-error': error.message
+            }
+        });
+        yield apiClient.markJobAsProcessed();
+        core.setFailed(error.message);
+        core.info('🤖 ~ finished: error reported to Dependabot ~');
+    });
+}
+run(github.context);
+
+
+/***/ }),
+
+/***/ 7364:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ProxyBuilder = void 0;
+const fs_1 = __importDefault(__nccwpck_require__(5747));
+const core = __importStar(__nccwpck_require__(2186));
+const crypto_1 = __importDefault(__nccwpck_require__(6417));
+const container_service_1 = __nccwpck_require__(2429);
+const node_forge_1 = __nccwpck_require__(7655);
+const utils_1 = __nccwpck_require__(1314);
+const KEY_SIZE = 2048;
+const KEY_EXPIRY_YEARS = 2;
+const CONFIG_FILE_PATH = '/';
+const CONFIG_FILE_NAME = 'config.json';
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt';
+const CERT_SUBJECT = [
+    {
+        name: 'commonName',
+        value: 'Dependabot Internal CA'
+    },
+    {
+        name: 'organizationName',
+        value: 'GitHub ic.'
+    },
+    {
+        shortName: 'OU',
+        value: 'Dependabot'
+    },
+    {
+        name: 'countryName',
+        value: 'US'
+    },
+    {
+        shortName: 'ST',
+        value: 'California'
+    },
+    {
+        name: 'localityName',
+        value: 'San Francisco'
+    }
+];
+class ProxyBuilder {
+    constructor(docker, proxyImage) {
+        this.docker = docker;
+        this.proxyImage = proxyImage;
+    }
+    run(jobId, credentials) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const name = `dependabot-job-${jobId}-proxy`;
+            const config = this.buildProxyConfig(credentials, jobId);
+            const cert = config.ca.cert;
+            const networkName = `dependabot-job-${jobId}-network`;
+            const network = yield this.ensureNetwork(networkName);
+            const container = yield this.createContainer(jobId, name, networkName);
+            yield container_service_1.ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
+            if (process.env.CUSTOM_CA_PATH) {
+                core.info('Detected custom CA certificate, adding to proxy');
+                const customCert = fs_1.default
+                    .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
+                    .toString();
+                yield container_service_1.ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
+            }
+            const stream = yield container.attach({
+                stream: true,
+                stdout: true,
+                stderr: true
+            });
+            container.modem.demuxStream(stream, utils_1.outStream('  proxy'), utils_1.errStream('  proxy'));
+            const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
+            return {
+                container,
+                network,
+                networkName,
+                url,
+                cert,
+                shutdown: () => __awaiter(this, void 0, void 0, function* () {
+                    yield container.stop();
+                    yield container.remove();
+                    yield network.remove();
+                })
+            };
+        });
+    }
+    ensureNetwork(name) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const networks = yield this.docker.listNetworks({
+                filters: JSON.stringify({ name: [name] })
+            });
+            if (networks.length > 0) {
+                return this.docker.getNetwork(networks[0].Id);
+            }
+            else {
+                return yield this.docker.createNetwork({ Name: name });
+            }
+        });
+    }
+    buildProxyConfig(credentials, jobId) {
+        const ca = this.generateCertificateAuthority();
+        const password = crypto_1.default.randomBytes(20).toString('hex');
+        const proxy_auth = {
+            username: `${jobId}`,
+            password
+        };
+        const config = { all_credentials: credentials, ca, proxy_auth };
+        return config;
+    }
+    generateCertificateAuthority() {
+        const keys = node_forge_1.pki.rsa.generateKeyPair(KEY_SIZE);
+        const cert = node_forge_1.pki.createCertificate();
+        cert.publicKey = keys.publicKey;
+        cert.serialNumber = '01';
+        cert.validity.notBefore = new Date();
+        cert.validity.notAfter = new Date();
+        cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + KEY_EXPIRY_YEARS);
+        cert.setSubject(CERT_SUBJECT);
+        cert.setIssuer(CERT_SUBJECT);
+        cert.setExtensions([{ name: 'basicConstraints', cA: true }]);
+        cert.sign(keys.privateKey);
+        const pem = node_forge_1.pki.certificateToPem(cert);
+        const key = node_forge_1.pki.privateKeyToPem(keys.privateKey);
+        return { cert: pem, key };
+    }
+    createContainer(jobId, containerName, networkName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const container = yield this.docker.createContainer({
+                Image: this.proxyImage,
+                name: containerName,
+                AttachStdout: true,
+                AttachStderr: true,
+                Env: [`JOB_ID=${jobId}`],
+                Entrypoint: [
+                    'sh',
+                    '-c',
+                    '/usr/sbin/update-ca-certificates && /update-job-proxy'
+                ],
+                HostConfig: {
+                    NetworkMode: networkName
+                }
+            });
+            core.info(`Created proxy container: ${container.id}`);
+            return container;
+        });
+    }
+}
+exports.ProxyBuilder = ProxyBuilder;
+
+
+/***/ }),
+
+/***/ 4186:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Updater = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const dockerode_1 = __importDefault(__nccwpck_require__(4571));
+const path_1 = __importDefault(__nccwpck_require__(5622));
+const fs_1 = __importDefault(__nccwpck_require__(5747));
+const container_service_1 = __nccwpck_require__(2429);
+const utils_1 = __nccwpck_require__(1314);
+const proxy_1 = __nccwpck_require__(7364);
+const JOB_INPUT_FILENAME = 'job.json';
+const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
+const JOB_OUTPUT_FILENAME = 'output.json';
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
+const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const CA_CERT_FILENAME = 'dbot-ca.crt';
+class Updater {
+    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../output/output.json') {
+        this.updaterImage = updaterImage;
+        this.proxyImage = proxyImage;
+        this.apiClient = apiClient;
+        this.details = details;
+        this.credentials = credentials;
+        this.outputPath = outputPath;
+        this.docker = new dockerode_1.default();
+    }
+    /**
+     * Execute an update job and report the result to Dependabot API.
+     */
+    runUpdater() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
+            proxy.container.start();
+            try {
+                const files = yield this.runFileFetcher(proxy);
+                yield this.runFileUpdater(proxy, files);
+                return true;
+            }
+            finally {
+                yield this.cleanup(proxy);
+            }
+        });
+    }
+    runFileFetcher(proxy) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`;
+            const container = yield this.createContainer(proxy, name, 'fetch_files');
+            yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
+            yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
+            yield container_service_1.ContainerService.run(container);
+            const outputPath = path_1.default.join(__dirname, this.outputPath);
+            if (!fs_1.default.existsSync(outputPath)) {
+                throw new Error('No output.json created by the fetcher container');
+            }
+            const fileFetcherSync = fs_1.default.readFileSync(outputPath).toString();
+            const fileFetcherOutput = JSON.parse(fileFetcherSync);
+            const fetchedFiles = {
+                base_commit_sha: fileFetcherOutput.base_commit_sha,
+                base64_dependency_files: fileFetcherOutput.base64_dependency_files,
+                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => utils_1.base64DecodeDependencyFile(file))
+            };
+            return fetchedFiles;
+        });
+    }
+    runFileUpdater(proxy, files) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.info(`Running update job ${this.apiClient.params.jobId}`);
+            const name = `dependabot-job-${this.apiClient.params.jobId}-updater`;
+            const container = yield this.createContainer(proxy, name, 'update_files');
+            const containerInput = {
+                base_commit_sha: files.base_commit_sha,
+                base64_dependency_files: files.base64_dependency_files,
+                dependency_files: files.dependency_files,
+                job: this.details
+            };
+            yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, containerInput);
+            yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
+            yield container_service_1.ContainerService.run(container);
+        });
+    }
+    createContainer(proxy, containerName, updaterCommand) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const cmd = `(echo > /etc/ca-certificates.conf) &&\
+     rm -Rf /usr/share/ca-certificates/ &&\
+      /usr/sbin/update-ca-certificates &&\
+       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
+            const container = yield this.docker.createContainer({
+                Image: this.updaterImage,
+                name: containerName,
+                AttachStdout: true,
+                AttachStderr: true,
+                Env: [
+                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
+                    `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
+                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
+                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
+                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
+                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiDockerUrl}`,
+                    `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
+                    `http_proxy=${proxy.url}`,
+                    `HTTP_PROXY=${proxy.url}`,
+                    `https_proxy=${proxy.url}`,
+                    `HTTPS_PROXY=${proxy.url}`
+                ],
+                Cmd: ['sh', '-c', cmd],
+                HostConfig: {
+                    Memory: 8 * 1024 * 1024 * 1024,
+                    NetworkMode: proxy.networkName,
+                    Binds: [
+                        `${path_1.default.join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
+                        `${path_1.default.join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
+                    ]
+                }
+            });
+            core.info(`Created ${updaterCommand} container: ${container.id}`);
+            return container;
+        });
+    }
+    cleanup(proxy) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield proxy.shutdown();
+            const outputDir = path_1.default.join(__dirname, '../output');
+            const repoDir = path_1.default.join(__dirname, '../repo');
+            if (fs_1.default.existsSync(outputDir)) {
+                fs_1.default.rmdirSync(outputDir, { recursive: true });
+            }
+            if (fs_1.default.existsSync(repoDir)) {
+                fs_1.default.rmdirSync(repoDir, { recursive: true });
+            }
+        });
+    }
+}
+exports.Updater = Updater;
+
+
+/***/ }),
+
+/***/ 1314:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.errStream = exports.outStream = exports.base64DecodeDependencyFile = void 0;
+const stream_1 = __importDefault(__nccwpck_require__(2413));
+const base64Decode = (str) => Buffer.from(str, 'base64').toString('binary');
+const base64DecodeDependencyFile = (file) => {
+    const fileCopy = JSON.parse(JSON.stringify(file));
+    fileCopy.content = base64Decode(fileCopy.content);
+    return fileCopy;
+};
+exports.base64DecodeDependencyFile = base64DecodeDependencyFile;
+const outStream = (prefix) => {
+    return new stream_1.default.Writable({
+        write(chunk, _, next) {
+            process.stderr.write(`${prefix} | ${chunk.toString()}`);
+            next();
+        }
+    });
+};
+exports.outStream = outStream;
+const errStream = (prefix) => {
+    return new stream_1.default.Writable({
+        write(chunk, _, next) {
+            process.stderr.write(`${prefix} | ${chunk.toString()}`);
+            next();
+        }
+    });
+};
+exports.errStream = errStream;
+
+
+/***/ }),
+
 /***/ 2877:
 /***/ ((module) => {
 
 module.exports = eval("require")("encoding");
 
-
-/***/ }),
-
-/***/ 696:
-/***/ ((module) => {
-
-"use strict";
-module.exports = JSON.parse('{"name":"axios","version":"0.21.4","description":"Promise based HTTP client for the browser and node.js","main":"index.js","scripts":{"test":"grunt test","start":"node ./sandbox/server.js","build":"NODE_ENV=production grunt build","preversion":"npm test","version":"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json","postversion":"git push && git push --tags","examples":"node ./examples/server.js","coveralls":"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js","fix":"eslint --fix lib/**/*.js"},"repository":{"type":"git","url":"https://github.com/axios/axios.git"},"keywords":["xhr","http","ajax","promise","node"],"author":"Matt Zabriskie","license":"MIT","bugs":{"url":"https://github.com/axios/axios/issues"},"homepage":"https://axios-http.com","devDependencies":{"coveralls":"^3.0.0","es6-promise":"^4.2.4","grunt":"^1.3.0","grunt-banner":"^0.6.0","grunt-cli":"^1.2.0","grunt-contrib-clean":"^1.1.0","grunt-contrib-watch":"^1.0.0","grunt-eslint":"^23.0.0","grunt-karma":"^4.0.0","grunt-mocha-test":"^0.13.3","grunt-ts":"^6.0.0-beta.19","grunt-webpack":"^4.0.2","istanbul-instrumenter-loader":"^1.0.0","jasmine-core":"^2.4.1","karma":"^6.3.2","karma-chrome-launcher":"^3.1.0","karma-firefox-launcher":"^2.1.0","karma-jasmine":"^1.1.1","karma-jasmine-ajax":"^0.1.13","karma-safari-launcher":"^1.0.0","karma-sauce-launcher":"^4.3.6","karma-sinon":"^1.0.5","karma-sourcemap-loader":"^0.3.8","karma-webpack":"^4.0.2","load-grunt-tasks":"^3.5.2","minimist":"^1.2.0","mocha":"^8.2.1","sinon":"^4.5.0","terser-webpack-plugin":"^4.2.3","typescript":"^4.0.5","url-search-params":"^0.10.0","webpack":"^4.44.2","webpack-dev-server":"^3.11.0"},"browser":{"./lib/adapters/http.js":"./lib/adapters/xhr.js"},"jsdelivr":"dist/axios.min.js","unpkg":"dist/axios.min.js","typings":"./index.d.ts","dependencies":{"follow-redirects":"^1.14.0"},"bundlesize":[{"path":"./dist/axios.min.js","threshold":"5kB"}],"_resolved":"https://registry.npmjs.org/axios/-/axios-0.21.4.tgz","_integrity":"sha512-ut5vewkiu8jjGBdqpM44XxjuCjq9LAKeHVmoVfHVzy8eHgxxq8SbAVQNovDA8mVi05kP0Ea/n/UzcSHcTJQfNg==","_from":"axios@0.21.4"}');
 
 /***/ }),
 
@@ -71056,715 +72001,18 @@ module.exports = require("zlib");
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/compat get default export */
-/******/ 	(() => {
-/******/ 		// getDefaultExport function for compatibility with non-harmony modules
-/******/ 		__nccwpck_require__.n = (module) => {
-/******/ 			var getter = module && module.__esModule ?
-/******/ 				() => (module['default']) :
-/******/ 				() => (module);
-/******/ 			__nccwpck_require__.d(getter, { a: getter });
-/******/ 			return getter;
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__nccwpck_require__.d = (exports, definition) => {
-/******/ 			for(var key in definition) {
-/******/ 				if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
-/******/ 		// define __esModule on exports
-/******/ 		__nccwpck_require__.r = (exports) => {
-/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 			}
-/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 		};
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be in strict mode.
-(() => {
-"use strict";
-// ESM COMPAT FLAG
-__nccwpck_require__.r(__webpack_exports__);
-
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  "DependabotErrorType": () => (/* binding */ DependabotErrorType),
-  "PROXY_IMAGE_NAME": () => (/* binding */ PROXY_IMAGE_NAME),
-  "UPDATER_IMAGE_NAME": () => (/* binding */ UPDATER_IMAGE_NAME),
-  "run": () => (/* binding */ run)
-});
-
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var github = __nccwpck_require__(5438);
-;// CONCATENATED MODULE: ./src/api-client.ts
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-// JobParameters are the parameters to execute a job
-class JobParameters {
-    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl) {
-        this.jobId = jobId;
-        this.jobToken = jobToken;
-        this.credentialsToken = credentialsToken;
-        this.dependabotApiUrl = dependabotApiUrl;
-        this.dependabotApiDockerUrl = dependabotApiDockerUrl;
-    }
-}
-class ApiClient {
-    constructor(client, params) {
-        this.client = client;
-        this.params = params;
-        // We use a static unknown SHA when marking a job as complete from the action
-        // to remain in parity with the existing runner.
-        this.UnknownSha = {
-            'base-commit-sha': 'unknown'
-        };
-    }
-    getJobDetails() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const detailsURL = `/update_jobs/${this.params.jobId}/details`;
-            const res = yield this.client.get(detailsURL, {
-                headers: { Authorization: this.params.jobToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            return res.data.data.attributes;
-        });
-    }
-    getCredentials() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
-            const res = yield this.client.get(credentialsURL, {
-                headers: { Authorization: this.params.credentialsToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            return res.data.data.attributes.credentials;
-        });
-    }
-    reportJobError(error) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`;
-            const res = yield this.client.post(recordErrorURL, { data: error }, {
-                headers: { Authorization: this.params.jobToken }
-            });
-            if (res.status !== 204) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-        });
-    }
-    markJobAsProcessed() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`;
-            const res = yield this.client.patch(markAsProcessedURL, { data: this.UnknownSha }, {
-                headers: { Authorization: this.params.jobToken }
-            });
-            if (res.status !== 204) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-        });
-    }
-}
-
-;// CONCATENATED MODULE: ./src/inputs.ts
-
-
-function getJobParameters(ctx) {
-    switch (ctx.eventName) {
-        case 'dynamic':
-        case 'workflow_dispatch':
-            return fromWorkflowInputs(ctx);
-    }
-    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
-    return null;
-}
-function fromWorkflowInputs(ctx) {
-    const evt = ctx.payload;
-    if (!evt.inputs) {
-        throw new Error('Missing inputs in WorkflowDispatchEvent');
-    }
-    const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
-    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl);
-}
-
-// EXTERNAL MODULE: ./node_modules/dockerode/lib/docker.js
-var lib_docker = __nccwpck_require__(4571);
-var docker_default = /*#__PURE__*/__nccwpck_require__.n(lib_docker);
-;// CONCATENATED MODULE: ./src/image-service.ts
-var image_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-const endOfStream = (docker, stream) => image_service_awaiter(void 0, void 0, void 0, function* () {
-    return new Promise((resolve, reject) => {
-        docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
-    });
-});
-const ImageService = {
-    /** Fetch the configured updater image, if it isn't already available. */
-    pull(imageName, force = false) {
-        return image_service_awaiter(this, void 0, void 0, function* () {
-            const docker = new (docker_default())();
-            try {
-                const image = yield docker.getImage(imageName).inspect();
-                if (!force) {
-                    core.info(`Resolved ${imageName} to existing ${image.Id}`);
-                    return;
-                } // else fallthrough to pull
-            }
-            catch (e) {
-                if (!e.message.includes('no such image')) {
-                    throw e;
-                } // else fallthrough to pull
-            }
-            core.info(`Pulling image ${imageName}...`);
-            const auth = {
-                username: 'x',
-                password: process.env.GITHUB_TOKEN
-            };
-            const stream = yield docker.pull(imageName, { authconfig: auth });
-            yield endOfStream(docker, stream);
-            core.info(`Pulled image ${imageName}`);
-        });
-    }
-};
-
-// EXTERNAL MODULE: external "path"
-var external_path_ = __nccwpck_require__(5622);
-var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
-// EXTERNAL MODULE: external "fs"
-var external_fs_ = __nccwpck_require__(5747);
-var external_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_fs_);
-// EXTERNAL MODULE: ./node_modules/tar-stream/index.js
-var tar_stream = __nccwpck_require__(2283);
-// EXTERNAL MODULE: external "stream"
-var external_stream_ = __nccwpck_require__(2413);
-var external_stream_default = /*#__PURE__*/__nccwpck_require__.n(external_stream_);
-;// CONCATENATED MODULE: ./src/utils.ts
-
-const base64Decode = (str) => Buffer.from(str, 'base64').toString('binary');
-const base64DecodeDependencyFile = (file) => {
-    const fileCopy = JSON.parse(JSON.stringify(file));
-    fileCopy.content = base64Decode(fileCopy.content);
-    return fileCopy;
-};
-const outStream = (prefix) => {
-    return new (external_stream_default()).Writable({
-        write(chunk, _, next) {
-            process.stderr.write(`${prefix} | ${chunk.toString()}`);
-            next();
-        }
-    });
-};
-const errStream = (prefix) => {
-    return new (external_stream_default()).Writable({
-        write(chunk, _, next) {
-            process.stderr.write(`${prefix} | ${chunk.toString()}`);
-            next();
-        }
-    });
-};
-
-;// CONCATENATED MODULE: ./src/container-service.ts
-var container_service_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-class ContainerRuntimeError extends Error {
-}
-const ContainerService = {
-    storeInput(name, path, container, input) {
-        return container_service_awaiter(this, void 0, void 0, function* () {
-            const tar = (0,tar_stream.pack)();
-            tar.entry({ name }, JSON.stringify(input));
-            tar.finalize();
-            yield container.putArchive(tar, { path });
-        });
-    },
-    storeCert(name, path, container, cert) {
-        return container_service_awaiter(this, void 0, void 0, function* () {
-            const tar = (0,tar_stream.pack)();
-            tar.entry({ name }, cert);
-            tar.finalize();
-            yield container.putArchive(tar, { path });
-        });
-    },
-    run(container) {
-        return container_service_awaiter(this, void 0, void 0, function* () {
-            try {
-                const stream = yield container.attach({
-                    stream: true,
-                    stdout: true,
-                    stderr: true
-                });
-                container.modem.demuxStream(stream, outStream('updater'), errStream('updater'));
-                yield container.start();
-                const outcome = yield container.wait();
-                if (outcome.StatusCode === 0) {
-                    return true;
-                }
-                else {
-                    throw new ContainerRuntimeError(`Failure running container ${container.id}`);
-                }
-            }
-            finally {
-                yield container.remove({ v: true });
-                core.info(`Cleaned up container ${container.id}`);
-            }
-        });
-    }
-};
-
-// EXTERNAL MODULE: external "crypto"
-var external_crypto_ = __nccwpck_require__(6417);
-var external_crypto_default = /*#__PURE__*/__nccwpck_require__.n(external_crypto_);
-// EXTERNAL MODULE: ./node_modules/node-forge/lib/index.js
-var lib = __nccwpck_require__(7655);
-;// CONCATENATED MODULE: ./src/proxy.ts
-var proxy_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-
-
-
-const KEY_SIZE = 2048;
-const KEY_EXPIRY_YEARS = 2;
-const CONFIG_FILE_PATH = '/';
-const CONFIG_FILE_NAME = 'config.json';
-const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
-const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt';
-const CERT_SUBJECT = [
-    {
-        name: 'commonName',
-        value: 'Dependabot Internal CA'
-    },
-    {
-        name: 'organizationName',
-        value: 'GitHub ic.'
-    },
-    {
-        shortName: 'OU',
-        value: 'Dependabot'
-    },
-    {
-        name: 'countryName',
-        value: 'US'
-    },
-    {
-        shortName: 'ST',
-        value: 'California'
-    },
-    {
-        name: 'localityName',
-        value: 'San Francisco'
-    }
-];
-class ProxyBuilder {
-    constructor(docker, proxyImage) {
-        this.docker = docker;
-        this.proxyImage = proxyImage;
-    }
-    run(jobId, credentials) {
-        return proxy_awaiter(this, void 0, void 0, function* () {
-            const name = `dependabot-job-${jobId}-proxy`;
-            const config = this.buildProxyConfig(credentials, jobId);
-            const cert = config.ca.cert;
-            const networkName = `dependabot-job-${jobId}-network`;
-            const network = yield this.ensureNetwork(networkName);
-            const container = yield this.createContainer(jobId, name, networkName);
-            yield ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
-            if (process.env.CUSTOM_CA_PATH) {
-                core.info('Detected custom CA certificate, adding to proxy');
-                const customCert = external_fs_default().readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
-                    .toString();
-                yield ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
-            }
-            const stream = yield container.attach({
-                stream: true,
-                stdout: true,
-                stderr: true
-            });
-            container.modem.demuxStream(stream, outStream('  proxy'), errStream('  proxy'));
-            const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
-            return {
-                container,
-                network,
-                networkName,
-                url,
-                cert,
-                shutdown: () => proxy_awaiter(this, void 0, void 0, function* () {
-                    yield container.stop();
-                    yield container.remove();
-                    yield network.remove();
-                })
-            };
-        });
-    }
-    ensureNetwork(name) {
-        return proxy_awaiter(this, void 0, void 0, function* () {
-            const networks = yield this.docker.listNetworks({
-                filters: JSON.stringify({ name: [name] })
-            });
-            if (networks.length > 0) {
-                return this.docker.getNetwork(networks[0].Id);
-            }
-            else {
-                return yield this.docker.createNetwork({ Name: name });
-            }
-        });
-    }
-    buildProxyConfig(credentials, jobId) {
-        const ca = this.generateCertificateAuthority();
-        const password = external_crypto_default().randomBytes(20).toString('hex');
-        const proxy_auth = {
-            username: `${jobId}`,
-            password
-        };
-        const config = { all_credentials: credentials, ca, proxy_auth };
-        return config;
-    }
-    generateCertificateAuthority() {
-        const keys = lib.pki.rsa.generateKeyPair(KEY_SIZE);
-        const cert = lib.pki.createCertificate();
-        cert.publicKey = keys.publicKey;
-        cert.serialNumber = '01';
-        cert.validity.notBefore = new Date();
-        cert.validity.notAfter = new Date();
-        cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + KEY_EXPIRY_YEARS);
-        cert.setSubject(CERT_SUBJECT);
-        cert.setIssuer(CERT_SUBJECT);
-        cert.setExtensions([{ name: 'basicConstraints', cA: true }]);
-        cert.sign(keys.privateKey);
-        const pem = lib.pki.certificateToPem(cert);
-        const key = lib.pki.privateKeyToPem(keys.privateKey);
-        return { cert: pem, key };
-    }
-    createContainer(jobId, containerName, networkName) {
-        return proxy_awaiter(this, void 0, void 0, function* () {
-            const container = yield this.docker.createContainer({
-                Image: this.proxyImage,
-                name: containerName,
-                AttachStdout: true,
-                AttachStderr: true,
-                Env: [`JOB_ID=${jobId}`],
-                Entrypoint: [
-                    'sh',
-                    '-c',
-                    '/usr/sbin/update-ca-certificates && /update-job-proxy'
-                ],
-                HostConfig: {
-                    NetworkMode: networkName
-                }
-            });
-            core.info(`Created proxy container: ${container.id}`);
-            return container;
-        });
-    }
-}
-
-;// CONCATENATED MODULE: ./src/updater.ts
-var updater_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-
-
-
-
-const JOB_INPUT_FILENAME = 'job.json';
-const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
-const JOB_OUTPUT_FILENAME = 'output.json';
-const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
-const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
-const updater_CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
-const CA_CERT_FILENAME = 'dbot-ca.crt';
-class Updater {
-    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../output/output.json') {
-        this.updaterImage = updaterImage;
-        this.proxyImage = proxyImage;
-        this.apiClient = apiClient;
-        this.details = details;
-        this.credentials = credentials;
-        this.outputPath = outputPath;
-        this.docker = new (docker_default())();
-    }
-    /**
-     * Execute an update job and report the result to Dependabot API.
-     */
-    runUpdater() {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            const proxy = yield new ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
-            proxy.container.start();
-            try {
-                const files = yield this.runFileFetcher(proxy);
-                yield this.runFileUpdater(proxy, files);
-                return true;
-            }
-            finally {
-                yield this.cleanup(proxy);
-            }
-        });
-    }
-    runFileFetcher(proxy) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`;
-            const container = yield this.createContainer(proxy, name, 'fetch_files');
-            yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
-            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
-            yield ContainerService.run(container);
-            const outputPath = external_path_default().join(__dirname, this.outputPath);
-            if (!external_fs_default().existsSync(outputPath)) {
-                throw new Error('No output.json created by the fetcher container');
-            }
-            const fileFetcherSync = external_fs_default().readFileSync(outputPath).toString();
-            const fileFetcherOutput = JSON.parse(fileFetcherSync);
-            const fetchedFiles = {
-                base_commit_sha: fileFetcherOutput.base_commit_sha,
-                base64_dependency_files: fileFetcherOutput.base64_dependency_files,
-                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => base64DecodeDependencyFile(file))
-            };
-            return fetchedFiles;
-        });
-    }
-    runFileUpdater(proxy, files) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            core.info(`Running update job ${this.apiClient.params.jobId}`);
-            const name = `dependabot-job-${this.apiClient.params.jobId}-updater`;
-            const container = yield this.createContainer(proxy, name, 'update_files');
-            const containerInput = {
-                base_commit_sha: files.base_commit_sha,
-                base64_dependency_files: files.base64_dependency_files,
-                dependency_files: files.dependency_files,
-                job: this.details
-            };
-            yield ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, containerInput);
-            yield ContainerService.storeCert(CA_CERT_FILENAME, updater_CA_CERT_INPUT_PATH, container, proxy.cert);
-            yield ContainerService.run(container);
-        });
-    }
-    createContainer(proxy, containerName, updaterCommand) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            const cmd = `(echo > /etc/ca-certificates.conf) &&\
-     rm -Rf /usr/share/ca-certificates/ &&\
-      /usr/sbin/update-ca-certificates &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
-            const container = yield this.docker.createContainer({
-                Image: this.updaterImage,
-                name: containerName,
-                AttachStdout: true,
-                AttachStderr: true,
-                Env: [
-                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
-                    `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
-                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
-                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
-                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiDockerUrl}`,
-                    `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-                    `http_proxy=${proxy.url}`,
-                    `HTTP_PROXY=${proxy.url}`,
-                    `https_proxy=${proxy.url}`,
-                    `HTTPS_PROXY=${proxy.url}`
-                ],
-                Cmd: ['sh', '-c', cmd],
-                HostConfig: {
-                    Memory: 8 * 1024 * 1024 * 1024,
-                    NetworkMode: proxy.networkName,
-                    Binds: [
-                        `${external_path_default().join(__dirname, '../output')}:${JOB_OUTPUT_PATH}:rw`,
-                        `${external_path_default().join(__dirname, '../repo')}:${REPO_CONTENTS_PATH}:rw`
-                    ]
-                }
-            });
-            core.info(`Created ${updaterCommand} container: ${container.id}`);
-            return container;
-        });
-    }
-    cleanup(proxy) {
-        return updater_awaiter(this, void 0, void 0, function* () {
-            yield proxy.shutdown();
-            const outputDir = external_path_default().join(__dirname, '../output');
-            const repoDir = external_path_default().join(__dirname, '../repo');
-            if (external_fs_default().existsSync(outputDir)) {
-                external_fs_default().rmdirSync(outputDir, { recursive: true });
-            }
-            if (external_fs_default().existsSync(repoDir)) {
-                external_fs_default().rmdirSync(repoDir, { recursive: true });
-            }
-        });
-    }
-}
-
-// EXTERNAL MODULE: ./node_modules/axios/index.js
-var axios = __nccwpck_require__(6545);
-var axios_default = /*#__PURE__*/__nccwpck_require__.n(axios);
-;// CONCATENATED MODULE: ./src/main.ts
-var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-
-
-
-
-
-
-const UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
-const PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
-var DependabotErrorType;
-(function (DependabotErrorType) {
-    DependabotErrorType["Unknown"] = "actions_workflow_unknown";
-    DependabotErrorType["Image"] = "actions_workflow_image";
-    DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
-})(DependabotErrorType || (DependabotErrorType = {}));
-function run(context) {
-    return main_awaiter(this, void 0, void 0, function* () {
-        try {
-            core.info('🤖 ~ starting update ~');
-            // Decode JobParameters
-            const params = getJobParameters(context);
-            if (params === null) {
-                core.info('No job parameters');
-                core.info('🤖 ~ finished: nothing to do ~');
-                return;
-            }
-            core.setSecret(params.jobToken);
-            core.setSecret(params.credentialsToken);
-            const client = axios_default().create({ baseURL: params.dependabotApiUrl });
-            const apiClient = new ApiClient(client, params);
-            core.info('Fetching job details');
-            // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
-            // so we do not try attempt to report back an exception if this fails and instead rely on the the workflow run
-            // webhook as it anticipates scenarios where jobs have failed while 'enqueued'.
-            const details = yield apiClient.getJobDetails();
-            try {
-                const credentials = yield apiClient.getCredentials();
-                const updater = new Updater(UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME, apiClient, details, credentials);
-                try {
-                    core.info('Pulling updater images');
-                    yield ImageService.pull(UPDATER_IMAGE_NAME);
-                    yield ImageService.pull(PROXY_IMAGE_NAME);
-                }
-                catch (error) {
-                    core.error('Error fetching updater images');
-                    yield failJob(apiClient, error, DependabotErrorType.Image);
-                    return;
-                }
-                try {
-                    core.info('Starting update process');
-                    yield updater.runUpdater();
-                }
-                catch (error) {
-                    core.error('Error performing update');
-                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
-                    return;
-                }
-                core.info('🤖 ~ finished ~');
-            }
-            catch (error) {
-                yield failJob(apiClient, error);
-                return;
-            }
-        }
-        catch (error) {
-            // If we've reached this point, we do not have a viable
-            // API client to report back to Dependabot API.
-            //
-            // We output the raw error in the Action logs and defer
-            // to workflow_run monitoring to detect the job failure.
-            core.setFailed(error);
-            core.info('🤖 ~ finished: unexpected error ~');
-        }
-    });
-}
-function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
-    return main_awaiter(this, void 0, void 0, function* () {
-        yield apiClient.reportJobError({
-            'error-type': errorType,
-            'error-details': {
-                'action-error': error.message
-            }
-        });
-        yield apiClient.markJobAsProcessed();
-        core.setFailed(error.message);
-        core.info('🤖 ~ finished: error reported to Dependabot ~');
-    });
-}
-run(github.context);
-
-})();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(399);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
