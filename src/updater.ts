@@ -160,7 +160,6 @@ export class Updater {
 
   private async cleanup(proxy: Proxy): Promise<void> {
     await proxy.shutdown()
-    await this.docker.pruneNetworks()
 
     const outputDir = path.join(__dirname, '../output')
     const repoDir = path.join(__dirname, '../repo')
