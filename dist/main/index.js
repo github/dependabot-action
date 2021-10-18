@@ -71233,14 +71233,15 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getJobParameters = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const api_client_1 = __nccwpck_require__(5707);
+const DYNAMIC = 'dynamic';
 function getJobParameters(ctx) {
-    switch (ctx.eventName) {
-        case 'dynamic':
-        case 'workflow_dispatch':
-            return fromWorkflowInputs(ctx);
+    if (ctx.eventName === DYNAMIC) {
+        return fromWorkflowInputs(ctx);
     }
-    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
-    return null;
+    else {
+        core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
+        return null;
+    }
 }
 exports.getJobParameters = getJobParameters;
 function fromWorkflowInputs(ctx) {
@@ -71300,6 +71301,7 @@ const image_service_1 = __nccwpck_require__(2715);
 const updater_1 = __nccwpck_require__(4186);
 const api_client_1 = __nccwpck_require__(5707);
 const axios_1 = __importDefault(__nccwpck_require__(6545));
+const DEPENDABOT_ACTOR = 'dependabot[bot]';
 exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
 exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
 var DependabotErrorType;
@@ -71312,12 +71314,17 @@ function run(context) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             core.info('🤖 ~ starting update ~');
+            if (context.actor !== DEPENDABOT_ACTOR) {
+                core.info('This workflow can only be triggered by Dependabot.');
+                core.info('🤖 ~ finished: nothing to do ~');
+                return; // TODO: This should be setNeutral in future
+            }
             // Decode JobParameters
             const params = inputs_1.getJobParameters(context);
             if (params === null) {
                 core.info('No job parameters');
                 core.info('🤖 ~ finished: nothing to do ~');
-                return;
+                return; // TODO: This should be setNeutral in future
             }
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
