@@ -49,7 +49,7 @@ export class ApiClient {
 
   async getJobDetails(): Promise<JobDetails> {
     const detailsURL = `/update_jobs/${this.params.jobId}/details`
-    const res = await this.client.get(detailsURL, {
+    const res: any = await this.client.get(detailsURL, {
       headers: {Authorization: this.params.jobToken}
     })
     if (res.status !== 200) {
@@ -61,7 +61,7 @@ export class ApiClient {
 
   async getCredentials(): Promise<Credential[]> {
     const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`
-    const res = await this.client.get(credentialsURL, {
+    const res: any = await this.client.get(credentialsURL, {
       headers: {Authorization: this.params.credentialsToken}
     })
     if (res.status !== 200) {
