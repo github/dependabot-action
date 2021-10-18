@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@types/dockerode": "^3.2.6",
-    "@types/jest": "^26.0.24",
+    "@types/jest": "^27.0.2",
     "@types/node": "^16.4.6",
     "@types/node-forge": "^0.10.3",
     "@types/tar-stream": "^2.2.1",
