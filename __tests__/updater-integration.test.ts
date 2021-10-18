@@ -68,7 +68,7 @@ describe('Updater', () => {
 
     // NOTE: This will not work when running against the actual dependabot-api
     // Checks if the pr was persisted in the fake json-server
-    const res = await client.get('/pull_requests/1')
+    const res: any = await client.get('/pull_requests/1')
 
     expect(res.status).toEqual(200)
     expect(res.data['pr-title']).toEqual(
