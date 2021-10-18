@@ -34,6 +34,7 @@ describe('ProxyBuilder', () => {
     await removeDanglingUpdaterContainers()
   })
 
+  jest.setTimeout(20000)
   it('should create a proxy container with the right details', async () => {
     // Skip the test when we haven't preloaded the updater image
     if (process.env.SKIP_INTEGRATION_TESTS) {
@@ -71,6 +72,7 @@ describe('ProxyBuilder', () => {
     await proxy.shutdown()
   })
 
+  jest.setTimeout(20000)
   it('copies in a custom root CA if configured', async () => {
     if (process.env.SKIP_INTEGRATION_TESTS) {
       return
