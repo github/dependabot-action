@@ -4,8 +4,6 @@ import {WorkflowDispatchEvent} from '@octokit/webhooks-types'
 import {JobParameters} from './api-client'
 
 export function getJobParameters(ctx: Context): JobParameters | null {
-  core.debug(`Detecting '${ctx.eventName}' event.`)
-
   switch (ctx.eventName) {
     case 'dynamic':
     case 'workflow_dispatch':

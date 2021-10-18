@@ -3,4 +3,5 @@ description: 'Runs dependabot-updater in Actions'
 author: 'GitHub'
 runs:
   using: 'node12'
-  main: 'dist/index.js'
+  main: 'dist/main/index.js'
+  post: 'dist/cleanup/index.js'
