@@ -51,7 +51,7 @@
     "jest": "^27.3.1",
     "jest-circus": "^27.3.1",
     "js-yaml": "^4.1.0",
-    "json-server": "^0.16.3",
+    "json-server": "^0.17.0",
     "lint-staged": "^11.1.1",
     "node-forge": "^0.10.0",
     "prettier": "2.4.1",
