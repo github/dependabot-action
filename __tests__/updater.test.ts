@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import {Updater} from '../src/updater'
 import Docker from 'dockerode'
 import {ContainerService} from '../src/container-service'
@@ -7,6 +9,17 @@ import {ProxyBuilder} from '../src/proxy'
 jest.mock('dockerode')
 jest.mock('../src/container-service')
 jest.mock('../src/proxy')
+
+const outputFixturePath = (fixtureName: string): string => {
+  return path.join(
+    __dirname,
+    '..',
+    '__fixtures__',
+    'output',
+    fixtureName,
+    'output.json'
+  )
+}
 
 describe('Updater', () => {
   const mockApiClient: any = {
@@ -45,8 +58,22 @@ describe('Updater', () => {
     id: 1
   }
 
+  const workingDirectory = path.join(
+    __dirname,
+    '..',
+    'tmp',
+    './test_working_directory'
+  )
+
+  const outputFilePath = path.join(workingDirectory, 'output', 'output.json')
+
+  beforeEach(async () => {
+    fs.mkdirSync(workingDirectory)
+  })
+
   afterEach(async () => {
     jest.clearAllMocks() // Reset any mocked classes
+    fs.rmdirSync(workingDirectory, {recursive: true})
   })
 
   describe('when there is a happy path update', () => {
@@ -56,8 +83,10 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '../__fixtures__/output/happy_path/output.json'
+      workingDirectory
     )
+
+    const outputFixture = outputFixturePath('happy_path')
 
     beforeEach(async () => {
       jest
@@ -65,7 +94,21 @@ describe('Updater', () => {
         .mockResolvedValue(mockContainer)
 
       jest.spyOn(ProxyBuilder.prototype, 'run').mockResolvedValue(mockProxy)
-      jest.spyOn(ContainerService, 'run').mockImplementation(jest.fn())
+      jest
+        .spyOn(ContainerService, 'run')
+        .mockImplementationOnce(
+          jest.fn(async () => {
+            fs.copyFileSync(outputFixture, outputFilePath)
+            return true
+          })
+        )
+        .mockImplementationOnce(
+          jest.fn(
+            jest.fn(async () => {
+              return true
+            })
+          )
+        )
     })
 
     it('should be successful', async () => {
@@ -80,7 +123,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '../__fixtures__/output/happy_path/output.json'
+      workingDirectory
     )
 
     beforeEach(async () => {
@@ -100,7 +143,9 @@ describe('Updater', () => {
     })
 
     it('should raise an error', async () => {
-      await expect(updater.runUpdater()).rejects.toThrow()
+      await expect(updater.runUpdater()).rejects.toThrow(
+        'First call to container service errored'
+      )
     })
   })
 
@@ -111,8 +156,10 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '../__fixtures__/output/happy_path/output.json'
+      workingDirectory
     )
+
+    const outputFixture = outputFixturePath('happy_path')
 
     beforeEach(async () => {
       jest
@@ -123,7 +170,12 @@ describe('Updater', () => {
 
       jest
         .spyOn(ContainerService, 'run')
-        .mockImplementationOnce(jest.fn())
+        .mockImplementationOnce(
+          jest.fn(async () => {
+            fs.copyFileSync(outputFixture, outputFilePath)
+            return true
+          })
+        )
         .mockImplementationOnce(
           jest.fn(async () =>
             Promise.reject(
@@ -134,7 +186,9 @@ describe('Updater', () => {
     })
 
     it('should raise an error', async () => {
-      await expect(updater.runUpdater()).rejects.toThrow()
+      await expect(updater.runUpdater()).rejects.toThrow(
+        'Second call to container service errored'
+      )
     })
   })
 
@@ -145,7 +199,7 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '../__fixtures__/output/empty/output.json'
+      workingDirectory
     )
 
     beforeEach(async () => {
@@ -172,8 +226,10 @@ describe('Updater', () => {
       mockApiClient,
       mockJobDetails,
       [],
-      '../__fixtures__/output/malformed/output.json'
+      workingDirectory
     )
+
+    const outputFixture = outputFixturePath('malformed')
 
     beforeEach(async () => {
       jest
@@ -182,11 +238,16 @@ describe('Updater', () => {
 
       jest.spyOn(ProxyBuilder.prototype, 'run').mockResolvedValue(mockProxy)
 
-      jest.spyOn(ContainerService, 'run').mockImplementation(jest.fn())
+      jest.spyOn(ContainerService, 'run').mockImplementation(
+        jest.fn(async () => {
+          fs.copyFileSync(outputFixture, outputFilePath)
+          return true
+        })
+      )
     })
 
     it('should raise an error', async () => {
-      await expect(updater.runUpdater()).rejects.toThrow()
+      await expect(updater.runUpdater()).rejects.toThrow(/Unexpected token/)
     })
   })
 })

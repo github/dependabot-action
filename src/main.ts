@@ -52,7 +52,8 @@ export async function run(context: Context): Promise<void> {
         PROXY_IMAGE_NAME,
         apiClient,
         details,
-        credentials
+        credentials,
+        params.workingDirectory
       )
 
       try {
