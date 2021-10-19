@@ -214,7 +214,7 @@ describe('Updater', () => {
 
     it('should raise an error', async () => {
       await expect(updater.runUpdater()).rejects.toThrow(
-        new Error('No output.json created by the fetcher container')
+        new Error('Failed to fetch files.')
       )
     })
   })

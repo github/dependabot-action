@@ -49,8 +49,13 @@ export class Updater {
     proxy.container.start()
 
     try {
+      core.startGroup('Fetching files')
       const files = await this.runFileFetcher(proxy)
+      core.endGroup()
+
+      core.startGroup('Performing update')
       await this.runFileUpdater(proxy, files)
+      core.endGroup()
       return true
     } finally {
       await this.cleanup(proxy)
@@ -77,7 +82,7 @@ export class Updater {
 
     const outputPath = path.join(this.outputHostPath, 'output.json')
     if (!fs.existsSync(outputPath)) {
-      throw new Error('No output.json created by the fetcher container')
+      throw new Error('Failed to fetch files.')
     }
 
     const fileFetcherSync = fs.readFileSync(outputPath).toString()
