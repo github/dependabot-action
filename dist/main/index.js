@@ -71393,8 +71393,8 @@ function run(context) {
             try {
                 const credentials = yield apiClient.getCredentials();
                 const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
+                core.startGroup('Pulling updater images');
                 try {
-                    core.info('Pulling updater images');
                     yield image_service_1.ImageService.pull(exports.UPDATER_IMAGE_NAME);
                     yield image_service_1.ImageService.pull(exports.PROXY_IMAGE_NAME);
                 }
@@ -71403,6 +71403,7 @@ function run(context) {
                     yield failJob(apiClient, error, DependabotErrorType.Image);
                     return;
                 }
+                core.endGroup();
                 try {
                     core.info('Starting update process');
                     yield updater.runUpdater();
@@ -71708,8 +71709,12 @@ class Updater {
             const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
             proxy.container.start();
             try {
+                core.startGroup('Fetching files');
                 const files = yield this.runFileFetcher(proxy);
+                core.endGroup();
+                core.startGroup('Performing update');
                 yield this.runFileUpdater(proxy, files);
+                core.endGroup();
                 return true;
             }
             finally {
@@ -71726,7 +71731,7 @@ class Updater {
             yield container_service_1.ContainerService.run(container);
             const outputPath = path_1.default.join(this.outputHostPath, 'output.json');
             if (!fs_1.default.existsSync(outputPath)) {
-                throw new Error('No output.json created by the fetcher container');
+                throw new Error('Failed to fetch files.');
             }
             const fileFetcherSync = fs_1.default.readFileSync(outputPath).toString();
             const fileFetcherOutput = JSON.parse(fileFetcherSync);
