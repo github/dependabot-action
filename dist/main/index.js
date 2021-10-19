@@ -71302,8 +71302,8 @@ const updater_1 = __nccwpck_require__(4186);
 const api_client_1 = __nccwpck_require__(5707);
 const axios_1 = __importDefault(__nccwpck_require__(6545));
 const DEPENDABOT_ACTOR = 'dependabot[bot]';
-exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
-exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
+exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
+exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
 var DependabotErrorType;
 (function (DependabotErrorType) {
     DependabotErrorType["Unknown"] = "actions_workflow_unknown";

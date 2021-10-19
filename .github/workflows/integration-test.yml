@@ -20,9 +20,9 @@ jobs:
       - name: GPR login
         run: docker login docker.pkg.github.com -u x -p ${{ secrets.GITHUB_TOKEN }}
       - name: GRP pull dependabot/dependabot-updater
-        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:latest
+        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:v1
       - name: GRP pull github/dependabot-update-job-proxy
-        run: docker pull docker.pkg.github.com/github/dependabot-update-job-proxy:latest
+        run: docker pull docker.pkg.github.com/github/dependabot-update-job-proxy:v1
       - run: npm ci
       - name: Run integration test files
         run: npm run test-integration
