@@ -1,16 +1,5 @@
 import {AxiosInstance} from 'axios'
-
-// JobParameters are the parameters to execute a job
-export class JobParameters {
-  constructor(
-    readonly jobId: number,
-    readonly jobToken: string,
-    readonly credentialsToken: string,
-    readonly dependabotApiUrl: string,
-    readonly dependabotApiDockerUrl: string,
-    readonly workingDirectory: string
-  ) {}
-}
+import {JobParameters} from './inputs'
 
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {

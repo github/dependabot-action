@@ -1,7 +1,8 @@
 import axios from 'axios'
 
-import {ApiClient, JobParameters} from '../src/api-client'
+import {ApiClient} from '../src/api-client'
 import {ImageService} from '../src/image-service'
+import {JobParameters} from '../src/inputs'
 import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 

@@ -1,11 +1,4 @@
 {
-  "inputs": {
-    "jobId": "1",
-    "jobToken": "xxx",
-    "credentialsToken": "yyy",
-    "dependabotApiUrl": "http://localhost:9000",
-    "workingDirectory": "./test_working_directory"
-  },
   "ref": "main",
   "repository": {
     "owner": {
