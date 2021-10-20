@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import {Updater} from '../src/updater'
+import {Updater, UpdaterFetchError} from '../src/updater'
 import Docker from 'dockerode'
 import {ContainerService} from '../src/container-service'
 import {ProxyBuilder} from '../src/proxy'
@@ -212,9 +212,9 @@ describe('Updater', () => {
       jest.spyOn(ContainerService, 'run').mockImplementation(jest.fn())
     })
 
-    it('should raise an error', async () => {
+    it('should raise a UpdaterFetchError', async () => {
       await expect(updater.runUpdater()).rejects.toThrow(
-        new Error('No output.json created by the fetcher container')
+        new UpdaterFetchError('No output.json created by the fetcher container')
       )
     })
   })

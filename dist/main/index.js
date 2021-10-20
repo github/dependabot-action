@@ -71393,8 +71393,8 @@ function run(context) {
             try {
                 const credentials = yield apiClient.getCredentials();
                 const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
+                core.startGroup('Pulling updater images');
                 try {
-                    core.info('Pulling updater images');
                     yield image_service_1.ImageService.pull(exports.UPDATER_IMAGE_NAME);
                     yield image_service_1.ImageService.pull(exports.PROXY_IMAGE_NAME);
                 }
@@ -71403,14 +71403,25 @@ function run(context) {
                     yield failJob(apiClient, error, DependabotErrorType.Image);
                     return;
                 }
+                core.endGroup();
                 try {
                     core.info('Starting update process');
                     yield updater.runUpdater();
                 }
                 catch (error) {
-                    core.error('Error performing update');
-                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
-                    return;
+                    // If we have encountered a UpdaterFetchError, the Updater will already have
+                    // reported the error and marked the job as processed, so we only need to
+                    // set an exit status.
+                    if (error instanceof updater_1.UpdaterFetchError) {
+                        core.setFailed('Dependabot was unable to retrieve the files required to perform the update');
+                        core.info('🤖 ~ finished: unable to fetch files ~');
+                        return;
+                    }
+                    else {
+                        core.error('Error performing update');
+                        yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                        return;
+                    }
                 }
                 core.info('🤖 ~ finished ~');
             }
@@ -71670,7 +71681,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Updater = void 0;
+exports.Updater = exports.UpdaterFetchError = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
 const path_1 = __importDefault(__nccwpck_require__(5622));
@@ -71685,6 +71696,13 @@ const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
+class UpdaterFetchError extends Error {
+    constructor(msg) {
+        super(msg);
+        Object.setPrototypeOf(this, UpdaterFetchError.prototype);
+    }
+}
+exports.UpdaterFetchError = UpdaterFetchError;
 class Updater {
     constructor(updaterImage, proxyImage, apiClient, details, credentials, workingDirectory) {
         this.updaterImage = updaterImage;
@@ -71726,7 +71744,7 @@ class Updater {
             yield container_service_1.ContainerService.run(container);
             const outputPath = path_1.default.join(this.outputHostPath, 'output.json');
             if (!fs_1.default.existsSync(outputPath)) {
-                throw new Error('No output.json created by the fetcher container');
+                throw new UpdaterFetchError('No output.json created by the fetcher container');
             }
             const fileFetcherSync = fs_1.default.readFileSync(outputPath).toString();
             const fileFetcherOutput = JSON.parse(fileFetcherSync);

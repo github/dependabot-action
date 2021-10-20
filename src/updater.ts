@@ -16,6 +16,13 @@ const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates'
 const CA_CERT_FILENAME = 'dbot-ca.crt'
 
+export class UpdaterFetchError extends Error {
+  constructor(msg: string) {
+    super(msg)
+    Object.setPrototypeOf(this, UpdaterFetchError.prototype)
+  }
+}
+
 export class Updater {
   docker: Docker
   outputHostPath: string
@@ -77,7 +84,9 @@ export class Updater {
 
     const outputPath = path.join(this.outputHostPath, 'output.json')
     if (!fs.existsSync(outputPath)) {
-      throw new Error('No output.json created by the fetcher container')
+      throw new UpdaterFetchError(
+        'No output.json created by the fetcher container'
+      )
     }
 
     const fileFetcherSync = fs.readFileSync(outputPath).toString()
