@@ -56,9 +56,8 @@ export async function run(context: Context): Promise<void> {
         params.workingDirectory
       )
 
+      core.startGroup('Pulling updater images')
       try {
-        core.info('Pulling updater images')
-
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
       } catch (error) {
@@ -67,6 +66,7 @@ export async function run(context: Context): Promise<void> {
         await failJob(apiClient, error, DependabotErrorType.Image)
         return
       }
+      core.endGroup()
 
       try {
         core.info('Starting update process')
