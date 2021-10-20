@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient} from '../src/api-client'
@@ -15,11 +17,18 @@ jest.mock('../src/updater')
 
 describe('run', () => {
   let context: Context
+  const workspace = path.join(__dirname, '..', 'tmp')
+  const workingDirectory = path.join(workspace, './test_working_directory')
 
   let markJobAsProcessedSpy: any
   let reportJobErrorSpy: any
 
   beforeEach(async () => {
+    process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    process.env.GITHUB_EVENT_NAME = 'dynamic'
+    process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_WORKSPACE = workspace
+
     markJobAsProcessedSpy = jest.spyOn(
       ApiClient.prototype,
       'markJobAsProcessed'
@@ -28,17 +37,17 @@ describe('run', () => {
 
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
+
+    fs.mkdirSync(workingDirectory)
   })
 
   afterEach(async () => {
     jest.clearAllMocks() // Reset any mocked classes
+    fs.rmdirSync(workingDirectory)
   })
 
   describe('when the run follows the happy path', () => {
-    beforeAll(() => {
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    beforeEach(() => {
       context = new Context()
     })
 
@@ -59,10 +68,8 @@ describe('run', () => {
     })
   })
 
-  describe('when the action is triggered on by a different actor', () => {
-    beforeAll(() => {
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
+  describe('when the action is triggered by a different actor', () => {
+    beforeEach(() => {
       process.env.GITHUB_ACTOR = 'classic-rando'
       context = new Context()
     })
@@ -85,10 +92,8 @@ describe('run', () => {
   })
 
   describe('when the action is triggered on an unsupported event', () => {
-    beforeAll(() => {
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    beforeEach(() => {
       process.env.GITHUB_EVENT_NAME = 'issue_created'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -117,9 +122,6 @@ describe('run', () => {
         })
       )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -149,9 +151,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -181,9 +180,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -218,9 +214,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 
@@ -255,9 +248,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'dynamic'
-      process.env.GITHUB_ACTOR = 'dependabot[bot]'
       context = new Context()
     })
 

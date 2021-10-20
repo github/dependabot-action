@@ -1,7 +1,9 @@
 import axios from 'axios'
-
-import {ApiClient, JobParameters} from '../src/api-client'
+import fs from 'fs'
+import path from 'path'
+import {ApiClient} from '../src/api-client'
 import {ImageService} from '../src/image-service'
+import {JobParameters} from '../src/inputs'
 import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 
@@ -18,12 +20,20 @@ describe('Updater', () => {
   const internalDockerHost =
     process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
   const dependabotApiDockerUrl = `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
+  const workingDirectory = path.join(
+    __dirname,
+    '..',
+    'tmp',
+    './integration_working_directory'
+  )
+
   const params = new JobParameters(
     1,
     'job-token',
     'cred-token',
     dependabotApiUrl,
-    dependabotApiDockerUrl
+    dependabotApiDockerUrl,
+    workingDirectory
   )
 
   const client = axios.create({baseURL: dependabotApiUrl})
@@ -39,11 +49,14 @@ describe('Updater', () => {
     await ImageService.pull(PROXY_IMAGE_NAME)
 
     server = await runFakeDependabotApi(FAKE_SERVER_PORT)
+
+    fs.mkdirSync(workingDirectory)
   })
 
   afterEach(async () => {
     server && server() // teardown server process
     await removeDanglingUpdaterContainers()
+    fs.rmdirSync(workingDirectory, {recursive: true})
   })
 
   jest.setTimeout(120000)
@@ -61,7 +74,8 @@ describe('Updater', () => {
       PROXY_IMAGE_NAME,
       apiClient,
       details,
-      credentials
+      credentials,
+      workingDirectory
     )
 
     await updater.runUpdater()

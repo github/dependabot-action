@@ -7,8 +7,6 @@ import {Updater} from './updater'
 import {ApiClient} from './api-client'
 import axios from 'axios'
 
-const DEPENDABOT_ACTOR = 'dependabot[bot]'
-
 export const UPDATER_IMAGE_NAME =
   'docker.pkg.github.com/dependabot/dependabot-updater:v1'
 export const PROXY_IMAGE_NAME =
@@ -24,16 +22,12 @@ export async function run(context: Context): Promise<void> {
   try {
     core.info('🤖 ~ starting update ~')
 
-    if (context.actor !== DEPENDABOT_ACTOR) {
-      core.info('This workflow can only be triggered by Dependabot.')
-      core.info('🤖 ~ finished: nothing to do ~')
-      return // TODO: This should be setNeutral in future
-    }
-
-    // Decode JobParameters
+    // Retrieve JobParameters from the Actions environment
     const params = getJobParameters(context)
+
+    // The parameters will be null if the Action environment
+    // is not a valid Dependabot-triggered dynamic event.
     if (params === null) {
-      core.info('No job parameters')
       core.info('🤖 ~ finished: nothing to do ~')
       return // TODO: This should be setNeutral in future
     }
@@ -58,7 +52,8 @@ export async function run(context: Context): Promise<void> {
         PROXY_IMAGE_NAME,
         apiClient,
         details,
-        credentials
+        credentials,
+        params.workingDirectory
       )
 
       try {
