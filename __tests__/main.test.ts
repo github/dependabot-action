@@ -36,6 +36,7 @@ describe('run', () => {
     reportJobErrorSpy = jest.spyOn(ApiClient.prototype, 'reportJobError')
 
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
+    jest.spyOn(core, 'warning').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
 
     fs.mkdirSync(workingDirectory)
@@ -78,7 +79,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).not.toHaveBeenCalled()
-      expect(core.info).toHaveBeenCalledWith(
+      expect(core.warning).toHaveBeenCalledWith(
         'This workflow can only be triggered by Dependabot.'
       )
     })
@@ -101,7 +102,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).not.toHaveBeenCalled()
-      expect(core.info).toHaveBeenCalledWith(
+      expect(core.warning).toHaveBeenCalledWith(
         "Dependabot Updater Action does not support 'issue_created' events."
       )
     })

@@ -54,6 +54,11 @@ describe('Updater', () => {
   })
 
   afterEach(async () => {
+    // Skip the test when we haven't preloaded the updater image
+    if (process.env.SKIP_INTEGRATION_TESTS) {
+      return
+    }
+
     server && server() // teardown server process
     await removeDanglingUpdaterContainers()
     fs.rmdirSync(workingDirectory, {recursive: true})

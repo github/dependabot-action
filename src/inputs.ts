@@ -23,14 +23,14 @@ export function getJobParameters(ctx: Context): JobParameters | null {
   checkEnvironmentAndContext(ctx)
 
   if (ctx.actor !== DEPENDABOT_ACTOR) {
-    core.info('This workflow can only be triggered by Dependabot.')
+    core.warning('This workflow can only be triggered by Dependabot.')
     return null
   }
 
   if (ctx.eventName === DYNAMIC) {
     return fromWorkflowInputs(ctx)
   } else {
-    core.info(
+    core.warning(
       `Dependabot Updater Action does not support '${ctx.eventName}' events.`
     )
     return null
