@@ -3,7 +3,7 @@ import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient} from '../src/api-client'
-import {Updater} from '../src/updater'
+import {Updater, UpdaterFetchError} from '../src/updater'
 import {ImageService} from '../src/image-service'
 import * as inputs from '../src/inputs'
 import {run} from '../src/main'
@@ -270,6 +270,41 @@ describe('run', () => {
         }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when the file fetch step fails', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(Updater.prototype, 'runUpdater')
+        .mockImplementationOnce(
+          jest.fn(async () =>
+            Promise.reject(
+              new UpdaterFetchError(
+                'No output.json created by the fetcher container'
+              )
+            )
+          )
+        )
+
+      context = new Context()
+    })
+
+    test('it fails the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Dependabot was unable to retrieve the files required to perform the update'
+        )
+      )
+    })
+
+    test('it does not inform dependabot-api as the failed fetch step will have already reported in', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 })

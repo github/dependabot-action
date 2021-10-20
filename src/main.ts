@@ -3,7 +3,7 @@ import * as github from '@actions/github'
 import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
-import {Updater} from './updater'
+import {Updater, UpdaterFetchError} from './updater'
 import {ApiClient} from './api-client'
 import axios from 'axios'
 
@@ -73,9 +73,20 @@ export async function run(context: Context): Promise<void> {
 
         await updater.runUpdater()
       } catch (error) {
-        core.error('Error performing update')
-        await failJob(apiClient, error, DependabotErrorType.UpdateRun)
-        return
+        // If we have encountered a UpdaterFetchError, the Updater will already have
+        // reported the error and marked the job as processed, so we only need to
+        // set an exit status.
+        if (error instanceof UpdaterFetchError) {
+          core.setFailed(
+            'Dependabot was unable to retrieve the files required to perform the update'
+          )
+          core.info('🤖 ~ finished: unable to fetch files ~')
+          return
+        } else {
+          core.error('Error performing update')
+          await failJob(apiClient, error, DependabotErrorType.UpdateRun)
+          return
+        }
       }
       core.info('🤖 ~ finished ~')
     } catch (error) {
