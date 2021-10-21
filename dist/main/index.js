@@ -71369,18 +71369,20 @@ var DependabotErrorType;
     DependabotErrorType["Image"] = "actions_workflow_image";
     DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
 })(DependabotErrorType = exports.DependabotErrorType || (exports.DependabotErrorType = {}));
+let jobId;
 function run(context) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            core.info('🤖 ~ starting update ~');
+            botSay('starting update');
             // Retrieve JobParameters from the Actions environment
             const params = inputs_1.getJobParameters(context);
             // The parameters will be null if the Action environment
             // is not a valid Dependabot-triggered dynamic event.
             if (params === null) {
-                core.info('🤖 ~ finished: nothing to do ~');
+                botSay('finished: nothing to do');
                 return; // TODO: This should be setNeutral in future
             }
+            jobId = params.jobId;
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_1.default.create({ baseURL: params.dependabotApiUrl });
@@ -71413,8 +71415,8 @@ function run(context) {
                     // reported the error and marked the job as processed, so we only need to
                     // set an exit status.
                     if (error instanceof updater_1.UpdaterFetchError) {
-                        core.setFailed('Dependabot was unable to retrieve the files required to perform the update');
-                        core.info('🤖 ~ finished: unable to fetch files ~');
+                        setFailed('Dependabot was unable to retrieve the files required to perform the update');
+                        botSay('finished: unable to fetch files');
                         return;
                     }
                     else {
@@ -71423,7 +71425,7 @@ function run(context) {
                         return;
                     }
                 }
-                core.info('🤖 ~ finished ~');
+                botSay('finished');
             }
             catch (error) {
                 yield failJob(apiClient, error);
@@ -71436,8 +71438,8 @@ function run(context) {
             //
             // We output the raw error in the Action logs and defer
             // to workflow_run monitoring to detect the job failure.
-            core.setFailed(error);
-            core.info('🤖 ~ finished: unexpected error ~');
+            setFailed(error);
+            botSay('finished: unexpected error');
         }
     });
 }
@@ -71451,9 +71453,27 @@ function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
             }
         });
         yield apiClient.markJobAsProcessed();
-        core.setFailed(error.message);
-        core.info('🤖 ~ finished: error reported to Dependabot ~');
+        setFailed(error.message);
+        botSay('finished: error reported to Dependabot');
     });
+}
+function botSay(message) {
+    core.info(`🤖 ~ ${message} ~`);
+}
+function setFailed(message) {
+    core.setFailed(message);
+    if (jobId) {
+        core.error(`For more information see: ${dependabotJobUrl(jobId)} (write access required)`);
+    }
+}
+function dependabotJobUrl(id) {
+    const url_parts = [
+        process.env.GITHUB_SERVER_URL,
+        process.env.GITHUB_REPOSITORY,
+        'network/updates',
+        id
+    ];
+    return url_parts.filter(Boolean).join('/');
 }
 run(github.context);
 

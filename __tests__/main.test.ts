@@ -75,7 +75,7 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it fails the workflow', async () => {
+    test('it skips the rest of the job', async () => {
       await run(context)
 
       expect(core.setFailed).not.toHaveBeenCalled()
@@ -98,7 +98,7 @@ describe('run', () => {
       context = new Context()
     })
 
-    test('it fails the workflow', async () => {
+    test('it skips the rest of the job', async () => {
       await run(context)
 
       expect(core.setFailed).not.toHaveBeenCalled()
