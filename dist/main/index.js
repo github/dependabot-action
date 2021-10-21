@@ -71463,11 +71463,7 @@ function botSay(message) {
 function setFailed(message) {
     core.setFailed(message);
     if (jobId) {
-        core.error(`
-      For more information see: ${dependabotJobUrl(jobId)}
-
-      Note: write access required
-    `);
+        core.error(`For more information see: ${dependabotJobUrl(jobId)} (write access required)`);
     }
 }
 function dependabotJobUrl(id) {
