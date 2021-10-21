@@ -3,14 +3,14 @@ import * as github from '@actions/github'
 import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
-import {Updater} from './updater'
+import {Updater, UpdaterFetchError} from './updater'
 import {ApiClient} from './api-client'
 import axios from 'axios'
 
 export const UPDATER_IMAGE_NAME =
-  'docker.pkg.github.com/dependabot/dependabot-updater:latest'
+  'docker.pkg.github.com/dependabot/dependabot-updater:v1'
 export const PROXY_IMAGE_NAME =
-  'docker.pkg.github.com/github/dependabot-update-job-proxy:latest'
+  'docker.pkg.github.com/github/dependabot-update-job-proxy:v1'
 
 export enum DependabotErrorType {
   Unknown = 'actions_workflow_unknown',
@@ -18,17 +18,23 @@ export enum DependabotErrorType {
   UpdateRun = 'actions_workflow_updater'
 }
 
+let jobId: number
+
 export async function run(context: Context): Promise<void> {
   try {
-    core.info('🤖 ~ starting update ~')
-    // Decode JobParameters
+    botSay('starting update')
+
+    // Retrieve JobParameters from the Actions environment
     const params = getJobParameters(context)
+
+    // The parameters will be null if the Action environment
+    // is not a valid Dependabot-triggered dynamic event.
     if (params === null) {
-      core.info('No job parameters')
-      core.info('🤖 ~ finished: nothing to do ~')
-      return
+      botSay('finished: nothing to do')
+      return // TODO: This should be setNeutral in future
     }
 
+    jobId = params.jobId
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 
@@ -49,12 +55,12 @@ export async function run(context: Context): Promise<void> {
         PROXY_IMAGE_NAME,
         apiClient,
         details,
-        credentials
+        credentials,
+        params.workingDirectory
       )
 
+      core.startGroup('Pulling updater images')
       try {
-        core.info('Pulling updater images')
-
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
       } catch (error) {
@@ -63,17 +69,29 @@ export async function run(context: Context): Promise<void> {
         await failJob(apiClient, error, DependabotErrorType.Image)
         return
       }
+      core.endGroup()
 
       try {
         core.info('Starting update process')
 
         await updater.runUpdater()
       } catch (error) {
-        core.error('Error performing update')
-        await failJob(apiClient, error, DependabotErrorType.UpdateRun)
-        return
+        // If we have encountered a UpdaterFetchError, the Updater will already have
+        // reported the error and marked the job as processed, so we only need to
+        // set an exit status.
+        if (error instanceof UpdaterFetchError) {
+          setFailed(
+            'Dependabot was unable to retrieve the files required to perform the update'
+          )
+          botSay('finished: unable to fetch files')
+          return
+        } else {
+          core.error('Error performing update')
+          await failJob(apiClient, error, DependabotErrorType.UpdateRun)
+          return
+        }
       }
-      core.info('🤖 ~ finished ~')
+      botSay('finished')
     } catch (error) {
       await failJob(apiClient, error)
       return
@@ -84,8 +102,8 @@ export async function run(context: Context): Promise<void> {
     //
     // We output the raw error in the Action logs and defer
     // to workflow_run monitoring to detect the job failure.
-    core.setFailed(error)
-    core.info('🤖 ~ finished: unexpected error ~')
+    setFailed(error)
+    botSay('finished: unexpected error')
   }
 }
 
@@ -101,8 +119,34 @@ async function failJob(
     }
   })
   await apiClient.markJobAsProcessed()
-  core.setFailed(error.message)
-  core.info('🤖 ~ finished: error reported to Dependabot ~')
+  setFailed(error.message)
+  botSay('finished: error reported to Dependabot')
+}
+
+function botSay(message: string): void {
+  core.info(`🤖 ~ ${message} ~`)
+}
+
+function setFailed(message: string | Error): void {
+  core.setFailed(message)
+  if (jobId) {
+    core.error(
+      `For more information see: ${dependabotJobUrl(
+        jobId
+      )} (write access required)`
+    )
+  }
+}
+
+function dependabotJobUrl(id: number): string {
+  const url_parts = [
+    process.env.GITHUB_SERVER_URL,
+    process.env.GITHUB_REPOSITORY,
+    'network/updates',
+    id
+  ]
+
+  return url_parts.filter(Boolean).join('/')
 }
 
 run(github.context)

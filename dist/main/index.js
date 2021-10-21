@@ -70968,18 +70968,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ApiClient = exports.JobParameters = void 0;
-// JobParameters are the parameters to execute a job
-class JobParameters {
-    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl) {
-        this.jobId = jobId;
-        this.jobToken = jobToken;
-        this.credentialsToken = credentialsToken;
-        this.dependabotApiUrl = dependabotApiUrl;
-        this.dependabotApiDockerUrl = dependabotApiDockerUrl;
-    }
-}
-exports.JobParameters = JobParameters;
+exports.ApiClient = void 0;
 class ApiClient {
     constructor(client, params) {
         this.client = client;
@@ -71229,27 +71218,99 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getJobParameters = void 0;
+exports.getJobParameters = exports.JobParameters = void 0;
+const fs_1 = __importDefault(__nccwpck_require__(5747));
+const path_1 = __importDefault(__nccwpck_require__(5622));
 const core = __importStar(__nccwpck_require__(2186));
-const api_client_1 = __nccwpck_require__(5707);
-function getJobParameters(ctx) {
-    switch (ctx.eventName) {
-        case 'dynamic':
-        case 'workflow_dispatch':
-            return fromWorkflowInputs(ctx);
+const DYNAMIC = 'dynamic';
+const DEPENDABOT_ACTOR = 'dependabot[bot]';
+// JobParameters are the Action inputs required to execute the job
+class JobParameters {
+    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl, workingDirectory) {
+        this.jobId = jobId;
+        this.jobToken = jobToken;
+        this.credentialsToken = credentialsToken;
+        this.dependabotApiUrl = dependabotApiUrl;
+        this.dependabotApiDockerUrl = dependabotApiDockerUrl;
+        this.workingDirectory = workingDirectory;
     }
-    core.info(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
-    return null;
+}
+exports.JobParameters = JobParameters;
+function getJobParameters(ctx) {
+    checkEnvironmentAndContext(ctx);
+    if (ctx.actor !== DEPENDABOT_ACTOR) {
+        core.warning('This workflow can only be triggered by Dependabot.');
+        return null;
+    }
+    if (ctx.eventName === DYNAMIC) {
+        return fromWorkflowInputs(ctx);
+    }
+    else {
+        core.warning(`Dependabot Updater Action does not support '${ctx.eventName}' events.`);
+        return null;
+    }
 }
 exports.getJobParameters = getJobParameters;
+function checkEnvironmentAndContext(ctx) {
+    let valid = true;
+    if (!ctx.actor) {
+        core.error('GITHUB_ACTOR is not defined');
+        valid = false;
+    }
+    if (!ctx.eventName) {
+        core.error('GITHUB_EVENT_NAME is not defined');
+        valid = false;
+    }
+    if (!process.env.GITHUB_WORKSPACE) {
+        core.error('GITHUB_WORKSPACE is not defined');
+        valid = false;
+    }
+    if (!valid) {
+        throw new Error('Required Actions environment variables missing.');
+    }
+    else {
+        return valid;
+    }
+}
 function fromWorkflowInputs(ctx) {
     const evt = ctx.payload;
     if (!evt.inputs) {
-        throw new Error('Missing inputs in WorkflowDispatchEvent');
+        throw new Error('Event payload has no inputs');
     }
     const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
-    return new api_client_1.JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl);
+    const workingDirectory = absoluteWorkingDirectory(evt.inputs.workingDirectory);
+    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, workingDirectory);
+}
+function absoluteWorkingDirectory(workingDirectory) {
+    const workspace = process.env.GITHUB_WORKSPACE;
+    if (!workingDirectory) {
+        throw new Error('The workingDirectory input must not be blank.');
+    }
+    if (!directoryExistsSync(workspace)) {
+        throw new Error('The GITHUB_WORKSPACE directory does not exist.');
+    }
+    const fullPath = path_1.default.join(workspace, workingDirectory);
+    if (!directoryExistsSync(fullPath)) {
+        throw new Error(`The workingDirectory '${workingDirectory}' does not exist in GITHUB_WORKSPACE`);
+    }
+    return fullPath;
+}
+function directoryExistsSync(directoryPath) {
+    let stats;
+    try {
+        stats = fs_1.default.statSync(directoryPath);
+    }
+    catch (error) {
+        if (error.code === 'ENOENT') {
+            return false;
+        }
+        throw new Error(`Encountered an error when checking whether path '${directoryPath}' exists: ${error.message}`);
+    }
+    return stats.isDirectory();
 }
 
 
@@ -71300,25 +71361,28 @@ const image_service_1 = __nccwpck_require__(2715);
 const updater_1 = __nccwpck_require__(4186);
 const api_client_1 = __nccwpck_require__(5707);
 const axios_1 = __importDefault(__nccwpck_require__(6545));
-exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:latest';
-exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:latest';
+exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
+exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
 var DependabotErrorType;
 (function (DependabotErrorType) {
     DependabotErrorType["Unknown"] = "actions_workflow_unknown";
     DependabotErrorType["Image"] = "actions_workflow_image";
     DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
 })(DependabotErrorType = exports.DependabotErrorType || (exports.DependabotErrorType = {}));
+let jobId;
 function run(context) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            core.info('🤖 ~ starting update ~');
-            // Decode JobParameters
+            botSay('starting update');
+            // Retrieve JobParameters from the Actions environment
             const params = inputs_1.getJobParameters(context);
+            // The parameters will be null if the Action environment
+            // is not a valid Dependabot-triggered dynamic event.
             if (params === null) {
-                core.info('No job parameters');
-                core.info('🤖 ~ finished: nothing to do ~');
-                return;
+                botSay('finished: nothing to do');
+                return; // TODO: This should be setNeutral in future
             }
+            jobId = params.jobId;
             core.setSecret(params.jobToken);
             core.setSecret(params.credentialsToken);
             const client = axios_1.default.create({ baseURL: params.dependabotApiUrl });
@@ -71330,9 +71394,9 @@ function run(context) {
             const details = yield apiClient.getJobDetails();
             try {
                 const credentials = yield apiClient.getCredentials();
-                const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials);
+                const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
+                core.startGroup('Pulling updater images');
                 try {
-                    core.info('Pulling updater images');
                     yield image_service_1.ImageService.pull(exports.UPDATER_IMAGE_NAME);
                     yield image_service_1.ImageService.pull(exports.PROXY_IMAGE_NAME);
                 }
@@ -71341,16 +71405,27 @@ function run(context) {
                     yield failJob(apiClient, error, DependabotErrorType.Image);
                     return;
                 }
+                core.endGroup();
                 try {
                     core.info('Starting update process');
                     yield updater.runUpdater();
                 }
                 catch (error) {
-                    core.error('Error performing update');
-                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
-                    return;
+                    // If we have encountered a UpdaterFetchError, the Updater will already have
+                    // reported the error and marked the job as processed, so we only need to
+                    // set an exit status.
+                    if (error instanceof updater_1.UpdaterFetchError) {
+                        setFailed('Dependabot was unable to retrieve the files required to perform the update');
+                        botSay('finished: unable to fetch files');
+                        return;
+                    }
+                    else {
+                        core.error('Error performing update');
+                        yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                        return;
+                    }
                 }
-                core.info('🤖 ~ finished ~');
+                botSay('finished');
             }
             catch (error) {
                 yield failJob(apiClient, error);
@@ -71363,8 +71438,8 @@ function run(context) {
             //
             // We output the raw error in the Action logs and defer
             // to workflow_run monitoring to detect the job failure.
-            core.setFailed(error);
-            core.info('🤖 ~ finished: unexpected error ~');
+            setFailed(error);
+            botSay('finished: unexpected error');
         }
     });
 }
@@ -71378,9 +71453,27 @@ function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
             }
         });
         yield apiClient.markJobAsProcessed();
-        core.setFailed(error.message);
-        core.info('🤖 ~ finished: error reported to Dependabot ~');
+        setFailed(error.message);
+        botSay('finished: error reported to Dependabot');
     });
+}
+function botSay(message) {
+    core.info(`🤖 ~ ${message} ~`);
+}
+function setFailed(message) {
+    core.setFailed(message);
+    if (jobId) {
+        core.error(`For more information see: ${dependabotJobUrl(jobId)} (write access required)`);
+    }
+}
+function dependabotJobUrl(id) {
+    const url_parts = [
+        process.env.GITHUB_SERVER_URL,
+        process.env.GITHUB_REPOSITORY,
+        'network/updates',
+        id
+    ];
+    return url_parts.filter(Boolean).join('/');
 }
 run(github.context);
 
@@ -71608,7 +71701,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Updater = void 0;
+exports.Updater = exports.UpdaterFetchError = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
 const path_1 = __importDefault(__nccwpck_require__(5622));
@@ -71623,21 +71716,33 @@ const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
+class UpdaterFetchError extends Error {
+    constructor(msg) {
+        super(msg);
+        Object.setPrototypeOf(this, UpdaterFetchError.prototype);
+    }
+}
+exports.UpdaterFetchError = UpdaterFetchError;
 class Updater {
-    constructor(updaterImage, proxyImage, apiClient, details, credentials, outputPath = '../../output/output.json') {
+    constructor(updaterImage, proxyImage, apiClient, details, credentials, workingDirectory) {
         this.updaterImage = updaterImage;
         this.proxyImage = proxyImage;
         this.apiClient = apiClient;
         this.details = details;
         this.credentials = credentials;
-        this.outputPath = outputPath;
+        this.workingDirectory = workingDirectory;
         this.docker = new dockerode_1.default();
+        this.outputHostPath = path_1.default.join(workingDirectory, 'output');
+        this.repoHostPath = path_1.default.join(workingDirectory, 'repo');
     }
     /**
      * Execute an update job and report the result to Dependabot API.
      */
     runUpdater() {
         return __awaiter(this, void 0, void 0, function* () {
+            // Create required folders in the workingDirectory
+            fs_1.default.mkdirSync(this.outputHostPath);
+            fs_1.default.mkdirSync(this.repoHostPath);
             const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
             proxy.container.start();
             try {
@@ -71657,9 +71762,9 @@ class Updater {
             yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
             yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
             yield container_service_1.ContainerService.run(container);
-            const outputPath = path_1.default.join(__dirname, this.outputPath);
+            const outputPath = path_1.default.join(this.outputHostPath, 'output.json');
             if (!fs_1.default.existsSync(outputPath)) {
-                throw new Error('No output.json created by the fetcher container');
+                throw new UpdaterFetchError('No output.json created by the fetcher container');
             }
             const fileFetcherSync = fs_1.default.readFileSync(outputPath).toString();
             const fileFetcherOutput = JSON.parse(fileFetcherSync);
@@ -71716,8 +71821,8 @@ class Updater {
                     Memory: 8 * 1024 * 1024 * 1024,
                     NetworkMode: proxy.networkName,
                     Binds: [
-                        `${path_1.default.join(__dirname, '../../output')}:${JOB_OUTPUT_PATH}:rw`,
-                        `${path_1.default.join(__dirname, '../../repo')}:${REPO_CONTENTS_PATH}:rw`
+                        `${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`,
+                        `${this.repoHostPath}:${REPO_CONTENTS_PATH}:rw`
                     ]
                 }
             });
@@ -71728,13 +71833,11 @@ class Updater {
     cleanup(proxy) {
         return __awaiter(this, void 0, void 0, function* () {
             yield proxy.shutdown();
-            const outputDir = path_1.default.join(__dirname, '../../output');
-            const repoDir = path_1.default.join(__dirname, '../../repo');
-            if (fs_1.default.existsSync(outputDir)) {
-                fs_1.default.rmdirSync(outputDir, { recursive: true });
+            if (fs_1.default.existsSync(this.outputHostPath)) {
+                fs_1.default.rmdirSync(this.outputHostPath, { recursive: true });
             }
-            if (fs_1.default.existsSync(repoDir)) {
-                fs_1.default.rmdirSync(repoDir, { recursive: true });
+            if (fs_1.default.existsSync(this.repoHostPath)) {
+                fs_1.default.rmdirSync(this.repoHostPath, { recursive: true });
             }
         });
     }

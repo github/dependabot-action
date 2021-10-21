@@ -27,7 +27,8 @@ cli
 
 const options = cli.opts()
 const ctx = new Context()
-ctx.eventName = 'workflow_dispatch'
+ctx.eventName = 'dynamic'
+ctx.actor = 'dependabot[bot]'
 ctx.payload = {
   inputs: options
 }

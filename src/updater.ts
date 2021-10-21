@@ -16,8 +16,17 @@ const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates'
 const CA_CERT_FILENAME = 'dbot-ca.crt'
 
+export class UpdaterFetchError extends Error {
+  constructor(msg: string) {
+    super(msg)
+    Object.setPrototypeOf(this, UpdaterFetchError.prototype)
+  }
+}
+
 export class Updater {
   docker: Docker
+  outputHostPath: string
+  repoHostPath: string
 
   constructor(
     private readonly updaterImage: string,
@@ -25,15 +34,21 @@ export class Updater {
     private readonly apiClient: ApiClient,
     private readonly details: JobDetails,
     private readonly credentials: Credential[],
-    private readonly outputPath = '../../output/output.json'
+    private readonly workingDirectory: string
   ) {
     this.docker = new Docker()
+    this.outputHostPath = path.join(workingDirectory, 'output')
+    this.repoHostPath = path.join(workingDirectory, 'repo')
   }
 
   /**
    * Execute an update job and report the result to Dependabot API.
    */
   async runUpdater(): Promise<boolean> {
+    // Create required folders in the workingDirectory
+    fs.mkdirSync(this.outputHostPath)
+    fs.mkdirSync(this.repoHostPath)
+
     const proxy = await new ProxyBuilder(this.docker, this.proxyImage).run(
       this.apiClient.params.jobId,
       this.credentials
@@ -67,9 +82,11 @@ export class Updater {
 
     await ContainerService.run(container)
 
-    const outputPath = path.join(__dirname, this.outputPath)
+    const outputPath = path.join(this.outputHostPath, 'output.json')
     if (!fs.existsSync(outputPath)) {
-      throw new Error('No output.json created by the fetcher container')
+      throw new UpdaterFetchError(
+        'No output.json created by the fetcher container'
+      )
     }
 
     const fileFetcherSync = fs.readFileSync(outputPath).toString()
@@ -148,8 +165,8 @@ export class Updater {
         Memory: 8 * 1024 * 1024 * 1024, // 8GB in bytes
         NetworkMode: proxy.networkName,
         Binds: [
-          `${path.join(__dirname, '../../output')}:${JOB_OUTPUT_PATH}:rw`,
-          `${path.join(__dirname, '../../repo')}:${REPO_CONTENTS_PATH}:rw`
+          `${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`,
+          `${this.repoHostPath}:${REPO_CONTENTS_PATH}:rw`
         ]
       }
     })
@@ -161,15 +178,12 @@ export class Updater {
   private async cleanup(proxy: Proxy): Promise<void> {
     await proxy.shutdown()
 
-    const outputDir = path.join(__dirname, '../../output')
-    const repoDir = path.join(__dirname, '../../repo')
-
-    if (fs.existsSync(outputDir)) {
-      fs.rmdirSync(outputDir, {recursive: true})
+    if (fs.existsSync(this.outputHostPath)) {
+      fs.rmdirSync(this.outputHostPath, {recursive: true})
     }
 
-    if (fs.existsSync(repoDir)) {
-      fs.rmdirSync(repoDir, {recursive: true})
+    if (fs.existsSync(this.repoHostPath)) {
+      fs.rmdirSync(this.repoHostPath, {recursive: true})
     }
   }
 }

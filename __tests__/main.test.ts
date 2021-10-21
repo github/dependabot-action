@@ -1,7 +1,9 @@
+import fs from 'fs'
+import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient} from '../src/api-client'
-import {Updater} from '../src/updater'
+import {Updater, UpdaterFetchError} from '../src/updater'
 import {ImageService} from '../src/image-service'
 import * as inputs from '../src/inputs'
 import {run} from '../src/main'
@@ -15,11 +17,18 @@ jest.mock('../src/updater')
 
 describe('run', () => {
   let context: Context
+  const workspace = path.join(__dirname, '..', 'tmp')
+  const workingDirectory = path.join(workspace, './test_working_directory')
 
   let markJobAsProcessedSpy: any
   let reportJobErrorSpy: any
 
   beforeEach(async () => {
+    process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    process.env.GITHUB_EVENT_NAME = 'dynamic'
+    process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_WORKSPACE = workspace
+
     markJobAsProcessedSpy = jest.spyOn(
       ApiClient.prototype,
       'markJobAsProcessed'
@@ -27,17 +36,19 @@ describe('run', () => {
     reportJobErrorSpy = jest.spyOn(ApiClient.prototype, 'reportJobError')
 
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
+    jest.spyOn(core, 'warning').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
+
+    fs.mkdirSync(workingDirectory)
   })
 
   afterEach(async () => {
     jest.clearAllMocks() // Reset any mocked classes
+    fs.rmdirSync(workingDirectory)
   })
 
   describe('when the run follows the happy path', () => {
-    beforeAll(() => {
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
+    beforeEach(() => {
       context = new Context()
     })
 
@@ -58,18 +69,40 @@ describe('run', () => {
     })
   })
 
+  describe('when the action is triggered by a different actor', () => {
+    beforeEach(() => {
+      process.env.GITHUB_ACTOR = 'classic-rando'
+      context = new Context()
+    })
+
+    test('it skips the rest of the job', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.warning).toHaveBeenCalledWith(
+        'This workflow can only be triggered by Dependabot.'
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
   describe('when the action is triggered on an unsupported event', () => {
-    beforeAll(() => {
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    beforeEach(() => {
       process.env.GITHUB_EVENT_NAME = 'issue_created'
       context = new Context()
     })
 
-    test('it fails the workflow', async () => {
+    test('it skips the rest of the job', async () => {
       await run(context)
 
       expect(core.setFailed).not.toHaveBeenCalled()
-      expect(core.info).toHaveBeenCalledWith(
+      expect(core.warning).toHaveBeenCalledWith(
         "Dependabot Updater Action does not support 'issue_created' events."
       )
     })
@@ -90,8 +123,6 @@ describe('run', () => {
         })
       )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
       context = new Context()
     })
 
@@ -121,8 +152,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
       context = new Context()
     })
 
@@ -152,8 +181,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
       context = new Context()
     })
 
@@ -188,8 +215,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
       context = new Context()
     })
 
@@ -224,8 +249,6 @@ describe('run', () => {
           )
         )
 
-      process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
-      process.env.GITHUB_EVENT_NAME = 'workflow_dispatch'
       context = new Context()
     })
 
@@ -247,6 +270,41 @@ describe('run', () => {
         }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when the file fetch step fails', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(Updater.prototype, 'runUpdater')
+        .mockImplementationOnce(
+          jest.fn(async () =>
+            Promise.reject(
+              new UpdaterFetchError(
+                'No output.json created by the fetcher container'
+              )
+            )
+          )
+        )
+
+      context = new Context()
+    })
+
+    test('it fails the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Dependabot was unable to retrieve the files required to perform the update'
+        )
+      )
+    })
+
+    test('it does not inform dependabot-api as the failed fetch step will have already reported in', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 })
