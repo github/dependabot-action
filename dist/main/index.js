@@ -71566,9 +71566,11 @@ class ProxyBuilder {
             const name = `dependabot-job-${jobId}-proxy`;
             const config = this.buildProxyConfig(credentials, jobId);
             const cert = config.ca.cert;
-            const networkName = `dependabot-job-${jobId}-network`;
-            const network = yield this.ensureNetwork(networkName);
-            const container = yield this.createContainer(jobId, name, networkName);
+            const externalNetworkName = `dependabot-job-${jobId}-external-network`;
+            const externalNetwork = yield this.ensureNetwork(externalNetworkName, false);
+            const internalNetworkName = `dependabot-job-${jobId}-internal-network`;
+            const internalNetwork = yield this.ensureNetwork(internalNetworkName, true);
+            const container = yield this.createContainer(jobId, name, externalNetwork, internalNetwork);
             yield container_service_1.ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
             if (process.env.CUSTOM_CA_PATH) {
                 core.info('Detected custom CA certificate, adding to proxy');
@@ -71586,19 +71588,20 @@ class ProxyBuilder {
             const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
             return {
                 container,
-                network,
-                networkName,
+                network: internalNetwork,
+                networkName: internalNetworkName,
                 url,
                 cert,
                 shutdown: () => __awaiter(this, void 0, void 0, function* () {
                     yield container.stop();
                     yield container.remove();
-                    yield network.remove();
+                    yield externalNetwork.remove();
+                    yield internalNetwork.remove();
                 })
             };
         });
     }
-    ensureNetwork(name) {
+    ensureNetwork(name, internal = true) {
         return __awaiter(this, void 0, void 0, function* () {
             const networks = yield this.docker.listNetworks({
                 filters: JSON.stringify({ name: [name] })
@@ -71607,7 +71610,7 @@ class ProxyBuilder {
                 return this.docker.getNetwork(networks[0].Id);
             }
             else {
-                return yield this.docker.createNetwork({ Name: name });
+                return yield this.docker.createNetwork({ Name: name, Internal: internal });
             }
         });
     }
@@ -71637,7 +71640,7 @@ class ProxyBuilder {
         const key = node_forge_1.pki.privateKeyToPem(keys.privateKey);
         return { cert: pem, key };
     }
-    createContainer(jobId, containerName, networkName) {
+    createContainer(jobId, containerName, externalNetwork, internalNetwork) {
         return __awaiter(this, void 0, void 0, function* () {
             const container = yield this.docker.createContainer({
                 Image: this.proxyImage,
@@ -71651,9 +71654,11 @@ class ProxyBuilder {
                     '/usr/sbin/update-ca-certificates && /update-job-proxy'
                 ],
                 HostConfig: {
-                    NetworkMode: networkName
+                    NetworkMode: 'bridge'
                 }
             });
+            yield externalNetwork.connect({ Container: container.id });
+            yield internalNetwork.connect({ Container: container.id });
             core.info(`Created proxy container: ${container.id}`);
             return container;
         });

@@ -44,14 +44,11 @@ describe('ProxyBuilder', () => {
     const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
-    expect(proxy.networkName).toBe('dependabot-job-1-network')
+    expect(proxy.networkName).toBe('dependabot-job-1-internal-network')
     expect(proxy.url).toMatch(/^http:\/\/1:.+job-1-proxy:1080$/)
 
     const containerInfo = await proxy.container.inspect()
     expect(containerInfo.Name).toBe('/dependabot-job-1-proxy')
-    expect(containerInfo.HostConfig.NetworkMode).toBe(
-      'dependabot-job-1-network'
-    )
     expect(containerInfo.Config.Entrypoint).toEqual([
       'sh',
       '-c',
@@ -59,8 +56,8 @@ describe('ProxyBuilder', () => {
     ])
 
     const networkInfo = await proxy.network.inspect()
-    expect(networkInfo.Name).toBe('dependabot-job-1-network')
-    expect(networkInfo.Internal).toBe(false)
+    expect(networkInfo.Name).toBe('dependabot-job-1-internal-network')
+    expect(networkInfo.Internal).toBe(true)
 
     // run a bash command that executes docker and returns contents of /config.json
     const id = proxy.container.id

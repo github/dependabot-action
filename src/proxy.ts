@@ -65,10 +65,18 @@ export class ProxyBuilder {
     const config = this.buildProxyConfig(credentials, jobId)
     const cert = config.ca.cert
 
-    const networkName = `dependabot-job-${jobId}-network`
-    const network = await this.ensureNetwork(networkName)
+    const externalNetworkName = `dependabot-job-${jobId}-external-network`
+    const externalNetwork = await this.ensureNetwork(externalNetworkName, false)
 
-    const container = await this.createContainer(jobId, name, networkName)
+    const internalNetworkName = `dependabot-job-${jobId}-internal-network`
+    const internalNetwork = await this.ensureNetwork(internalNetworkName, true)
+
+    const container = await this.createContainer(
+      jobId,
+      name,
+      externalNetwork,
+      internalNetwork
+    )
 
     await ContainerService.storeInput(
       CONFIG_FILE_NAME,
@@ -105,26 +113,27 @@ export class ProxyBuilder {
     const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
     return {
       container,
-      network,
-      networkName,
+      network: internalNetwork,
+      networkName: internalNetworkName,
       url,
       cert,
       shutdown: async () => {
         await container.stop()
         await container.remove()
-        await network.remove()
+        await externalNetwork.remove()
+        await internalNetwork.remove()
       }
     }
   }
 
-  private async ensureNetwork(name: string): Promise<Network> {
+  private async ensureNetwork(name: string, internal = true): Promise<Network> {
     const networks = await this.docker.listNetworks({
       filters: JSON.stringify({name: [name]})
     })
     if (networks.length > 0) {
       return this.docker.getNetwork(networks[0].Id)
     } else {
-      return await this.docker.createNetwork({Name: name})
+      return await this.docker.createNetwork({Name: name, Internal: internal})
     }
   }
 
@@ -169,7 +178,8 @@ export class ProxyBuilder {
   private async createContainer(
     jobId: number,
     containerName: string,
-    networkName: string
+    externalNetwork: Network,
+    internalNetwork: Network
   ): Promise<Container> {
     const container = await this.docker.createContainer({
       Image: this.proxyImage,
@@ -184,9 +194,12 @@ export class ProxyBuilder {
       ],
 
       HostConfig: {
-        NetworkMode: networkName
+        NetworkMode: 'bridge'
       }
     })
+
+    await externalNetwork.connect({Container: container.id})
+    await internalNetwork.connect({Container: container.id})
 
     core.info(`Created proxy container: ${container.id}`)
     return container
