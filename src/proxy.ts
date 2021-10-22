@@ -75,7 +75,8 @@ export class ProxyBuilder {
       jobId,
       name,
       externalNetwork,
-      internalNetwork
+      internalNetwork,
+      internalNetworkName
     )
 
     await ContainerService.storeInput(
@@ -179,7 +180,8 @@ export class ProxyBuilder {
     jobId: number,
     containerName: string,
     externalNetwork: Network,
-    internalNetwork: Network
+    internalNetwork: Network,
+    internalNetworkName: string
   ): Promise<Container> {
     const container = await this.docker.createContainer({
       Image: this.proxyImage,
@@ -194,12 +196,11 @@ export class ProxyBuilder {
       ],
 
       HostConfig: {
-        NetworkMode: 'bridge'
+        NetworkMode: internalNetworkName
       }
     })
 
     await externalNetwork.connect({Container: container.id})
-    await internalNetwork.connect({Container: container.id})
 
     core.info(`Created proxy container: ${container.id}`)
     return container

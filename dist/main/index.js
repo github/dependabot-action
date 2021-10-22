@@ -71570,7 +71570,7 @@ class ProxyBuilder {
             const externalNetwork = yield this.ensureNetwork(externalNetworkName, false);
             const internalNetworkName = `dependabot-job-${jobId}-internal-network`;
             const internalNetwork = yield this.ensureNetwork(internalNetworkName, true);
-            const container = yield this.createContainer(jobId, name, externalNetwork, internalNetwork);
+            const container = yield this.createContainer(jobId, name, externalNetwork, internalNetwork, internalNetworkName);
             yield container_service_1.ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
             if (process.env.CUSTOM_CA_PATH) {
                 core.info('Detected custom CA certificate, adding to proxy');
@@ -71640,7 +71640,7 @@ class ProxyBuilder {
         const key = node_forge_1.pki.privateKeyToPem(keys.privateKey);
         return { cert: pem, key };
     }
-    createContainer(jobId, containerName, externalNetwork, internalNetwork) {
+    createContainer(jobId, containerName, externalNetwork, internalNetwork, internalNetworkName) {
         return __awaiter(this, void 0, void 0, function* () {
             const container = yield this.docker.createContainer({
                 Image: this.proxyImage,
@@ -71654,11 +71654,10 @@ class ProxyBuilder {
                     '/usr/sbin/update-ca-certificates && /update-job-proxy'
                 ],
                 HostConfig: {
-                    NetworkMode: 'bridge'
+                    NetworkMode: internalNetworkName
                 }
             });
             yield externalNetwork.connect({ Container: container.id });
-            yield internalNetwork.connect({ Container: container.id });
             core.info(`Created proxy container: ${container.id}`);
             return container;
         });
