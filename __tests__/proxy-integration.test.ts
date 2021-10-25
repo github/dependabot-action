@@ -59,6 +59,12 @@ describe('ProxyBuilder', () => {
     expect(networkInfo.Name).toBe('dependabot-job-1-internal-network')
     expect(networkInfo.Internal).toBe(true)
 
+    const networkNames = Object.keys(containerInfo.NetworkSettings.Networks)
+    expect(networkNames).toEqual([
+      'dependabot-job-1-external-network',
+      'dependabot-job-1-internal-network'
+    ])
+
     // run a bash command that executes docker and returns contents of /config.json
     const id = proxy.container.id
     const proc = spawnSync('docker', ['exec', id, 'cat', '/config.json'])
