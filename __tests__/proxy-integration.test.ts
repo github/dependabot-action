@@ -3,12 +3,12 @@ import {Credential} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {PROXY_IMAGE_NAME} from '../src/main'
 import {ProxyBuilder} from '../src/proxy'
-import {removeDanglingUpdaterContainers} from './helpers'
+import {integration, removeDanglingUpdaterContainers} from './helpers'
 import {spawnSync} from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
-describe('ProxyBuilder', () => {
+integration('ProxyBuilder', () => {
   const docker = new Docker()
   const jobId = 1
   const credentials: Credential[] = [
@@ -23,10 +23,6 @@ describe('ProxyBuilder', () => {
   const builder = new ProxyBuilder(docker, PROXY_IMAGE_NAME)
 
   beforeAll(async () => {
-    // Skip the test when we haven't preloaded the updater image
-    if (process.env.SKIP_INTEGRATION_TESTS) {
-      return
-    }
     await ImageService.pull(PROXY_IMAGE_NAME)
   })
 
@@ -36,22 +32,14 @@ describe('ProxyBuilder', () => {
 
   jest.setTimeout(20000)
   it('should create a proxy container with the right details', async () => {
-    // Skip the test when we haven't preloaded the updater image
-    if (process.env.SKIP_INTEGRATION_TESTS) {
-      return
-    }
-
     const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
-    expect(proxy.networkName).toBe('dependabot-job-1-network')
+    expect(proxy.networkName).toBe('dependabot-job-1-internal-network')
     expect(proxy.url).toMatch(/^http:\/\/1:.+job-1-proxy:1080$/)
 
     const containerInfo = await proxy.container.inspect()
     expect(containerInfo.Name).toBe('/dependabot-job-1-proxy')
-    expect(containerInfo.HostConfig.NetworkMode).toBe(
-      'dependabot-job-1-network'
-    )
     expect(containerInfo.Config.Entrypoint).toEqual([
       'sh',
       '-c',
@@ -59,8 +47,14 @@ describe('ProxyBuilder', () => {
     ])
 
     const networkInfo = await proxy.network.inspect()
-    expect(networkInfo.Name).toBe('dependabot-job-1-network')
-    expect(networkInfo.Internal).toBe(false)
+    expect(networkInfo.Name).toBe('dependabot-job-1-internal-network')
+    expect(networkInfo.Internal).toBe(true)
+
+    const networkNames = Object.keys(containerInfo.NetworkSettings.Networks)
+    expect(networkNames).toEqual([
+      'dependabot-job-1-external-network',
+      'dependabot-job-1-internal-network'
+    ])
 
     // run a bash command that executes docker and returns contents of /config.json
     const id = proxy.container.id
@@ -74,10 +68,6 @@ describe('ProxyBuilder', () => {
 
   jest.setTimeout(20000)
   it('copies in a custom root CA if configured', async () => {
-    if (process.env.SKIP_INTEGRATION_TESTS) {
-      return
-    }
-
     // make a tmp dir at the repo root unless it already exists
     const tmpDir = path.join(__dirname, '../tmp')
     if (!fs.existsSync(tmpDir)) {

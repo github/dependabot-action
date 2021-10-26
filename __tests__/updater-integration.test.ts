@@ -7,11 +7,15 @@ import {JobParameters} from '../src/inputs'
 import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
 import {Updater} from '../src/updater'
 
-import {removeDanglingUpdaterContainers, runFakeDependabotApi} from './helpers'
+import {
+  integration,
+  removeDanglingUpdaterContainers,
+  runFakeDependabotApi
+} from './helpers'
 
 const FAKE_SERVER_PORT = 9000
 
-describe('Updater', () => {
+integration('Updater', () => {
   let server: any
 
   // Used from this action to get job details and credentials
@@ -40,11 +44,6 @@ describe('Updater', () => {
   const apiClient = new ApiClient(client, params)
 
   beforeAll(async () => {
-    // Skip the test when we haven't preloaded the updater image
-    if (process.env.SKIP_INTEGRATION_TESTS) {
-      return
-    }
-
     await ImageService.pull(UPDATER_IMAGE_NAME)
     await ImageService.pull(PROXY_IMAGE_NAME)
 
@@ -54,11 +53,6 @@ describe('Updater', () => {
   })
 
   afterEach(async () => {
-    // Skip the test when we haven't preloaded the updater image
-    if (process.env.SKIP_INTEGRATION_TESTS) {
-      return
-    }
-
     server && server() // teardown server process
     await removeDanglingUpdaterContainers()
     fs.rmdirSync(workingDirectory, {recursive: true})
@@ -66,11 +60,6 @@ describe('Updater', () => {
 
   jest.setTimeout(120000)
   it('should run the updater and create a pull request', async () => {
-    // Skip the test when we haven't preloaded the updater image
-    if (process.env.SKIP_INTEGRATION_TESTS) {
-      return
-    }
-
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
 
