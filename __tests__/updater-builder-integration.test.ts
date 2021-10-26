@@ -1,5 +1,4 @@
 import {PROXY_IMAGE_NAME, UPDATER_IMAGE_NAME} from '../src/main'
-import {ContainerService} from '../src/container-service'
 import {ImageService} from '../src/image-service'
 import {removeDanglingUpdaterContainers, integration} from './helpers'
 import Docker from 'dockerode'
@@ -8,8 +7,9 @@ import {ProxyBuilder} from '../src/proxy'
 import path from 'path'
 import fs from 'fs'
 import {JobParameters} from '../src/inputs'
+import {UpdaterBuilder} from '../src/updater-builder'
 
-integration('ContainerService', () => {
+integration('UpdaterBuilder', () => {
   const docker = new Docker()
   const credentials: Credential[] = [
     {
@@ -65,17 +65,15 @@ integration('ContainerService', () => {
       '172.17.0.1',
       workingDirectory
     )
-    const container = await ContainerService.createUpdaterContainer(
-      'updater-image-test',
-      params,
+    const container = await new UpdaterBuilder(
       docker,
+      params,
       input,
       outputPath,
       proxy,
       repoPath,
-      'fetch_files',
       UPDATER_IMAGE_NAME
-    )
+    ).run('updater-image-test', 'fetch_files')
 
     const containerInfo = await container.inspect()
 

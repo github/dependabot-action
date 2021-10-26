@@ -12,6 +12,7 @@ import {
   FileFetcherInput
 } from './config-types'
 import {ProxyBuilder, Proxy} from './proxy'
+import {UpdaterBuilder} from './updater-builder'
 
 export class UpdaterFetchError extends Error {
   constructor(msg: string) {
@@ -119,17 +120,15 @@ export class Updater {
     updaterCommand: string,
     input: FileFetcherInput | FileUpdaterInput
   ): Promise<Container> {
-    return ContainerService.createUpdaterContainer(
-      containerName,
-      this.apiClient.params,
+    return new UpdaterBuilder(
       this.docker,
+      this.apiClient.params,
       input,
       this.outputHostPath,
       proxy,
       this.repoHostPath,
-      updaterCommand,
       this.updaterImage
-    )
+    ).run(containerName, updaterCommand)
   }
 
   private async cleanup(proxy: Proxy): Promise<void> {
