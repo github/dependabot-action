@@ -71668,6 +71668,107 @@ exports.ProxyBuilder = ProxyBuilder;
 
 /***/ }),
 
+/***/ 1179:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdaterBuilder = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const container_service_1 = __nccwpck_require__(2429);
+const JOB_OUTPUT_FILENAME = 'output.json';
+const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
+const JOB_INPUT_FILENAME = 'job.json';
+const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
+const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
+const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
+const CA_CERT_FILENAME = 'dbot-ca.crt';
+const UPDATER_MAX_MEMORY = 8 * 1024 * 1024 * 1024; // 8GB in bytes
+class UpdaterBuilder {
+    constructor(docker, jobParams, input, outputHostPath, proxy, repoHostPath, updaterImage) {
+        this.docker = docker;
+        this.jobParams = jobParams;
+        this.input = input;
+        this.outputHostPath = outputHostPath;
+        this.proxy = proxy;
+        this.repoHostPath = repoHostPath;
+        this.updaterImage = updaterImage;
+    }
+    run(containerName, updaterCommand) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const cmd = `(echo > /etc/ca-certificates.conf) &&\
+     rm -Rf /usr/share/ca-certificates/ &&\
+      /usr/sbin/update-ca-certificates &&\
+       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
+            const container = yield this.docker.createContainer({
+                Image: this.updaterImage,
+                name: containerName,
+                AttachStdout: true,
+                AttachStderr: true,
+                Env: [
+                    `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
+                    `DEPENDABOT_JOB_TOKEN=${this.jobParams.jobToken}`,
+                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
+                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
+                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
+                    `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
+                    `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
+                    `http_proxy=${this.proxy.url}`,
+                    `HTTP_PROXY=${this.proxy.url}`,
+                    `https_proxy=${this.proxy.url}`,
+                    `HTTPS_PROXY=${this.proxy.url}`
+                ],
+                Cmd: ['sh', '-c', cmd],
+                HostConfig: {
+                    Memory: UPDATER_MAX_MEMORY,
+                    NetworkMode: this.proxy.networkName,
+                    Binds: [
+                        `${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`,
+                        `${this.repoHostPath}:${REPO_CONTENTS_PATH}:rw`
+                    ]
+                }
+            });
+            yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, this.proxy.cert);
+            yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, this.input);
+            core.info(`Created ${updaterCommand} container: ${container.id}`);
+            return container;
+        });
+    }
+}
+exports.UpdaterBuilder = UpdaterBuilder;
+
+
+/***/ }),
+
 /***/ 4186:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -71713,13 +71814,7 @@ const fs_1 = __importDefault(__nccwpck_require__(5747));
 const container_service_1 = __nccwpck_require__(2429);
 const utils_1 = __nccwpck_require__(1314);
 const proxy_1 = __nccwpck_require__(7364);
-const JOB_INPUT_FILENAME = 'job.json';
-const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
-const JOB_OUTPUT_FILENAME = 'output.json';
-const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
-const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo';
-const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
-const CA_CERT_FILENAME = 'dbot-ca.crt';
+const updater_builder_1 = __nccwpck_require__(1179);
 class UpdaterFetchError extends Error {
     constructor(msg) {
         super(msg);
@@ -71762,9 +71857,9 @@ class Updater {
     runFileFetcher(proxy) {
         return __awaiter(this, void 0, void 0, function* () {
             const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`;
-            const container = yield this.createContainer(proxy, name, 'fetch_files');
-            yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, { job: this.details });
-            yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
+            const container = yield this.createContainer(proxy, name, 'fetch_files', {
+                job: this.details
+            });
             yield container_service_1.ContainerService.run(container);
             const outputPath = path_1.default.join(this.outputHostPath, 'output.json');
             if (!fs_1.default.existsSync(outputPath)) {
@@ -71784,54 +71879,19 @@ class Updater {
         return __awaiter(this, void 0, void 0, function* () {
             core.info(`Running update job ${this.apiClient.params.jobId}`);
             const name = `dependabot-job-${this.apiClient.params.jobId}-updater`;
-            const container = yield this.createContainer(proxy, name, 'update_files');
             const containerInput = {
                 base_commit_sha: files.base_commit_sha,
                 base64_dependency_files: files.base64_dependency_files,
                 dependency_files: files.dependency_files,
                 job: this.details
             };
-            yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, containerInput);
-            yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, proxy.cert);
+            const container = yield this.createContainer(proxy, name, 'update_files', containerInput);
             yield container_service_1.ContainerService.run(container);
         });
     }
-    createContainer(proxy, containerName, updaterCommand) {
+    createContainer(proxy, containerName, updaterCommand, input) {
         return __awaiter(this, void 0, void 0, function* () {
-            const cmd = `(echo > /etc/ca-certificates.conf) &&\
-     rm -Rf /usr/share/ca-certificates/ &&\
-      /usr/sbin/update-ca-certificates &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
-            const container = yield this.docker.createContainer({
-                Image: this.updaterImage,
-                name: containerName,
-                AttachStdout: true,
-                AttachStderr: true,
-                Env: [
-                    `DEPENDABOT_JOB_ID=${this.apiClient.params.jobId}`,
-                    `DEPENDABOT_JOB_TOKEN=${this.apiClient.params.jobToken}`,
-                    `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
-                    `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
-                    `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
-                    `DEPENDABOT_API_URL=${this.apiClient.params.dependabotApiDockerUrl}`,
-                    `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-                    `http_proxy=${proxy.url}`,
-                    `HTTP_PROXY=${proxy.url}`,
-                    `https_proxy=${proxy.url}`,
-                    `HTTPS_PROXY=${proxy.url}`
-                ],
-                Cmd: ['sh', '-c', cmd],
-                HostConfig: {
-                    Memory: 8 * 1024 * 1024 * 1024,
-                    NetworkMode: proxy.networkName,
-                    Binds: [
-                        `${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`,
-                        `${this.repoHostPath}:${REPO_CONTENTS_PATH}:rw`
-                    ]
-                }
-            });
-            core.info(`Created ${updaterCommand} container: ${container.id}`);
-            return container;
+            return new updater_builder_1.UpdaterBuilder(this.docker, this.apiClient.params, input, this.outputHostPath, proxy, this.repoHostPath, this.updaterImage).run(containerName, updaterCommand);
         });
     }
     cleanup(proxy) {
