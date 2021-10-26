@@ -54,3 +54,7 @@ export const eventFixturePath = (fixtureName: string): string => {
     `${fixtureName}.json`
   )
 }
+
+export const integration = process.env.SKIP_INTEGRATION_TESTS
+  ? describe.skip
+  : describe

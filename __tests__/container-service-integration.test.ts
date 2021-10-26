@@ -1,7 +1,7 @@
 import {PROXY_IMAGE_NAME, UPDATER_IMAGE_NAME} from '../src/main'
 import {ContainerService} from '../src/container-service'
 import {ImageService} from '../src/image-service'
-import {removeDanglingUpdaterContainers} from './helpers'
+import {removeDanglingUpdaterContainers, integration} from './helpers'
 import Docker from 'dockerode'
 import {Credential, JobDetails} from '../src/api-client'
 import {ProxyBuilder} from '../src/proxy'
@@ -9,12 +9,7 @@ import path from 'path'
 import fs from 'fs'
 import {JobParameters} from '../src/inputs'
 
-describe('ContainerService', () => {
-  // Skip the test when we haven't preloaded the updater image
-  if (process.env.SKIP_INTEGRATION_TESTS) {
-    return
-  }
-
+integration('ContainerService', () => {
   const docker = new Docker()
   const credentials: Credential[] = [
     {
