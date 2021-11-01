@@ -82,6 +82,7 @@ describe('ApiClient', () => {
     const jobCredentials = await api.getCredentials()
     expect(jobCredentials.length).toBe(4)
 
+    expect(core.setSecret).toHaveBeenCalledTimes(4)
     expect(core.setSecret).toHaveBeenCalledWith('bar-password')
     expect(core.setSecret).toHaveBeenCalledWith('baz-token')
     expect(core.setSecret).toHaveBeenCalledWith('qux-password')
