@@ -1,3 +1,4 @@
+import * as core from '@actions/core'
 import {AxiosInstance} from 'axios'
 import {JobParameters} from './inputs'
 
@@ -56,6 +57,16 @@ export class ApiClient {
     })
     if (res.status !== 200) {
       throw new Error(`Unexpected status code: ${res.status}`)
+    }
+
+    // Mask any secrets we've just retrieved from Actions logs
+    for (const credential of res.data.data.attributes.credentials) {
+      if (credential.password) {
+        core.setSecret(credential.password)
+      }
+      if (credential.token) {
+        core.setSecret(credential.token)
+      }
     }
 
     return res.data.data.attributes.credentials
