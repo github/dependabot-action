@@ -38,6 +38,7 @@ export class UpdaterBuilder {
       AttachStdout: true,
       AttachStderr: true,
       Env: [
+        `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
         `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
         `DEPENDABOT_JOB_TOKEN=${this.jobParams.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
