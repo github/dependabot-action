@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import {ApiClient} from '../src/api-client'
+import {ApiClient, CredentialFetchingError} from '../src/api-client'
 
 describe('ApiClient', () => {
   const mockAxios: any = {
@@ -87,5 +87,27 @@ describe('ApiClient', () => {
     expect(core.setSecret).toHaveBeenCalledWith('baz-token')
     expect(core.setSecret).toHaveBeenCalledWith('qux-password')
     expect(core.setSecret).toHaveBeenCalledWith('qux-token')
+  })
+
+  test('job credentials errors', async () => {
+    const apiResponse = {
+      errors: [
+        {
+          status: 422,
+          title: 'Secret Not Found',
+          detail: 'MISSING_SECRET_NAME'
+        }
+      ]
+    }
+
+    mockAxios.get.mockRejectedValue({
+      isAxiosError: true,
+      response: {status: 422, data: apiResponse}
+    })
+    await expect(api.getCredentials()).rejects.toThrowError(
+      new CredentialFetchingError(
+        'fetching credentials: received code 422: {"errors":[{"status":422,"title":"Secret Not Found","detail":"MISSING_SECRET_NAME"}]}'
+      )
+    )
   })
 })

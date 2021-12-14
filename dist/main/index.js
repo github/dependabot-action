@@ -70986,9 +70986,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ApiClient = void 0;
+exports.ApiClient = exports.CredentialFetchingError = void 0;
 const core = __importStar(__nccwpck_require__(2186));
+const axios_1 = __importDefault(__nccwpck_require__(6545));
+class CredentialFetchingError extends Error {
+}
+exports.CredentialFetchingError = CredentialFetchingError;
 class ApiClient {
     constructor(client, params) {
         this.client = client;
@@ -71012,24 +71019,33 @@ class ApiClient {
         });
     }
     getCredentials() {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
-            const res = yield this.client.get(credentialsURL, {
-                headers: { Authorization: this.params.credentialsToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
-            }
-            // Mask any secrets we've just retrieved from Actions logs
-            for (const credential of res.data.data.attributes.credentials) {
-                if (credential.password) {
-                    core.setSecret(credential.password);
+            try {
+                const res = yield this.client.get(credentialsURL, {
+                    headers: { Authorization: this.params.credentialsToken }
+                });
+                // Mask any secrets we've just retrieved from Actions logs
+                for (const credential of res.data.data.attributes.credentials) {
+                    if (credential.password) {
+                        core.setSecret(credential.password);
+                    }
+                    if (credential.token) {
+                        core.setSecret(credential.token);
+                    }
                 }
-                if (credential.token) {
-                    core.setSecret(credential.token);
+                return res.data.data.attributes.credentials;
+            }
+            catch (error) {
+                if (axios_1.default.isAxiosError(error)) {
+                    const err = error;
+                    throw new CredentialFetchingError(`fetching credentials: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                }
+                else {
+                    throw error;
                 }
             }
-            return res.data.data.attributes.credentials;
         });
     }
     reportJobError(error) {
@@ -71457,7 +71473,13 @@ function run(context) {
                 botSay('finished');
             }
             catch (error) {
-                yield failJob(apiClient, error);
+                if (error instanceof api_client_1.CredentialFetchingError) {
+                    core.error('Error retrieving update job credentials');
+                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                }
+                else {
+                    yield failJob(apiClient, error);
+                }
                 return;
             }
         }

@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import {AxiosInstance} from 'axios'
+import axios, {AxiosInstance} from 'axios'
 import {JobParameters} from './inputs'
 
 // JobDetails are information about the repository and dependencies to be updated
@@ -25,6 +25,8 @@ export type Credential = {
   password?: string
   token?: string
 }
+
+export class CredentialFetchingError extends Error {}
 
 export class ApiClient {
   constructor(
@@ -52,24 +54,34 @@ export class ApiClient {
 
   async getCredentials(): Promise<Credential[]> {
     const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`
-    const res: any = await this.client.get(credentialsURL, {
-      headers: {Authorization: this.params.credentialsToken}
-    })
-    if (res.status !== 200) {
-      throw new Error(`Unexpected status code: ${res.status}`)
-    }
+    try {
+      const res: any = await this.client.get(credentialsURL, {
+        headers: {Authorization: this.params.credentialsToken}
+      })
 
-    // Mask any secrets we've just retrieved from Actions logs
-    for (const credential of res.data.data.attributes.credentials) {
-      if (credential.password) {
-        core.setSecret(credential.password)
+      // Mask any secrets we've just retrieved from Actions logs
+      for (const credential of res.data.data.attributes.credentials) {
+        if (credential.password) {
+          core.setSecret(credential.password)
+        }
+        if (credential.token) {
+          core.setSecret(credential.token)
+        }
       }
-      if (credential.token) {
-        core.setSecret(credential.token)
+
+      return res.data.data.attributes.credentials
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const err = error
+        throw new CredentialFetchingError(
+          `fetching credentials: received code ${
+            err.response?.status
+          }: ${JSON.stringify(err.response?.data)}`
+        )
+      } else {
+        throw error
       }
     }
-
-    return res.data.data.attributes.credentials
   }
 
   async reportJobError(error: JobError): Promise<void> {
