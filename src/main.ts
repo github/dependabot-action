@@ -4,7 +4,7 @@ import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
 import {Updater, UpdaterFetchError} from './updater'
-import {ApiClient} from './api-client'
+import {ApiClient, CredentialFetchingError} from './api-client'
 import axios from 'axios'
 
 export const UPDATER_IMAGE_NAME =
@@ -93,7 +93,13 @@ export async function run(context: Context): Promise<void> {
       }
       botSay('finished')
     } catch (error) {
-      await failJob(apiClient, error)
+      if (error instanceof CredentialFetchingError) {
+        core.error('Error retrieving update job credentials')
+        await failJob(apiClient, error, DependabotErrorType.UpdateRun)
+      } else {
+        await failJob(apiClient, error)
+      }
+
       return
     }
   } catch (error) {
