@@ -70954,10 +70954,29 @@ function wrappy (fn, cb) {
 /***/ }),
 
 /***/ 5707:
-/***/ (function(__unused_webpack_module, exports) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -70967,8 +70986,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ApiClient = void 0;
+exports.ApiClient = exports.CredentialFetchingError = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const axios_1 = __importDefault(__nccwpck_require__(6545));
+class CredentialFetchingError extends Error {
+}
+exports.CredentialFetchingError = CredentialFetchingError;
 class ApiClient {
     constructor(client, params) {
         this.client = client;
@@ -70992,15 +71019,33 @@ class ApiClient {
         });
     }
     getCredentials() {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`;
-            const res = yield this.client.get(credentialsURL, {
-                headers: { Authorization: this.params.credentialsToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
+            try {
+                const res = yield this.client.get(credentialsURL, {
+                    headers: { Authorization: this.params.credentialsToken }
+                });
+                // Mask any secrets we've just retrieved from Actions logs
+                for (const credential of res.data.data.attributes.credentials) {
+                    if (credential.password) {
+                        core.setSecret(credential.password);
+                    }
+                    if (credential.token) {
+                        core.setSecret(credential.token);
+                    }
+                }
+                return res.data.data.attributes.credentials;
             }
-            return res.data.data.attributes.credentials;
+            catch (error) {
+                if (axios_1.default.isAxiosError(error)) {
+                    const err = error;
+                    throw new CredentialFetchingError(`fetching credentials: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                }
+                else {
+                    throw error;
+                }
+            }
         });
     }
     reportJobError(error) {
@@ -71428,7 +71473,13 @@ function run(context) {
                 botSay('finished');
             }
             catch (error) {
-                yield failJob(apiClient, error);
+                if (error instanceof api_client_1.CredentialFetchingError) {
+                    core.error('Error retrieving update job credentials');
+                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                }
+                else {
+                    yield failJob(apiClient, error);
+                }
                 return;
             }
         }
@@ -71735,6 +71786,7 @@ class UpdaterBuilder {
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [
+                    `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
                     `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
                     `DEPENDABOT_JOB_TOKEN=${this.jobParams.jobToken}`,
                     `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
