@@ -73524,7 +73524,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ImageService = void 0;
 const core = __nccwpck_require__(2186);
-const dockerode_1 = __nccwpck_require__(4571);
+const Docker = __nccwpck_require__(4571); // eslint-disable-line @typescript-eslint/no-require-imports
 const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
@@ -73534,7 +73534,7 @@ exports.ImageService = {
     /** Fetch the configured updater image, if it isn't already available. */
     pull(imageName, force = false) {
         return __awaiter(this, void 0, void 0, function* () {
-            const docker = new dockerode_1.default();
+            const docker = new Docker();
             try {
                 const image = yield docker.getImage(imageName).inspect();
                 if (!force) {
@@ -74075,7 +74075,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Updater = exports.UpdaterFetchError = void 0;
 const core = __nccwpck_require__(2186);
-const dockerode_1 = __nccwpck_require__(4571);
+const Docker = __nccwpck_require__(4571); // eslint-disable-line @typescript-eslint/no-require-imports
 const path = __nccwpck_require__(5622);
 const fs = __nccwpck_require__(5747);
 const container_service_1 = __nccwpck_require__(2429);
@@ -74097,7 +74097,7 @@ class Updater {
         this.details = details;
         this.credentials = credentials;
         this.workingDirectory = workingDirectory;
-        this.docker = new dockerode_1.default();
+        this.docker = new Docker();
         this.outputHostPath = path.join(workingDirectory, 'output');
         this.repoHostPath = path.join(workingDirectory, 'repo');
     }

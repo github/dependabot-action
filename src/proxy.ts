@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as core from '@actions/core'
-import Docker, {Container, Network} from 'dockerode'
+import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
 import crypto from 'crypto'
 import {
   BasicAuthCredentials,
@@ -46,8 +46,8 @@ const CERT_SUBJECT = [
 ]
 
 export type Proxy = {
-  container: Container
-  network: Network
+  container: Docker.Container
+  network: Docker.Network
   networkName: string
   url: string
   cert: string
@@ -127,7 +127,10 @@ export class ProxyBuilder {
     }
   }
 
-  private async ensureNetwork(name: string, internal = true): Promise<Network> {
+  private async ensureNetwork(
+    name: string,
+    internal = true
+  ): Promise<Docker.Network> {
     const networks = await this.docker.listNetworks({
       filters: JSON.stringify({name: [name]})
     })
@@ -179,10 +182,10 @@ export class ProxyBuilder {
   private async createContainer(
     jobId: number,
     containerName: string,
-    externalNetwork: Network,
-    internalNetwork: Network,
+    externalNetwork: Docker.Network,
+    internalNetwork: Docker.Network,
     internalNetworkName: string
-  ): Promise<Container> {
+  ): Promise<Docker.Container> {
     const container = await this.docker.createContainer({
       Image: this.proxyImage,
       name: containerName,

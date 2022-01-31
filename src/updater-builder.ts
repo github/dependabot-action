@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker, {Container} from 'dockerode'
+import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
 import {ContainerService} from './container-service'
 import {FileFetcherInput, FileUpdaterInput} from './config-types'
 import {JobParameters} from './inputs'
@@ -26,7 +26,10 @@ export class UpdaterBuilder {
     private readonly updaterImage: string
   ) {}
 
-  async run(containerName: string, updaterCommand: string): Promise<Container> {
+  async run(
+    containerName: string,
+    updaterCommand: string
+  ): Promise<Docker.Container> {
     const cmd = `(echo > /etc/ca-certificates.conf) &&\
      rm -Rf /usr/share/ca-certificates/ &&\
       /usr/sbin/update-ca-certificates &&\

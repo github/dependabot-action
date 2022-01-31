@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import {Container} from 'dockerode'
+import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
 import {pack} from 'tar-stream'
 import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
 import {outStream, errStream} from './utils'
@@ -10,7 +10,7 @@ export const ContainerService = {
   async storeInput(
     name: string,
     path: string,
-    container: Container,
+    container: Docker.Container,
     input: FileFetcherInput | FileUpdaterInput | ProxyConfig
   ): Promise<void> {
     const tar = pack()
@@ -22,7 +22,7 @@ export const ContainerService = {
   async storeCert(
     name: string,
     path: string,
-    container: Container,
+    container: Docker.Container,
     cert: string
   ): Promise<void> {
     const tar = pack()
@@ -31,7 +31,7 @@ export const ContainerService = {
     await container.putArchive(tar, {path})
   },
 
-  async run(container: Container): Promise<boolean> {
+  async run(container: Docker.Container): Promise<boolean> {
     try {
       const stream = await container.attach({
         stream: true,

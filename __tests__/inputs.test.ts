@@ -1,4 +1,4 @@
-import crypto from 'crypto'
+import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'
 import {Context} from '@actions/github/lib/context'

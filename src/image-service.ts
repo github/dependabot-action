@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker from 'dockerode'
+import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
 import {Readable} from 'stream'
 
 const endOfStream = async (docker: Docker, stream: Readable): Promise<void> => {

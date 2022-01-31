@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker from 'dockerode'
+import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
 
 export async function run(): Promise<void> {
   try {

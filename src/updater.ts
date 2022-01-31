@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker, {Container} from 'dockerode'
+import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
 import * as path from 'path'
 import * as fs from 'fs'
 import {JobDetails, ApiClient, Credential} from './api-client'
@@ -119,7 +119,7 @@ export class Updater {
     containerName: string,
     updaterCommand: string,
     input: FileFetcherInput | FileUpdaterInput
-  ): Promise<Container> {
+  ): Promise<Docker.Container> {
     return new UpdaterBuilder(
       this.docker,
       this.apiClient.params,
