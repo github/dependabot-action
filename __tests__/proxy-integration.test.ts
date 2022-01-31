@@ -1,12 +1,12 @@
-import Docker from 'dockerode'
+import * as Docker from 'dockerode'
 import {Credential} from '../src/api-client'
 import {ImageService} from '../src/image-service'
-import {PROXY_IMAGE_NAME} from '../src/main'
+import {PROXY_IMAGE_NAME} from '../src/docker-tags'
 import {ProxyBuilder} from '../src/proxy'
 import {integration, removeDanglingUpdaterContainers} from './helpers'
 import {spawnSync} from 'child_process'
-import fs from 'fs'
-import path from 'path'
+import * as fs from 'fs'
+import * as path from 'path'
 
 integration('ProxyBuilder', () => {
   const docker = new Docker()

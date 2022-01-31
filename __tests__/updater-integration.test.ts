@@ -1,6 +1,6 @@
 import axios from 'axios'
-import fs from 'fs'
-import path from 'path'
+import * as fs from 'fs'
+import * as path from 'path'
 import {ApiClient} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {JobParameters} from '../src/inputs'

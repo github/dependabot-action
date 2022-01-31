@@ -73518,7 +73518,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ImageService = void 0;
 const core = __nccwpck_require__(2186);
-const dockerode_1 = __nccwpck_require__(4571);
+const Docker = __nccwpck_require__(4571);
 const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
@@ -73528,7 +73528,7 @@ exports.ImageService = {
     /** Fetch the configured updater image, if it isn't already available. */
     pull(imageName, force = false) {
         return __awaiter(this, void 0, void 0, function* () {
-            const docker = new dockerode_1.default();
+            const docker = new Docker();
             try {
                 const image = yield docker.getImage(imageName).inspect();
                 if (!force) {
@@ -73563,8 +73563,8 @@ exports.ImageService = {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getJobParameters = exports.JobParameters = void 0;
-const fs_1 = __nccwpck_require__(5747);
-const path_1 = __nccwpck_require__(5622);
+const fs = __nccwpck_require__(5747);
+const path = __nccwpck_require__(5622);
 const core = __nccwpck_require__(2186);
 const DYNAMIC = 'dynamic';
 const DEPENDABOT_ACTOR = 'dependabot[bot]';
@@ -73633,7 +73633,7 @@ function absoluteWorkingDirectory(workingDirectory) {
     if (!directoryExistsSync(workspace)) {
         throw new Error('The GITHUB_WORKSPACE directory does not exist.');
     }
-    const fullPath = path_1.default.join(workspace, workingDirectory);
+    const fullPath = path.join(workspace, workingDirectory);
     if (!directoryExistsSync(fullPath)) {
         throw new Error(`The workingDirectory '${workingDirectory}' does not exist in GITHUB_WORKSPACE`);
     }
@@ -73642,7 +73642,7 @@ function absoluteWorkingDirectory(workingDirectory) {
 function directoryExistsSync(directoryPath) {
     let stats;
     try {
-        stats = fs_1.default.statSync(directoryPath);
+        stats = fs.statSync(directoryPath);
     }
     catch (error) {
         if (error.code === 'ENOENT') {
@@ -73819,7 +73819,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProxyBuilder = void 0;
-const fs_1 = __nccwpck_require__(5747);
+const fs = __nccwpck_require__(5747);
 const core = __nccwpck_require__(2186);
 const crypto_1 = __nccwpck_require__(6417);
 const container_service_1 = __nccwpck_require__(2429);
@@ -73875,7 +73875,7 @@ class ProxyBuilder {
             yield container_service_1.ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
             if (process.env.CUSTOM_CA_PATH) {
                 core.info('Detected custom CA certificate, adding to proxy');
-                const customCert = fs_1.default
+                const customCert = fs
                     .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
                     .toString();
                 yield container_service_1.ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
@@ -74070,8 +74070,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Updater = exports.UpdaterFetchError = void 0;
 const core = __nccwpck_require__(2186);
 const dockerode_1 = __nccwpck_require__(4571);
-const path_1 = __nccwpck_require__(5622);
-const fs_1 = __nccwpck_require__(5747);
+const path = __nccwpck_require__(5622);
+const fs = __nccwpck_require__(5747);
 const container_service_1 = __nccwpck_require__(2429);
 const utils_1 = __nccwpck_require__(1314);
 const proxy_1 = __nccwpck_require__(7364);
@@ -74092,8 +74092,8 @@ class Updater {
         this.credentials = credentials;
         this.workingDirectory = workingDirectory;
         this.docker = new dockerode_1.default();
-        this.outputHostPath = path_1.default.join(workingDirectory, 'output');
-        this.repoHostPath = path_1.default.join(workingDirectory, 'repo');
+        this.outputHostPath = path.join(workingDirectory, 'output');
+        this.repoHostPath = path.join(workingDirectory, 'repo');
     }
     /**
      * Execute an update job and report the result to Dependabot API.
@@ -74101,8 +74101,8 @@ class Updater {
     runUpdater() {
         return __awaiter(this, void 0, void 0, function* () {
             // Create required folders in the workingDirectory
-            fs_1.default.mkdirSync(this.outputHostPath);
-            fs_1.default.mkdirSync(this.repoHostPath);
+            fs.mkdirSync(this.outputHostPath);
+            fs.mkdirSync(this.repoHostPath);
             const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
             proxy.container.start();
             try {
@@ -74122,11 +74122,11 @@ class Updater {
                 job: this.details
             });
             yield container_service_1.ContainerService.run(container);
-            const outputPath = path_1.default.join(this.outputHostPath, 'output.json');
-            if (!fs_1.default.existsSync(outputPath)) {
+            const outputPath = path.join(this.outputHostPath, 'output.json');
+            if (!fs.existsSync(outputPath)) {
                 throw new UpdaterFetchError('No output.json created by the fetcher container');
             }
-            const fileFetcherSync = fs_1.default.readFileSync(outputPath).toString();
+            const fileFetcherSync = fs.readFileSync(outputPath).toString();
             const fileFetcherOutput = JSON.parse(fileFetcherSync);
             const fetchedFiles = {
                 base_commit_sha: fileFetcherOutput.base_commit_sha,
@@ -74158,11 +74158,11 @@ class Updater {
     cleanup(proxy) {
         return __awaiter(this, void 0, void 0, function* () {
             yield proxy.shutdown();
-            if (fs_1.default.existsSync(this.outputHostPath)) {
-                fs_1.default.rmdirSync(this.outputHostPath, { recursive: true });
+            if (fs.existsSync(this.outputHostPath)) {
+                fs.rmdirSync(this.outputHostPath, { recursive: true });
             }
-            if (fs_1.default.existsSync(this.repoHostPath)) {
-                fs_1.default.rmdirSync(this.repoHostPath, { recursive: true });
+            if (fs.existsSync(this.repoHostPath)) {
+                fs.rmdirSync(this.repoHostPath, { recursive: true });
             }
         });
     }

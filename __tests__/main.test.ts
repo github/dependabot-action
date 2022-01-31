@@ -1,5 +1,5 @@
-import fs from 'fs'
-import path from 'path'
+import * as fs from 'fs'
+import * as path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient} from '../src/api-client'

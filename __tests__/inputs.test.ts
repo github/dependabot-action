@@ -1,6 +1,6 @@
 import crypto from 'crypto'
-import fs from 'fs'
-import path from 'path'
+import * as fs from 'fs'
+import * as path from 'path'
 import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from '../src/inputs'
 import {eventFixturePath} from './helpers'

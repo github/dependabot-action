@@ -1,4 +1,4 @@
-import fs from 'fs'
+import * as fs from 'fs'
 import * as core from '@actions/core'
 import Docker, {Container, Network} from 'dockerode'
 import crypto from 'crypto'
