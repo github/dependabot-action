@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import * as Docker from 'dockerode'
+import Docker from 'dockerode'
 
 export async function run(): Promise<void> {
   try {

@@ -1,4 +1,4 @@
-import * as Docker from 'dockerode'
+import Docker from 'dockerode'
 
 import {ContainerService} from '../src/container-service'
 import {ImageService} from '../src/image-service'

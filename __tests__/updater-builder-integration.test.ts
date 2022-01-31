@@ -1,7 +1,7 @@
 import {PROXY_IMAGE_NAME, UPDATER_IMAGE_NAME} from '../src/docker-tags'
 import {ImageService} from '../src/image-service'
 import {removeDanglingUpdaterContainers, integration} from './helpers'
-import * as Docker from 'dockerode'
+import Docker from 'dockerode'
 import {Credential, JobDetails} from '../src/api-client'
 import {ProxyBuilder} from '../src/proxy'
 import * as path from 'path'

@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import {Updater, UpdaterFetchError} from '../src/updater'
-import * as Docker from 'dockerode'
+import Docker from 'dockerode'
 import {ContainerService} from '../src/container-service'
 import {ProxyBuilder} from '../src/proxy'
 

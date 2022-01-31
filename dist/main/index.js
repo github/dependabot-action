@@ -73524,7 +73524,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ImageService = void 0;
 const core = __nccwpck_require__(2186);
-const Docker = __nccwpck_require__(4571);
+const dockerode_1 = __nccwpck_require__(4571);
 const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
@@ -73534,7 +73534,7 @@ exports.ImageService = {
     /** Fetch the configured updater image, if it isn't already available. */
     pull(imageName, force = false) {
         return __awaiter(this, void 0, void 0, function* () {
-            const docker = new Docker();
+            const docker = new dockerode_1.default();
             try {
                 const image = yield docker.getImage(imageName).inspect();
                 if (!force) {
