@@ -60178,7 +60178,7 @@ let AESGCMDecipher;
 let ChaChaPolyDecipher;
 let GenericDecipher;
 try {
-  binding = __nccwpck_require__(9041);
+  binding = __nccwpck_require__(9623);
   ({ AESGCMCipher, ChaChaPolyCipher, GenericCipher,
      AESGCMDecipher, ChaChaPolyDecipher, GenericDecipher } = binding);
 } catch {}
@@ -73316,25 +73316,6 @@ function wrappy (fn, cb) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -73344,13 +73325,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ApiClient = exports.CredentialFetchingError = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const axios_1 = __importDefault(__nccwpck_require__(6545));
+const core = __nccwpck_require__(2186);
+const axios_1 = __nccwpck_require__(6545);
 class CredentialFetchingError extends Error {
 }
 exports.CredentialFetchingError = CredentialFetchingError;
@@ -73439,25 +73417,6 @@ exports.ApiClient = ApiClient;
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -73469,7 +73428,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ContainerService = void 0;
-const core = __importStar(__nccwpck_require__(2186));
+const core = __nccwpck_require__(2186);
 const tar_stream_1 = __nccwpck_require__(2283);
 const utils_1 = __nccwpck_require__(1314);
 class ContainerRuntimeError extends Error {
@@ -73520,30 +73479,33 @@ exports.ContainerService = {
 
 /***/ }),
 
+/***/ 4665:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+const fs = __nccwpck_require__(5747);
+const path = __nccwpck_require__(5622);
+const dockerfile = fs.readFileSync(__nccwpck_require__.ab + "Dockerfile", 'utf8');
+const imageNames = dockerfile
+    .split(/\n/)
+    .filter(a => a.startsWith('FROM'))
+    .map(a => a.replace('FROM', '').trim());
+exports.UPDATER_IMAGE_NAME = imageNames.find(a => a.includes('dependabot/dependabot-updater')) ||
+    '!! not-found';
+exports.PROXY_IMAGE_NAME = imageNames.find(a => a.includes('github/dependabot-update-job-proxy')) ||
+    '!! not-found';
+
+
+/***/ }),
+
 /***/ 2715:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -73553,13 +73515,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ImageService = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const dockerode_1 = __importDefault(__nccwpck_require__(4571));
+const core = __nccwpck_require__(2186);
+const dockerode_1 = __nccwpck_require__(4571);
 const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
@@ -73598,37 +73557,15 @@ exports.ImageService = {
 /***/ }),
 
 /***/ 7063:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getJobParameters = exports.JobParameters = void 0;
-const fs_1 = __importDefault(__nccwpck_require__(5747));
-const path_1 = __importDefault(__nccwpck_require__(5622));
-const core = __importStar(__nccwpck_require__(2186));
+const fs_1 = __nccwpck_require__(5747);
+const path_1 = __nccwpck_require__(5622);
+const core = __nccwpck_require__(2186);
 const DYNAMIC = 'dynamic';
 const DEPENDABOT_ACTOR = 'dependabot[bot]';
 // JobParameters are the Action inputs required to execute the job
@@ -73724,25 +73661,6 @@ function directoryExistsSync(directoryPath) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -73752,20 +73670,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = exports.DependabotErrorType = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github = __importStar(__nccwpck_require__(5438));
+exports.run = exports.DependabotErrorType = void 0;
+const core = __nccwpck_require__(2186);
+const github = __nccwpck_require__(5438);
+const axios_1 = __nccwpck_require__(6545);
+const api_client_1 = __nccwpck_require__(5707);
 const inputs_1 = __nccwpck_require__(7063);
 const image_service_1 = __nccwpck_require__(2715);
+const docker_tags_1 = __nccwpck_require__(4665);
 const updater_1 = __nccwpck_require__(4186);
-const api_client_1 = __nccwpck_require__(5707);
-const axios_1 = __importDefault(__nccwpck_require__(6545));
-exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
-exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
 var DependabotErrorType;
 (function (DependabotErrorType) {
     DependabotErrorType["Unknown"] = "actions_workflow_unknown";
@@ -73797,11 +73711,11 @@ function run(context) {
             const details = yield apiClient.getJobDetails();
             try {
                 const credentials = yield apiClient.getCredentials();
-                const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
+                const updater = new updater_1.Updater(docker_tags_1.UPDATER_IMAGE_NAME, docker_tags_1.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
                 core.startGroup('Pulling updater images');
                 try {
-                    yield image_service_1.ImageService.pull(exports.UPDATER_IMAGE_NAME);
-                    yield image_service_1.ImageService.pull(exports.PROXY_IMAGE_NAME);
+                    yield image_service_1.ImageService.pull(docker_tags_1.UPDATER_IMAGE_NAME);
+                    yield image_service_1.ImageService.pull(docker_tags_1.PROXY_IMAGE_NAME);
                 }
                 catch (error) {
                     core.error('Error fetching updater images');
@@ -73894,25 +73808,6 @@ run(github.context);
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -73922,14 +73817,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProxyBuilder = void 0;
-const fs_1 = __importDefault(__nccwpck_require__(5747));
-const core = __importStar(__nccwpck_require__(2186));
-const crypto_1 = __importDefault(__nccwpck_require__(6417));
+const fs_1 = __nccwpck_require__(5747);
+const core = __nccwpck_require__(2186);
+const crypto_1 = __nccwpck_require__(6417);
 const container_service_1 = __nccwpck_require__(2429);
 const node_forge_1 = __nccwpck_require__(7655);
 const utils_1 = __nccwpck_require__(1314);
@@ -74082,25 +73974,6 @@ exports.ProxyBuilder = ProxyBuilder;
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -74112,7 +73985,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdaterBuilder = void 0;
-const core = __importStar(__nccwpck_require__(2186));
+const core = __nccwpck_require__(2186);
 const container_service_1 = __nccwpck_require__(2429);
 const JOB_OUTPUT_FILENAME = 'output.json';
 const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output';
@@ -74184,25 +74057,6 @@ exports.UpdaterBuilder = UpdaterBuilder;
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -74212,15 +74066,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Updater = exports.UpdaterFetchError = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const dockerode_1 = __importDefault(__nccwpck_require__(4571));
-const path_1 = __importDefault(__nccwpck_require__(5622));
-const fs_1 = __importDefault(__nccwpck_require__(5747));
+const core = __nccwpck_require__(2186);
+const dockerode_1 = __nccwpck_require__(4571);
+const path_1 = __nccwpck_require__(5622);
+const fs_1 = __nccwpck_require__(5747);
 const container_service_1 = __nccwpck_require__(2429);
 const utils_1 = __nccwpck_require__(1314);
 const proxy_1 = __nccwpck_require__(7364);
@@ -74322,16 +74173,13 @@ exports.Updater = Updater;
 /***/ }),
 
 /***/ 1314:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.errStream = exports.outStream = exports.base64DecodeDependencyFile = void 0;
-const stream_1 = __importDefault(__nccwpck_require__(2413));
+const stream_1 = __nccwpck_require__(2413);
 const base64Decode = (str) => Buffer.from(str, 'base64').toString('binary');
 const base64DecodeDependencyFile = (file) => {
     const fileCopy = JSON.parse(JSON.stringify(file));
@@ -74368,10 +74216,11 @@ module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.nod
 
 /***/ }),
 
-/***/ 9041:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 9623:
+/***/ ((module) => {
 
-module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
+module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
+
 
 /***/ }),
 

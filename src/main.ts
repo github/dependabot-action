@@ -1,16 +1,12 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import axios from 'axios'
+import {ApiClient, CredentialFetchingError} from './api-client'
 import {Context} from '@actions/github/lib/context'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from './docker-tags'
 import {Updater, UpdaterFetchError} from './updater'
-import {ApiClient, CredentialFetchingError} from './api-client'
-import axios from 'axios'
-
-export const UPDATER_IMAGE_NAME =
-  'docker.pkg.github.com/dependabot/dependabot-updater:v1'
-export const PROXY_IMAGE_NAME =
-  'docker.pkg.github.com/github/dependabot-update-job-proxy:v1'
 
 export enum DependabotErrorType {
   Unknown = 'actions_workflow_unknown',

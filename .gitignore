@@ -102,3 +102,6 @@ Thumbs.db
 # Ignore built ts files
 __tests__/runner/*
 lib/**/*
+
+# asdf tool version
+.tool-versions
