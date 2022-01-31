@@ -9879,15 +9879,19 @@ Config.prototype[__nccwpck_require__(1669).inspect.custom] = function() { return
 
 /**
  * Inspect
+ *
+ * @param  {Object}   opts     Options (optional)
  * @param  {Function} callback Callback, if specified Docker will be queried.
  * @return {Object}            Name only if callback isn't specified.
  */
-Config.prototype.inspect = function(callback) {
+Config.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/configs/' + this.id,
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'config not found',
@@ -9896,7 +9900,7 @@ Config.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -9907,7 +9911,7 @@ Config.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -9920,23 +9924,22 @@ Config.prototype.inspect = function(callback) {
  */
 Config.prototype.update = function(opts, callback) {
   var self = this;
-  if (!callback && typeof opts === 'function') {
-    callback = opts;
-  }
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/configs/' + this.id + '/update?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'config not found',
       500: 'server error',
       503: 'node is not part of a swarm'
     },
-    options: opts
+    options: args.opts
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -9947,7 +9950,7 @@ Config.prototype.update = function(opts, callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -9965,6 +9968,7 @@ Config.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/configs/' + this.id,
     method: 'DELETE',
+    abortSignal: opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -10055,6 +10059,7 @@ Container.prototype.inspect = function(opts, callback) {
     path: '/containers/' + this.id + '/json?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such container',
@@ -10090,6 +10095,7 @@ Container.prototype.rename = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/rename?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -10127,6 +10133,7 @@ Container.prototype.update = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/update',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -10165,6 +10172,7 @@ Container.prototype.top = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/top?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such container',
@@ -10191,13 +10199,17 @@ Container.prototype.top = function(opts, callback) {
 
 /**
  * Containers changes
+ * @param  {Object}   Options
  * @param  {Function} callback Callback
  */
-Container.prototype.changes = function(callback) {
+Container.prototype.changes = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var optsf = {
     path: '/containers/' + this.id + '/changes',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such container',
@@ -10205,7 +10217,7 @@ Container.prototype.changes = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -10216,7 +10228,7 @@ Container.prototype.changes = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -10233,6 +10245,7 @@ Container.prototype.listCheckpoint = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/checkpoints?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such container',
@@ -10270,6 +10283,7 @@ Container.prototype.deleteCheckpoint = function(checkpoint, opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/checkpoints/' + checkpoint + '?',
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10307,6 +10321,7 @@ Container.prototype.createCheckpoint = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/checkpoints',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     allowEmpty: true,
     statusCodes: {
       200: true, //unofficial, but proxies may return it
@@ -10336,13 +10351,17 @@ Container.prototype.createCheckpoint = function(opts, callback) {
 
 /**
  * Export
+ * @param  {Object}   opts     Options (optional)
  * @param  {Function} callback Callback with the octet-stream.
  */
-Container.prototype.export = function(callback) {
+Container.prototype.export = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var optsf = {
     path: '/containers/' + this.id + '/export',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -10351,7 +10370,7 @@ Container.prototype.export = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -10362,7 +10381,7 @@ Container.prototype.export = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -10379,6 +10398,7 @@ Container.prototype.start = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/start?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10417,6 +10437,7 @@ Container.prototype.pause = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/pause',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10453,6 +10474,7 @@ Container.prototype.unpause = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/unpause',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10491,6 +10513,7 @@ Container.prototype.exec = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/exec',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -10533,6 +10556,7 @@ Container.prototype.commit = function(opts, callback) {
   var optsf = {
     path: '/commit?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -10570,6 +10594,7 @@ Container.prototype.stop = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/stop?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10608,6 +10633,7 @@ Container.prototype.restart = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/restart?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10645,6 +10671,7 @@ Container.prototype.kill = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/kill?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10682,6 +10709,7 @@ Container.prototype.resize = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/resize?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -10719,6 +10747,7 @@ Container.prototype.attach = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/attach?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     hijack: args.opts.hijack,
     openStdin: args.opts.stdin,
@@ -10758,6 +10787,7 @@ Container.prototype.wait = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/wait?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -10795,6 +10825,7 @@ Container.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '?',
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -10834,6 +10865,7 @@ Container.prototype.copy = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/copy',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -10871,6 +10903,7 @@ Container.prototype.getArchive = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/archive?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -10909,6 +10942,7 @@ Container.prototype.infoArchive = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/archive?',
     method: 'HEAD',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -10948,6 +10982,7 @@ Container.prototype.putArchive = function(file, opts, callback) {
     path: '/containers/' + this.id + '/archive?',
     method: 'PUT',
     file: file,
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -10987,6 +11022,7 @@ Container.prototype.logs = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/logs?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     isStream: args.opts.follow || false,
     statusCodes: {
       200: true,
@@ -11027,6 +11063,7 @@ Container.prototype.stats = function(opts, callback) {
   var optsf = {
     path: '/containers/' + this.id + '/stats?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     isStream: isStream,
     statusCodes: {
       200: true,
@@ -11107,6 +11144,7 @@ Docker.prototype.createContainer = function(opts, callback) {
     method: 'POST',
     options: opts,
     authconfig: opts.authconfig,
+    abortSignal: opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -11157,6 +11195,7 @@ Docker.prototype.createImage = function(auth, opts, callback) {
     method: 'POST',
     options: opts,
     authconfig: auth,
+    abortSignal: opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -11198,6 +11237,7 @@ Docker.prototype.loadImage = function(file, opts, callback) {
     method: 'POST',
     options: opts,
     file: file,
+    abortSignal: opts && opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -11233,7 +11273,7 @@ Docker.prototype.importImage = function(file, opts, callback) {
     callback = opts;
     opts = undefined;
   }
-  
+
   if (!opts)
     opts = {};
 
@@ -11244,6 +11284,7 @@ Docker.prototype.importImage = function(file, opts, callback) {
     method: 'POST',
     options: opts,
     file: file,
+    abortSignal: opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -11278,6 +11319,7 @@ Docker.prototype.checkAuth = function(opts, callback) {
     path: '/auth',
     method: 'POST',
     options: opts,
+    abortSignal: opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -11309,7 +11351,6 @@ Docker.prototype.checkAuth = function(opts, callback) {
  */
 Docker.prototype.buildImage = function(file, opts, callback) {
   var self = this;
-  var content;
 
   if (!callback && typeof opts === 'function') {
     callback = opts;
@@ -11322,6 +11363,7 @@ Docker.prototype.buildImage = function(file, opts, callback) {
       method: 'POST',
       file: file,
       options: opts,
+      abortSignal: opts && opts.abortSignal,
       isStream: true,
       statusCodes: {
         200: true,
@@ -11469,6 +11511,7 @@ Docker.prototype.listContainers = function(opts, callback) {
     path: '/containers/json?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -11505,6 +11548,7 @@ Docker.prototype.listImages = function(opts, callback) {
     path: '/images/json?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -11541,6 +11585,7 @@ Docker.prototype.getImages = function(opts, callback) {
     path: '/images/get?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -11578,6 +11623,7 @@ Docker.prototype.listServices = function(opts, callback) {
     path: '/services?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -11613,6 +11659,7 @@ Docker.prototype.listNodes = function(opts, callback) {
     path: '/nodes?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -11651,6 +11698,7 @@ Docker.prototype.listTasks = function(opts, callback) {
     path: '/tasks?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -11685,6 +11733,7 @@ Docker.prototype.createSecret = function(opts, callback) {
     path: '/secrets/create?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -11725,6 +11774,7 @@ Docker.prototype.createConfig = function(opts, callback) {
     path: '/configs/create?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -11766,6 +11816,7 @@ Docker.prototype.listSecrets = function(opts, callback) {
     path: '/secrets?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -11801,6 +11852,7 @@ Docker.prototype.listConfigs = function(opts, callback) {
     path: '/configs?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -11835,6 +11887,7 @@ Docker.prototype.createPlugin = function(opts, callback) {
     path: '/plugins/create?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       204: true,
@@ -11874,6 +11927,7 @@ Docker.prototype.listPlugins = function(opts, callback) {
     path: '/plugins?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -11909,6 +11963,7 @@ Docker.prototype.pruneImages = function(opts, callback) {
     path: '/images/prune?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -11933,21 +11988,24 @@ Docker.prototype.pruneImages = function(opts, callback) {
 
 /**
  * Prune builder
+ * @param {Object}   opts     Options (optional)
  * @param {Function} callback Callback
  */
-Docker.prototype.pruneBuilder = function(callback) {
+Docker.prototype.pruneBuilder = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/build/prune',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
     }
   };
 
-  if (callback === undefined) {
+  if (args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -11958,7 +12016,7 @@ Docker.prototype.pruneBuilder = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -11976,6 +12034,7 @@ Docker.prototype.pruneContainers = function(opts, callback) {
     path: '/containers/prune?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -12011,6 +12070,7 @@ Docker.prototype.pruneVolumes = function(opts, callback) {
     path: '/volumes/prune?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -12046,6 +12106,7 @@ Docker.prototype.pruneNetworks = function(opts, callback) {
     path: '/networks/prune?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -12082,6 +12143,7 @@ Docker.prototype.createVolume = function(opts, callback) {
     method: 'POST',
     allowEmpty: true,
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -12129,6 +12191,7 @@ Docker.prototype.createService = function(auth, opts, callback) {
     method: 'POST',
     options: opts,
     authconfig: auth,
+    abortSignal: opts && opts.abortSignal,
     statusCodes: {
       200: true,
       201: true,
@@ -12167,6 +12230,7 @@ Docker.prototype.listVolumes = function(opts, callback) {
     path: '/volumes?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -12202,6 +12266,7 @@ Docker.prototype.createNetwork = function(opts, callback) {
     path: '/networks/create?',
     method: 'POST',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -12241,6 +12306,7 @@ Docker.prototype.listNetworks = function(opts, callback) {
     path: '/networks?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -12276,6 +12342,7 @@ Docker.prototype.searchImages = function(opts, callback) {
     method: 'GET',
     options: opts,
     authconfig: opts.authconfig,
+    abortSignal: opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -12300,13 +12367,17 @@ Docker.prototype.searchImages = function(opts, callback) {
 
 /**
  * Info
- * @param  {Function} callback Callback with info
+ * @param {Object}   opts     Options (optional)
+ * @param {Function} callback Callback with info
  */
-Docker.prototype.info = function(callback) {
+Docker.prototype.info = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var opts = {
     path: '/info',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -12314,7 +12385,7 @@ Docker.prototype.info = function(callback) {
   };
 
 
-  if (callback === undefined) {
+  if (args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(opts, function(err, data) {
         if (err) {
@@ -12325,27 +12396,31 @@ Docker.prototype.info = function(callback) {
     });
   } else {
     this.modem.dial(opts, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
 
 /**
  * Version
- * @param  {Function} callback Callback
+ * @param {Object}   opts     Options (optional)
+ * @param {Function} callback Callback
  */
-Docker.prototype.version = function(callback) {
+Docker.prototype.version = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var opts = {
     path: '/version',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
     }
   };
 
-  if (callback === undefined) {
+  if (args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(opts, function(err, data) {
         if (err) {
@@ -12356,27 +12431,31 @@ Docker.prototype.version = function(callback) {
     });
   } else {
     this.modem.dial(opts, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
 
 /**
  * Ping
- * @param  {Function} callback Callback
+ * @param {Object}   opts     Options (optional)
+ * @param {Function} callback Callback
  */
-Docker.prototype.ping = function(callback) {
+Docker.prototype.ping = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var optsf = {
     path: '/_ping',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
     }
   };
 
-  if (callback === undefined) {
+  if (args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -12387,7 +12466,7 @@ Docker.prototype.ping = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -12395,20 +12474,24 @@ Docker.prototype.ping = function(callback) {
 /**
  * SystemDf 	equivalent to system/df API Engine
  *		get usage data information
- * @param  {Function} callback Callback
+ * @param {Object}   opts     Options (optional)
+ * @param {Function} callback Callback
  */
-Docker.prototype.df = function(callback) {
+Docker.prototype.df = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var optsf = {
     path: '/system/df',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
     }
   };
 
-  if (callback === undefined) {
+  if (args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -12419,7 +12502,7 @@ Docker.prototype.df = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -12437,6 +12520,7 @@ Docker.prototype.getEvents = function(opts, callback) {
     path: '/events?',
     method: 'GET',
     options: args.opts,
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     statusCodes: {
       200: true,
@@ -12658,6 +12742,7 @@ Docker.prototype.swarmInit = function(opts, callback) {
   var optsf = {
     path: '/swarm/init',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -12695,6 +12780,7 @@ Docker.prototype.swarmJoin = function(opts, callback) {
   var optsf = {
     path: '/swarm/join',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -12732,6 +12818,7 @@ Docker.prototype.swarmLeave = function(opts, callback) {
   var optsf = {
     path: '/swarm/leave?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       406: 'node is not part of a Swarm'
@@ -12768,6 +12855,7 @@ Docker.prototype.swarmUpdate = function(opts, callback) {
   var optsf = {
     path: '/swarm/update?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       400: 'bad parameter',
@@ -12797,13 +12885,17 @@ Docker.prototype.swarmUpdate = function(opts, callback) {
  * Inspect a Swarm.
  * Warning: This method is not documented in the API
  *
- * @param  {Function} callback Callback
+ * @param {Object}   opts     Options (optional)
+ * @param {Function} callback Callback
  */
-Docker.prototype.swarmInspect = function(callback) {
+Docker.prototype.swarmInspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var optsf = {
     path: '/swarm',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       406: 'This node is not a swarm manager',
@@ -12811,7 +12903,7 @@ Docker.prototype.swarmInspect = function(callback) {
     }
   };
 
-  if (callback === undefined) {
+  if (args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -12822,7 +12914,7 @@ Docker.prototype.swarmInspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -12873,6 +12965,7 @@ Exec.prototype.start = function(opts, callback) {
   var optsf = {
     path: '/exec/' + this.id + '/start',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     allowEmpty: true,
     hijack: args.opts.hijack,
@@ -12918,6 +13011,7 @@ Exec.prototype.resize = function(opts, callback) {
   var optsf = {
     path: '/exec/' + this.id + '/resize?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such exec',
@@ -12946,14 +13040,17 @@ Exec.prototype.resize = function(opts, callback) {
 /**
  * Get low-level information about the exec call.
  *
+ * @param {Object}   opts     Options (optional)
  * @param {function} callback
  */
-Exec.prototype.inspect = function(callback) {
+Exec.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/exec/' + this.id + '/json',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such exec',
@@ -12961,7 +13058,7 @@ Exec.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -12973,7 +13070,7 @@ Exec.prototype.inspect = function(callback) {
   } else {
     this.modem.dial(optsf, function(err, data) {
       if (err) return callback(err, data);
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -13158,6 +13255,7 @@ Image.prototype.push = function(opts, callback, auth) {
     method: 'POST',
     options: args.opts,
     authconfig: args.opts.authconfig || auth,
+    abortSignal: args.opts.abortSignal,
     isStream: isStream,
     statusCodes: {
       200: true,
@@ -13195,6 +13293,7 @@ Image.prototype.tag = function(opts, callback) {
     path: '/images/' + this.name + '/tag?',
     method: 'POST',
     options: opts,
+    abortSignal: opts && opts.abortSignal,
     statusCodes: {
       200: true, // unofficial, but proxies may return it
       201: true,
@@ -13230,10 +13329,10 @@ Image.prototype.remove = function(opts, callback) {
   var self = this;
   var args = util.processArgs(opts, callback);
 
-
   var optsf = {
     path: '/images/' + this.name + '?',
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such image',
@@ -13330,6 +13429,7 @@ Network.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/networks/' + this.id,
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -13369,6 +13469,7 @@ Network.prototype.connect = function(opts, callback) {
   var optsf = {
     path: '/networks/' + this.id + '/connect',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       201: true,
@@ -13407,6 +13508,7 @@ Network.prototype.disconnect = function(opts, callback) {
   var optsf = {
     path: '/networks/' + this.id + '/disconnect',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       201: true,
@@ -13460,14 +13562,17 @@ Node.prototype[__nccwpck_require__(1669).inspect.custom] = function() { return t
 /**
  * Query Docker for Node details.
  *
+ * @param {Object}   opts     Options (optional)
  * @param {function} callback
  */
-Node.prototype.inspect = function(callback) {
+Node.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/nodes/' + this.id,
     method: 'GET',
+    abortSignal: args.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such node',
@@ -13475,7 +13580,7 @@ Node.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -13486,7 +13591,7 @@ Node.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -13507,6 +13612,7 @@ Node.prototype.update = function(opts, callback) {
   var optsf = {
     path: '/nodes/' + this.id + '/update?',
     method: 'POST',
+    abortSignal: opts && opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such node',
@@ -13547,6 +13653,7 @@ Node.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/nodes/' + this.id + '?',
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such node',
@@ -13597,15 +13704,19 @@ Plugin.prototype[__nccwpck_require__(1669).inspect.custom] = function() { return
 
 /**
  * Inspect
+ *
+ * @param  {Object}   opts     Options (optional)
  * @param  {Function} callback Callback, if specified Docker will be queried.
  * @return {Object}            Name only if callback isn't specified.
  */
-Plugin.prototype.inspect = function(callback) {
+Plugin.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/plugins/' + this.name,
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'plugin is not installed',
@@ -13613,7 +13724,7 @@ Plugin.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -13624,7 +13735,7 @@ Plugin.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -13641,6 +13752,7 @@ Plugin.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/plugins/' + this.name + '?',
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'plugin is not installed',
@@ -13668,24 +13780,28 @@ Plugin.prototype.remove = function(opts, callback) {
 
 /**
  * get privileges
+ * @param  {Object}   opts     Options (optional)
  * @param  {Function} callback Callback
  * @return {Object}            Name only if callback isn't specified.
  */
-Plugin.prototype.privileges = function(callback) {
+Plugin.prototype.privileges = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
+
   var optsf = {
     path: '/plugins/privileges?',
     method: 'GET',
     options: {
       'remote': this.remote
     },
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -13696,7 +13812,7 @@ Plugin.prototype.privileges = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -13721,6 +13837,7 @@ Plugin.prototype.pull = function(opts, callback) {
   var optsf = {
     path: '/plugins/pull?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     isStream: true,
     options: args.opts,
     statusCodes: {
@@ -13759,6 +13876,7 @@ Plugin.prototype.enable = function(opts, callback) {
   var optsf = {
     path: '/plugins/' + this.name + '/enable?',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -13794,6 +13912,7 @@ Plugin.prototype.disable = function(opts, callback) {
   var optsf = {
     path: '/plugins/' + this.name + '/disable',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       500: 'server error'
@@ -13829,6 +13948,7 @@ Plugin.prototype.push = function(opts, callback) {
   var optsf = {
     path: '/plugins/' + this.name + '/push',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'plugin not installed',
@@ -13865,6 +13985,7 @@ Plugin.prototype.configure = function(opts, callback) {
   var optsf = {
     path: '/plugins/' + this.name + '/set',
     method: 'POST',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'plugin not installed',
@@ -13908,6 +14029,7 @@ Plugin.prototype.upgrade = function(auth, opts, callback) {
   var optsf = {
     path: '/plugins/' + this.name + '/upgrade?',
     method: 'POST',
+    abortSignal: opts && opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -13959,15 +14081,18 @@ Secret.prototype[__nccwpck_require__(1669).inspect.custom] = function() { return
 
 /**
  * Inspect
+ * @param  {Object}   opts     Options (optional)
  * @param  {Function} callback Callback, if specified Docker will be queried.
  * @return {Object}            Name only if callback isn't specified.
  */
-Secret.prototype.inspect = function(callback) {
+Secret.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/secrets/' + this.id,
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'secret not found',
@@ -13976,7 +14101,7 @@ Secret.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -13987,7 +14112,7 @@ Secret.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -14007,6 +14132,7 @@ Secret.prototype.update = function(opts, callback) {
   var optsf = {
     path: '/secrets/' + this.id + '/update?',
     method: 'POST',
+    abortSignal: opts && opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'secret not found',
@@ -14044,6 +14170,7 @@ Secret.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/secrets/' + this.id,
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -14096,14 +14223,17 @@ Service.prototype[__nccwpck_require__(1669).inspect.custom] = function() { retur
 /**
  * Query Docker for service details.
  *
+ * @param {Object}   opts     Options (optional)
  * @param {function} callback
  */
-Service.prototype.inspect = function(callback) {
+Service.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/services/' + this.id,
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such service',
@@ -14111,7 +14241,7 @@ Service.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -14122,7 +14252,7 @@ Service.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -14130,14 +14260,17 @@ Service.prototype.inspect = function(callback) {
 /**
  * Delete Service
  *
+ * @param {Object}   opts     Options (optional)
  * @param {function} callback
  */
-Service.prototype.remove = function(callback) {
+Service.prototype.remove = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/services/' + this.id,
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -14146,7 +14279,7 @@ Service.prototype.remove = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -14157,7 +14290,7 @@ Service.prototype.remove = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -14186,6 +14319,7 @@ Service.prototype.update = function(auth, opts, callback) {
   var optsf = {
     path: '/services/' + this.id + '/update?',
     method: 'POST',
+    abortSignal: opts && opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such service',
@@ -14225,6 +14359,7 @@ Service.prototype.logs = function(opts, callback) {
   var optsf = {
     path: '/services/' + this.id + '/logs?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     isStream: args.opts.follow || false,
     statusCodes: {
       200: true,
@@ -14282,14 +14417,17 @@ Task.prototype[__nccwpck_require__(1669).inspect.custom] = function() { return t
 /**
  * Query Docker for Task details.
  *
+ * @param {Object}   opts     Options (optional)
  * @param {function} callback
  */
-Task.prototype.inspect = function(callback) {
+Task.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/tasks/' + this.id,
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'unknown task',
@@ -14297,7 +14435,7 @@ Task.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -14308,7 +14446,7 @@ Task.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -14325,6 +14463,7 @@ Task.prototype.logs = function(opts, callback) {
   var optsf = {
     path: '/tasks/' + this.id + '/logs?',
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     isStream: args.opts.follow || false,
     statusCodes: {
       101: true,
@@ -14454,15 +14593,18 @@ Volume.prototype[__nccwpck_require__(1669).inspect.custom] = function() { return
 
 /**
  * Inspect
+ * @param  {Object}   opts     Options (optional)
  * @param  {Function} callback Callback, if specified Docker will be queried.
  * @return {Object}            Name only if callback isn't specified.
  */
-Volume.prototype.inspect = function(callback) {
+Volume.prototype.inspect = function(opts, callback) {
   var self = this;
+  var args = util.processArgs(opts, callback);
 
   var optsf = {
     path: '/volumes/' + this.name,
     method: 'GET',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such volume',
@@ -14470,7 +14612,7 @@ Volume.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(optsf, function(err, data) {
         if (err) {
@@ -14481,7 +14623,7 @@ Volume.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      callback(err, data);
+      args.callback(err, data);
     });
   }
 };
@@ -14498,6 +14640,7 @@ Volume.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/volumes/' + this.name,
     method: 'DELETE',
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       204: true,
       404: 'no such volume',
@@ -50401,6 +50544,7 @@ class Channel extends DuplexStream {
   destroy() {
     this.end();
     this.close();
+    return this;
   }
 
   // Session type-specific methods =============================================
@@ -58463,14 +58607,13 @@ const CLIENT_HANDLERS = {
     */
     const errorCode = bufferParser.readUInt32BE();
     const errorMsg = bufferParser.readString(true);
-    const lang = bufferParser.skipString();
     bufferParser.clear();
 
-    if (lang === undefined) {
-      if (reqID !== undefined)
-        delete sftp._requests[reqID];
-      return doFatalSFTPError(sftp, 'Malformed STATUS packet');
-    }
+    // Note: we avoid checking that the error message and language tag are in
+    // the packet because there are some broken implementations that incorrectly
+    // omit them. The language tag in general was never really used amongst ssh
+    // implementations, so in the case of a missing error message we just
+    // default to something sensible.
 
     if (sftp._debug) {
       const jsonMsg = JSON.stringify(errorMsg);
@@ -59761,6 +59904,8 @@ const SUPPORTED_CIPHER = DEFAULT_CIPHER.concat([
   'aes128-cbc',
   'blowfish-cbc',
   '3des-cbc',
+  'aes128-gcm',
+  'aes256-gcm',
 
   // http://tools.ietf.org/html/rfc4345#section-4:
   'arcfour256',
@@ -65343,6 +65488,8 @@ OpenSSH_Private.prototype = BaseKey;
     } else {
       ret = [];
     }
+    if (ret instanceof Error)
+      return ret;
     // This will need to change if/when OpenSSH ever starts storing multiple
     // keys in their key files
     return ret[0];
@@ -74240,7 +74387,7 @@ module.exports = eval("require")("encoding");
 /***/ ((module) => {
 
 "use strict";
-module.exports = {"i8":"1.5.0"};
+module.exports = {"i8":"1.6.0"};
 
 /***/ }),
 
