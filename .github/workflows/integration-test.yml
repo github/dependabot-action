@@ -13,15 +13,6 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     steps:
-      - name: GPR login
-        run: docker login docker.pkg.github.com -u x -p ${{ secrets.GITHUB_TOKEN }}
-
-      - name: GRP pull dependabot/dependabot-updater
-        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:v1
-
-      - name: GRP pull github/dependabot-update-job-proxy
-        run: docker pull docker.pkg.github.com/github/dependabot-update-job-proxy:v1
-
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -38,5 +29,12 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
+      - name: Pre-fetch the pinned images
+        run: npm run fetch-images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run integration tests
         run: npm run test-integration
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,9 +7,13 @@ describe('ContainerService', () => {
   const docker = new Docker()
   let container: any
 
+  beforeAll(async () => {
+    /* We use alpine as a small, easy-to-script-for test stand-in for the updater */
+    await ImageService.fetchImage('alpine')
+  })
+
   describe('when a container runs successfully', () => {
     beforeEach(async () => {
-      await ImageService.pull('alpine')
       container = await docker.createContainer({
         Image: 'alpine',
         AttachStdout: true,
@@ -26,7 +30,6 @@ describe('ContainerService', () => {
 
   describe('when a container runs unsuccessfully', () => {
     beforeEach(async () => {
-      await ImageService.pull('alpine')
       container = await docker.createContainer({
         Image: 'alpine',
         AttachStdout: true,

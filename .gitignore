@@ -78,6 +78,9 @@ typings/
 .env
 .env.test
 
+# asdf tool version
+.tool-versions
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 

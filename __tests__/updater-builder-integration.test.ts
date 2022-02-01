@@ -1,4 +1,4 @@
-import {PROXY_IMAGE_NAME, UPDATER_IMAGE_NAME} from '../src/main'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/docker-tags'
 import {ImageService} from '../src/image-service'
 import {removeDanglingUpdaterContainers, integration} from './helpers'
 import Docker from 'dockerode'

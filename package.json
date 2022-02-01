@@ -13,8 +13,8 @@
     "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
-    "all": "npm run format && npm run lint && npm run package && npm test",
-    "dependabot": "npx ts-node src/cli.ts"
+    "dependabot": "ts-node src/cli.ts",
+    "fetch-images": "ts-node src/fetch-images.ts"
   },
   "repository": {
     "type": "git",
