@@ -1,5 +1,5 @@
 import Docker from 'dockerode'
-import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/docker-tags'
 import waitPort from 'wait-port'
 import path from 'path'
 import {spawn} from 'child_process'

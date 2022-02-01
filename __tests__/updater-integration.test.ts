@@ -4,7 +4,7 @@ import path from 'path'
 import {ApiClient} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {JobParameters} from '../src/inputs'
-import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/main'
+import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/docker-tags'
 import {Updater} from '../src/updater'
 
 import {
