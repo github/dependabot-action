@@ -5,14 +5,15 @@
   "description": "Runs Dependabot workloads via GitHub Actions.",
   "main": "src/main.ts",
   "scripts": {
+    "all": "npm run format && npm run lint && npm run package && npm test",
+    "dependabot": "npx ts-node src/cli.ts",
     "format": "prettier --write **/*.ts",
     "lint": "eslint --fix **/*.ts",
     "package": "ncc build -o dist/main src/main.ts --source-map --license licenses.txt && ncc build -o dist/cleanup src/cleanup.ts --source-map --license licenses.txt",
-    "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
-    "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
-    "all": "npm run format && npm run lint && npm run package && npm test",
-    "dependabot": "npx ts-node src/cli.ts"
+    "test-integration": "jest --detectOpenHandles 'integration'",
+    "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
+    "watch-package": "ncc build --watch -o dist/main src/main.ts --source-map --license licenses.txt && ncc build --watch -o dist/cleanup src/cleanup.ts --source-map --license licenses.txt"
   },
   "repository": {
     "type": "git",
