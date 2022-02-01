@@ -1,4 +1,4 @@
-import stream, {Writable} from 'stream'
+import * as stream from 'stream'
 import {DependencyFile} from './config-types'
 
 const base64Decode = (str: string): string =>
@@ -12,7 +12,7 @@ export const base64DecodeDependencyFile = (
   return fileCopy
 }
 
-export const outStream = (prefix: string): Writable => {
+export const outStream = (prefix: string): stream.Writable => {
   return new stream.Writable({
     write(chunk, _, next) {
       process.stderr.write(`${prefix} | ${chunk.toString()}`)
@@ -21,7 +21,7 @@ export const outStream = (prefix: string): Writable => {
   })
 }
 
-export const errStream = (prefix: string): Writable => {
+export const errStream = (prefix: string): stream.Writable => {
   return new stream.Writable({
     write(chunk, _, next) {
       process.stderr.write(`${prefix} | ${chunk.toString()}`)

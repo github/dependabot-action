@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import {Updater, UpdaterFetchError} from '../src/updater'
-import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
+import * as Docker from 'dockerode'
 import {ContainerService} from '../src/container-service'
 import {ProxyBuilder} from '../src/proxy'
 

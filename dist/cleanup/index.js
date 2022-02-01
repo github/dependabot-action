@@ -35469,7 +35469,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __nccwpck_require__(2186);
-const Docker = __nccwpck_require__(4571); // eslint-disable-line @typescript-eslint/no-require-imports
+const Docker = __nccwpck_require__(4571);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {

@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
+import * as Docker from 'dockerode'
 import {pack} from 'tar-stream'
 import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
 import {outStream, errStream} from './utils'

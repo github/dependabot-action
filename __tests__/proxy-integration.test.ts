@@ -1,4 +1,4 @@
-import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
+import * as Docker from 'dockerode'
 import {Credential} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {PROXY_IMAGE_NAME} from '../src/docker-tags'

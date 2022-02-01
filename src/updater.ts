@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
+import * as Docker from 'dockerode'
 import * as path from 'path'
 import * as fs from 'fs'
 import {JobDetails, ApiClient, Credential} from './api-client'

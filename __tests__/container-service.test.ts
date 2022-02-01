@@ -1,4 +1,4 @@
-import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
+import * as Docker from 'dockerode'
 
 import {ContainerService} from '../src/container-service'
 import {ImageService} from '../src/image-service'

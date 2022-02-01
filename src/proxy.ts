@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as core from '@actions/core'
-import Docker = require('dockerode') // eslint-disable-line @typescript-eslint/no-require-imports
+import * as Docker from 'dockerode'
 import crypto from 'crypto'
 import {
   BasicAuthCredentials,
