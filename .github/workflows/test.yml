@@ -8,7 +8,7 @@ on:
       - 'releases/*'
 
 jobs:
-  build: # make sure build/ci work properly
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -37,13 +37,3 @@ jobs:
         run: npm run test
 
       - run: git diff --quiet dist/
-  test: # make sure the action works on a clean machine without building
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - uses: ./
-        with:
-          milliseconds: 1000

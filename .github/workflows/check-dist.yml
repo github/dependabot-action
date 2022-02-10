@@ -1,0 +1,45 @@
+name: Check dist/
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'releases/*'
+
+jobs:
+  verify-build: # make sure the checked in dist/ folder matches the output of a rebuild
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Read .nvmrc
+        id: nvm
+        run: echo ::set-output name=NVMRC::$(cat .nvmrc)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ steps.nvm.outputs.NVMRC }}
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Rebuild the dist/ directory
+        run: npm run package
+
+      - name: Compare the expected and actual dist/ directories
+        run: git diff --quiet dist/
+  verify-index-js: # make sure the entrypoint js files run on a clean machine without compiling first
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: ./
+        with:
+          milliseconds: 1000
