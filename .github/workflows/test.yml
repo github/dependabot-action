@@ -27,8 +27,14 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
+      - name: Check formatting
+        run: npm run format-check
+
+      - name: Run linter
+        run: npm run lint-check
+
       - name: Run tests
-        run: npm run all
+        run: npm run test
 
       - run: git diff --quiet dist/
   test: # make sure the action works on a clean machine without building
