@@ -1,0 +1,9 @@
+#!/bin/bash
+
+git diff --quiet dist/
+retVal=$?
+if [ $retVal -ne 0 ]; then
+  echo "Detected uncommitted changes after build:"
+  git --no-pager diff dist/
+  exit 1
+fi

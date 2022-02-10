@@ -1,4 +1,4 @@
-name: Check dist/
+name: Check dist
 
 on:
   pull_request:
@@ -32,7 +32,7 @@ jobs:
         run: npm run package
 
       - name: Compare the expected and actual dist/ directories
-        run: git diff --quiet dist/
+        run: script/check-diff
   verify-index-js: # make sure the entrypoint js files run on a clean machine without compiling first
     runs-on: ubuntu-latest
     steps:
