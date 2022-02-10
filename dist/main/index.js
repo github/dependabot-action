@@ -71169,8 +71169,8 @@ exports.ContainerService = {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
-exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater@sha256:58e0fb2e0373294b05ad5e8af7d190d47a1bb3e098426c3840a31db0b0b0a931';
-exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy@sha256:835ce18d93a9ba7336ed815cec7d43b78649cd1ce63b4559fb00f0726658a8df';
+exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
+exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
 
 
 /***/ }),
@@ -71220,10 +71220,25 @@ const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, functi
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
     });
 });
+/** Fetch the configured updater image, if it isn't already available. */
 exports.ImageService = {
-    /** Fetch the configured updater image, if it isn't already available. */
     pull(imageName, force = false) {
         return __awaiter(this, void 0, void 0, function* () {
+            /*
+              This method fetches images using a GITHUB_TOKEN we should check two things:
+              - The process has a GITHUB_TOKEN set so we don't attempt a failed call to docker
+              - The image being requested is actually hosted on GitHub.
+        
+              We expose the `fetch_image` utility method to allow us to pull in arbitrary images
+              without auth in unit tests.
+            */
+            if (!(imageName.startsWith('ghcr.io/') ||
+                imageName.startsWith('docker.pkg.github.com/'))) {
+                throw new Error('Only images distributed via docker.pkg.github.com or ghcr.io can be fetched');
+            }
+            if (!process.env.GITHUB_TOKEN) {
+                throw new Error('No GITHUB_TOKEN set, unable to pull images.');
+            }
             const docker = new dockerode_1.default();
             try {
                 const image = yield docker.getImage(imageName).inspect();
@@ -71237,11 +71252,17 @@ exports.ImageService = {
                     throw e;
                 } // else fallthrough to pull
             }
-            core.info(`Pulling image ${imageName}...`);
             const auth = {
                 username: 'x',
                 password: process.env.GITHUB_TOKEN
             };
+            this.fetchImage(imageName, auth, docker);
+        });
+    },
+    /* Retrieve the imageName using the auth details provided, if any */
+    fetchImage(imageName, auth = {}, docker = new dockerode_1.default()) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.info(`Pulling image ${imageName}...`);
             const stream = yield docker.pull(imageName, { authconfig: auth });
             yield endOfStream(docker, stream);
             core.info(`Pulled image ${imageName}`);
