@@ -12,20 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Read .nvmrc
         id: nvm
         run: echo ::set-output name=NVMRC::$(cat .nvmrc)
+
       - name: Setup Node.js
         uses: actions/setup-node@v1
         with:
           node-version: ${{ steps.nvm.outputs.NVMRC }}
-      - run: npm ci
-      - run: npm run all
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run all
+
       - run: git diff --quiet dist/
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - uses: ./
         with:
           milliseconds: 1000
