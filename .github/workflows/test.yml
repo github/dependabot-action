@@ -35,5 +35,3 @@ jobs:
 
       - name: Run tests
         run: npm run test
-
-      - run: git diff --quiet dist/
