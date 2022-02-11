@@ -13,16 +13,30 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     steps:
+      - name: GPR login
+        run: docker login docker.pkg.github.com -u x -p ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GRP pull dependabot/dependabot-updater
+        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:v1
+
+      - name: GRP pull github/dependabot-update-job-proxy
+        run: docker pull docker.pkg.github.com/github/dependabot-update-job-proxy:v1
+
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: GPR login
-        run: docker login docker.pkg.github.com -u x -p ${{ secrets.GITHUB_TOKEN }}
-      - name: GRP pull dependabot/dependabot-updater
-        run: docker pull docker.pkg.github.com/dependabot/dependabot-updater:v1
-      - name: GRP pull github/dependabot-update-job-proxy
-        run: docker pull docker.pkg.github.com/github/dependabot-update-job-proxy:v1
-      - run: npm ci
-      - name: Run integration test files
+
+      - name: Read .nvmrc
+        id: nvm
+        run: echo ::set-output name=NVMRC::$(cat .nvmrc)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ steps.nvm.outputs.NVMRC }}
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Run integration tests
         run: npm run test-integration

@@ -19,24 +19,18 @@ jobs:
       security-events: write
 
     strategy:
-      fail-fast: false
       matrix:
         language: [ 'javascript' ]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
       with:
         languages: ${{ matrix.language }}
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build executable
-      run: npm run package
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
