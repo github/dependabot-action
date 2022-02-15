@@ -74614,6 +74614,19 @@ exports.ContainerService = {
 
 /***/ }),
 
+/***/ 4665:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
+exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
+
+
+/***/ }),
+
 /***/ 2715:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -74659,10 +74672,25 @@ const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, functi
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
     });
 });
+/** Fetch the configured updater image, if it isn't already available. */
 exports.ImageService = {
-    /** Fetch the configured updater image, if it isn't already available. */
     pull(imageName, force = false) {
         return __awaiter(this, void 0, void 0, function* () {
+            /*
+              This method fetches images using a GITHUB_TOKEN we should check two things:
+              - The process has a GITHUB_TOKEN set so we don't attempt a failed call to docker
+              - The image being requested is actually hosted on GitHub.
+        
+              We expose the `fetch_image` utility method to allow us to pull in arbitrary images
+              without auth in unit tests.
+            */
+            if (!(imageName.startsWith('ghcr.io/') ||
+                imageName.startsWith('docker.pkg.github.com/'))) {
+                throw new Error('Only images distributed via docker.pkg.github.com or ghcr.io can be fetched');
+            }
+            if (!process.env.GITHUB_TOKEN) {
+                throw new Error('No GITHUB_TOKEN set, unable to pull images.');
+            }
             const docker = new dockerode_1.default();
             try {
                 const image = yield docker.getImage(imageName).inspect();
@@ -74676,11 +74704,17 @@ exports.ImageService = {
                     throw e;
                 } // else fallthrough to pull
             }
-            core.info(`Pulling image ${imageName}...`);
             const auth = {
                 username: 'x',
                 password: process.env.GITHUB_TOKEN
             };
+            this.fetchImage(imageName, auth, docker);
+        });
+    },
+    /* Retrieve the imageName using the auth details provided, if any */
+    fetchImage(imageName, auth = {}, docker = new dockerode_1.default()) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.info(`Pulling image ${imageName}...`);
             const stream = yield docker.pull(imageName, { authconfig: auth });
             yield endOfStream(docker, stream);
             core.info(`Pulled image ${imageName}`);
@@ -74850,16 +74884,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = exports.DependabotErrorType = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+exports.run = exports.DependabotErrorType = void 0;
+const axios_1 = __importDefault(__nccwpck_require__(6545));
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
+const api_client_1 = __nccwpck_require__(5707);
 const inputs_1 = __nccwpck_require__(7063);
 const image_service_1 = __nccwpck_require__(2715);
+const docker_tags_1 = __nccwpck_require__(4665);
 const updater_1 = __nccwpck_require__(4186);
-const api_client_1 = __nccwpck_require__(5707);
-const axios_1 = __importDefault(__nccwpck_require__(6545));
-exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
-exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
 var DependabotErrorType;
 (function (DependabotErrorType) {
     DependabotErrorType["Unknown"] = "actions_workflow_unknown";
@@ -74891,11 +74924,11 @@ function run(context) {
             const details = yield apiClient.getJobDetails();
             try {
                 const credentials = yield apiClient.getCredentials();
-                const updater = new updater_1.Updater(exports.UPDATER_IMAGE_NAME, exports.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
+                const updater = new updater_1.Updater(docker_tags_1.UPDATER_IMAGE_NAME, docker_tags_1.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
                 core.startGroup('Pulling updater images');
                 try {
-                    yield image_service_1.ImageService.pull(exports.UPDATER_IMAGE_NAME);
-                    yield image_service_1.ImageService.pull(exports.PROXY_IMAGE_NAME);
+                    yield image_service_1.ImageService.pull(docker_tags_1.UPDATER_IMAGE_NAME);
+                    yield image_service_1.ImageService.pull(docker_tags_1.PROXY_IMAGE_NAME);
                 }
                 catch (error) {
                     core.error('Error fetching updater images');
