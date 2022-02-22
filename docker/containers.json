@@ -1,0 +1,4 @@
+{
+  "proxy": "docker.pkg.github.com/github/dependabot-update-job-proxy:v1",
+  "updater": "docker.pkg.github.com/dependabot/dependabot-updater:v1"
+}

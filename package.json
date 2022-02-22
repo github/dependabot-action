@@ -14,7 +14,8 @@
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
     "dependabot": "ts-node src/cli.ts",
-    "fetch-images": "ts-node src/fetch-images.ts"
+    "fetch-images": "ts-node src/fetch-images.ts",
+    "update-container-manifest": "ts-node src/update-containers.ts"
   },
   "repository": {
     "type": "git",
