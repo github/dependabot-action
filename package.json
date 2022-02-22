@@ -41,7 +41,7 @@
     "@types/dockerode": "^3.2.6",
     "@types/jest": "^27.0.2",
     "@types/node": "^16.4.6",
-    "@types/node-forge": "^0.10.3",
+    "@types/node-forge": "^1.0.0",
     "@types/tar-stream": "^2.2.2",
     "@typescript-eslint/parser": "^4.33.0",
     "@vercel/ncc": "^0.31.1",
