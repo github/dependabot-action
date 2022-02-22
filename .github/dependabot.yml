@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: 'weekly'
   - package-ecosystem: 'docker'
-    directory: '/'
+    directory: '/docker'
     schedule:
       interval: 'daily'
   - package-ecosystem: "github-actions"
