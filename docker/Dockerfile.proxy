@@ -1,0 +1,1 @@
+FROM docker.pkg.github.com/github/dependabot-update-job-proxy:v1
