@@ -1,7 +1,6 @@
 name: Compile dependabot updates
 
 on:
-  workflow_dispatch:
   pull_request:
 
 permissions:
@@ -10,7 +9,10 @@ permissions:
 jobs:
   fetch-dependabot-metadata:
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    # We only want to check the metadata on pull_request events from Dependabot itself,
+    # any subsequent pushes to the PR should just skip this step so we don't go into
+    # a loop on commits created by the `build-dependabot-changes` job
+    if: ${{ github.actor == 'dependabot[bot]' }}
     # Map the step output to a job output for subsequent jobs
     outputs:
       dependency-type: ${{ steps.dependabot-metadata.outputs.dependency-type }}
@@ -25,6 +27,7 @@ jobs:
     needs: [fetch-dependabot-metadata]
     if: ${{ needs.fetch-dependabot-metadata.outputs.dependency-type == 'direct:production' }}
     steps:
+      # Check out using a PAT so any pushed changes will trigger checkruns
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.ref }}
