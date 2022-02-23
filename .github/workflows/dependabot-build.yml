@@ -11,6 +11,9 @@ jobs:
   fetch-dependabot-metadata:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    # Map the step output to a job output for subsequent jobs
+    outputs:
+      dependency-type: ${{ steps.dependabot-metadata.outputs.dependency-type }}
     steps:
       - name: Fetch dependabot metadata
         id: dependabot-metadata
