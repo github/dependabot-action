@@ -1,6 +1,14 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 4832:
+/***/ ((module) => {
+
+"use strict";
+module.exports = JSON.parse('{"proxy":"docker.pkg.github.com/github/dependabot-update-job-proxy:v1","updater":"docker.pkg.github.com/dependabot/dependabot-updater:v1"}');
+
+/***/ }),
+
 /***/ 7351:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -74773,14 +74781,18 @@ exports.ContainerService = {
 /***/ }),
 
 /***/ 4665:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
-exports.UPDATER_IMAGE_NAME = 'docker.pkg.github.com/dependabot/dependabot-updater:v1';
-exports.PROXY_IMAGE_NAME = 'docker.pkg.github.com/github/dependabot-update-job-proxy:v1';
+const containers_json_1 = __importDefault(__nccwpck_require__(4832));
+exports.UPDATER_IMAGE_NAME = containers_json_1.default.updater;
+exports.PROXY_IMAGE_NAME = containers_json_1.default.proxy;
 
 
 /***/ }),

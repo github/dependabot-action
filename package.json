@@ -14,7 +14,8 @@
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
     "dependabot": "ts-node src/cli.ts",
-    "fetch-images": "ts-node src/fetch-images.ts"
+    "fetch-images": "ts-node src/fetch-images.ts",
+    "update-container-manifest": "ts-node src/update-containers.ts"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
     "@actions/github": "^5.0.0",
     "@octokit/webhooks-types": "^5.4.0",
     "axios": "^0.23.0",
+    "ci": "^2.1.1",
     "commander": "^8.2.0",
     "dockerode": "^3.3.1",
     "npm": "^8.4.0",
