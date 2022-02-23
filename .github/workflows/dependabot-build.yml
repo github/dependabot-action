@@ -26,6 +26,8 @@ jobs:
     if: ${{ needs.fetch-dependabot-metadata.outputs.dependency-type == 'direct:production' }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Read .nvmrc
         id: nvm
