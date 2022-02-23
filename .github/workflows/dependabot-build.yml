@@ -46,6 +46,7 @@ jobs:
 
       - name: Check in any change to dist/
         run: |
+          echo ${{ secrets.DEPENDABOT_AUTOBUILD }} | gh auth login --with-token
           git add dist/
           git config user.name github-actions
           git config user.email github-actions@github.com
