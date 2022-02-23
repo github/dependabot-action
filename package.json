@@ -50,7 +50,7 @@
     "eslint-plugin-github": "^4.1.5",
     "eslint-plugin-jest": "^25.2.4",
     "husky": "^7.0.2",
-    "jest": "^27.3.1",
+    "jest": "^27.5.1",
     "jest-circus": "^27.3.1",
     "js-yaml": "^4.1.0",
     "json-server": "^0.17.0",
