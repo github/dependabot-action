@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Fetch dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v1.2.0
+        uses: dependabot/fetch-metadata@v1.2.1
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
   build-dependabot-changes:
@@ -26,8 +26,6 @@ jobs:
     if: ${{ needs.fetch-dependabot-metadata.outputs.dependency-type == 'direct:production' }}
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Read .nvmrc
         id: nvm
