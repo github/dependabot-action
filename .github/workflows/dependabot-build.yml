@@ -2,7 +2,7 @@ name: Compile dependabot updates
 
 on:
   workflow_dispatch:
-  pull_request_target:
+  pull_request:
 
 permissions:
   pull-requests: write
@@ -26,6 +26,8 @@ jobs:
     if: ${{ needs.fetch-dependabot-metadata.outputs.dependency-type == 'direct:production' }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head }}
 
       - name: Read .nvmrc
         id: nvm
@@ -48,4 +50,4 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git commit -m "[dependabot skip] Update dist/ with build changes" || exit 0
-          git push
+          git push ${{ github.event.pull_request.head }} origin:${{ github.event.pull_request.head }}
