@@ -1,4 +1,10 @@
 version: 2
+registries:
+  ghpr:
+    type: docker-registry
+    url: https://docker.pkg.github.com
+    username: x
+    password: ${{ secrets.DEPENDABOT_GHPR_TOKEN }}
 updates:
   - package-ecosystem: 'npm'
     directory: '/'
@@ -8,6 +14,8 @@ updates:
     directory: '/docker'
     schedule:
       interval: 'daily'
+    registries:
+      - ghpr
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
