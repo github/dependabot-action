@@ -1,6 +1,6 @@
 import fs from 'fs'
 
-function getImageName(dockerfileName: string): String {
+export function getImageName(dockerfileName: string): String {
   const dockerfile = fs.readFileSync(
     require.resolve(`../docker/${dockerfileName}`),
     'utf8'
