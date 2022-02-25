@@ -40,7 +40,7 @@ export const ImageService = {
     try {
       const image = await docker.getImage(imageName).inspect()
       if (!force) {
-        core.info(`Resolved ${imageName} to existing ${image.Id}`)
+        core.info(`Resolved ${imageName} to existing ${image.RepoDigests}`)
         return
       } // else fallthrough to pull
     } catch (e) {
@@ -53,7 +53,7 @@ export const ImageService = {
       username: 'x',
       password: process.env.GITHUB_TOKEN
     }
-    this.fetchImage(imageName, auth, docker)
+    await this.fetchImage(imageName, auth, docker)
   },
 
   /* Retrieve the imageName using the auth details provided, if any */

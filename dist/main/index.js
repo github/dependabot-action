@@ -74865,7 +74865,7 @@ exports.ImageService = {
             try {
                 const image = yield docker.getImage(imageName).inspect();
                 if (!force) {
-                    core.info(`Resolved ${imageName} to existing ${image.Id}`);
+                    core.info(`Resolved ${imageName} to existing ${image.RepoDigests}`);
                     return;
                 } // else fallthrough to pull
             }
@@ -74878,7 +74878,7 @@ exports.ImageService = {
                 username: 'x',
                 password: process.env.GITHUB_TOKEN
             };
-            this.fetchImage(imageName, auth, docker);
+            yield this.fetchImage(imageName, auth, docker);
         });
     },
     /* Retrieve the imageName using the auth details provided, if any */
