@@ -15,6 +15,7 @@
     "prepare": "husky install",
     "dependabot": "ts-node src/cli.ts",
     "fetch-images": "ts-node src/fetch-images.ts",
+    "cleanup-docker": "ts-node src/cleanup.ts",
     "update-container-manifest": "ts-node src/update-containers.ts"
   },
   "repository": {
