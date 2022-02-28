@@ -9,7 +9,7 @@ import Docker from 'dockerode'
 export async function run(cutoff = '24h'): Promise<void> {
   try {
     const docker = new Docker()
-    const untilFilter = JSON.stringify({until: cutoff})
+    const untilFilter = {until: [cutoff]}
     core.info(`Pruning networks older than ${cutoff}`)
     await docker.pruneNetworks({filters: untilFilter})
     core.info(`Pruning containers older than ${cutoff}`)
