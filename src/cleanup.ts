@@ -8,7 +8,7 @@ export async function run(): Promise<void> {
     await docker.pruneNetworks({filters: untilFilter})
     await docker.pruneContainers({filters: untilFilter})
   } catch (error) {
-    core.debug(`Error cleaning up: ${error.message}`)
+    core.error(`Error cleaning up: ${error.message}`)
   }
 }
 
