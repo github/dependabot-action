@@ -36540,16 +36540,23 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
-function run() {
+// This method performs housekeeping checks to remove Docker artifacts
+// which were left behind by old versions of the action or any jobs
+// which may have crashed before deleting their own containers or networks
+//
+// cutoff - a Go duration string to pass to the Docker API's 'until' argument, default '24h'
+function run(cutoff = '24h') {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const docker = new dockerode_1.default();
-            const untilFilter = JSON.stringify({ until: '24h' });
+            const untilFilter = { until: [cutoff] };
+            core.info(`Pruning networks older than ${cutoff}`);
             yield docker.pruneNetworks({ filters: untilFilter });
+            core.info(`Pruning containers older than ${cutoff}`);
             yield docker.pruneContainers({ filters: untilFilter });
         }
         catch (error) {
-            core.debug(`Error cleaning up: ${error.message}`);
+            core.error(`Error cleaning up: ${error.message}`);
         }
     });
 }
