@@ -1,5 +1,10 @@
 import * as core from '@actions/core'
 import Docker from 'dockerode'
+import {
+  UPDATER_IMAGE_NAME,
+  PROXY_IMAGE_NAME,
+  repositoryName
+} from './docker-tags'
 
 // This method performs housekeeping checks to remove Docker artifacts
 // which were left behind by old versions of the action or any jobs
@@ -14,9 +19,47 @@ export async function run(cutoff = '24h'): Promise<void> {
     await docker.pruneNetworks({filters: untilFilter})
     core.info(`Pruning containers older than ${cutoff}`)
     await docker.pruneContainers({filters: untilFilter})
+    await cleanupOldImageVersions(docker, UPDATER_IMAGE_NAME)
+    await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
   } catch (error) {
     core.error(`Error cleaning up: ${error.message}`)
   }
+}
+
+async function cleanupOldImageVersions(
+  docker: Docker,
+  imageName: string
+): Promise<void> {
+  const repo = repositoryName(imageName)
+  const options = {
+    filters: {
+      reference: [repo]
+    }
+  }
+
+  core.info(`Cleaning up images for ${repo}`)
+
+  docker.listImages(options, async function (err, images) {
+    if (images && images.length > 0) {
+      for (const imageInfo of images) {
+        if (imageInfo.RepoDigests?.includes(imageName)) {
+          core.info(`Skipping current image ${imageInfo.RepoDigests}`)
+          continue
+        }
+
+        core.info(`Removing image ${imageInfo.RepoDigests}`)
+        try {
+          await docker.getImage(imageInfo.Id).remove()
+        } catch (error) {
+          if (error.statusCode === 409) {
+            core.info(
+              `Unable to remove ${imageInfo.RepoDigests} as it is currently in use`
+            )
+          }
+        }
+      }
+    }
+  })
 }
 
 run()

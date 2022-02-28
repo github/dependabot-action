@@ -1,6 +1,14 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 4832:
+/***/ ((module) => {
+
+"use strict";
+module.exports = JSON.parse('{"proxy":"docker.pkg.github.com/github/dependabot-update-job-proxy@sha256:208134c602d749400c050b03469dbe6d38af64363492f0f70ea5aba916f32ff9","updater":"docker.pkg.github.com/dependabot/dependabot-updater@sha256:3d6c07043f4f2baf32047634a00a6581cf1124f12a30dcc859ab128f24333a3a"}');
+
+/***/ }),
+
 /***/ 7351:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -36540,6 +36548,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
+const docker_tags_1 = __nccwpck_require__(4665);
 // This method performs housekeeping checks to remove Docker artifacts
 // which were left behind by old versions of the action or any jobs
 // which may have crashed before deleting their own containers or networks
@@ -36554,6 +36563,8 @@ function run(cutoff = '24h') {
             yield docker.pruneNetworks({ filters: untilFilter });
             core.info(`Pruning containers older than ${cutoff}`);
             yield docker.pruneContainers({ filters: untilFilter });
+            yield cleanupOldImageVersions(docker, docker_tags_1.UPDATER_IMAGE_NAME);
+            yield cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
         }
         catch (error) {
             core.error(`Error cleaning up: ${error.message}`);
@@ -36561,7 +36572,68 @@ function run(cutoff = '24h') {
     });
 }
 exports.run = run;
+function cleanupOldImageVersions(docker, imageName) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const repo = docker_tags_1.repositoryName(imageName);
+        const options = {
+            filters: {
+                reference: [repo]
+            }
+        };
+        core.info(`Cleaning up images for ${repo}`);
+        docker.listImages(options, function (err, images) {
+            var _a;
+            return __awaiter(this, void 0, void 0, function* () {
+                if (images && images.length > 0) {
+                    for (const imageInfo of images) {
+                        if ((_a = imageInfo.RepoDigests) === null || _a === void 0 ? void 0 : _a.includes(imageName)) {
+                            core.info(`Skipping current image ${imageInfo.RepoDigests}`);
+                            continue;
+                        }
+                        core.info(`Removing image ${imageInfo.RepoDigests}`);
+                        try {
+                            yield docker.getImage(imageInfo.Id).remove();
+                        }
+                        catch (error) {
+                            if (error.statusCode === 409) {
+                                core.info(`Unable to remove ${imageInfo.RepoDigests} as it is currently in use`);
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    });
+}
 run();
+
+
+/***/ }),
+
+/***/ 4665:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+const containers_json_1 = __importDefault(__nccwpck_require__(4832));
+exports.UPDATER_IMAGE_NAME = containers_json_1.default.updater;
+exports.PROXY_IMAGE_NAME = containers_json_1.default.proxy;
+const imageNamePattern = '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))((:[a-zA-Z0-9._/-]+)|(@sha256:[a-zA-Z0-9]{64}))?$';
+function repositoryName(imageName) {
+    const match = imageName.match(imageNamePattern);
+    if (match === null || match === void 0 ? void 0 : match.groups) {
+        return match.groups['repository'];
+    }
+    else {
+        throw Error('invalid image name');
+    }
+}
+exports.repositoryName = repositoryName;
 
 
 /***/ }),
