@@ -12,7 +12,8 @@
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
     "all": "npm run format && npm run lint && npm run package && npm test",
-    "dependabot": "npx ts-node src/cli.ts"
+    "dependabot": "npx ts-node src/cli.ts",
+    "cleanup-docker": "ts-node src/cleanup.ts"
   },
   "repository": {
     "type": "git",
