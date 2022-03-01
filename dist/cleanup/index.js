@@ -36545,7 +36545,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.cleanupOldImageVersions = exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
 const docker_tags_1 = __nccwpck_require__(4665);
@@ -36582,21 +36582,31 @@ function cleanupOldImageVersions(docker, imageName) {
         };
         core.info(`Cleaning up images for ${repo}`);
         docker.listImages(options, function (err, images) {
-            var _a;
+            var _a, _b;
             return __awaiter(this, void 0, void 0, function* () {
                 if (images && images.length > 0) {
                     for (const imageInfo of images) {
-                        if ((_a = imageInfo.RepoDigests) === null || _a === void 0 ? void 0 : _a.includes(imageName)) {
-                            core.info(`Skipping current image ${imageInfo.RepoDigests}`);
+                        // The given imageName is expected to be a digest, however to avoid any surprises in future
+                        // we fail over to check for a match on tags as well.
+                        //
+                        // This means we won't remove any image which matches an imageName of either of these notations:
+                        // - dependabot/image@sha256:$REF (current implementation)
+                        // - dependabot/image:v1
+                        //
+                        // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
+                        // this was the active version.
+                        if (((_a = imageInfo.RepoDigests) === null || _a === void 0 ? void 0 : _a.includes(imageName)) ||
+                            ((_b = imageInfo.RepoTags) === null || _b === void 0 ? void 0 : _b.includes(imageName))) {
+                            core.info(`Skipping current image ${imageInfo.Id}`);
                             continue;
                         }
-                        core.info(`Removing image ${imageInfo.RepoDigests}`);
+                        core.info(`Removing image ${imageInfo.Id}`);
                         try {
                             yield docker.getImage(imageInfo.Id).remove();
                         }
                         catch (error) {
                             if (error.statusCode === 409) {
-                                core.info(`Unable to remove ${imageInfo.RepoDigests} as it is currently in use`);
+                                core.info(`Unable to remove ${imageInfo.Id} as it is currently in use`);
                             }
                         }
                     }
@@ -36605,6 +36615,7 @@ function cleanupOldImageVersions(docker, imageName) {
         });
     });
 }
+exports.cleanupOldImageVersions = cleanupOldImageVersions;
 run();
 
 

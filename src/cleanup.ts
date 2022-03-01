@@ -26,7 +26,7 @@ export async function run(cutoff = '24h'): Promise<void> {
   }
 }
 
-async function cleanupOldImageVersions(
+export async function cleanupOldImageVersions(
   docker: Docker,
   imageName: string
 ): Promise<void> {
@@ -42,18 +42,30 @@ async function cleanupOldImageVersions(
   docker.listImages(options, async function (err, images) {
     if (images && images.length > 0) {
       for (const imageInfo of images) {
-        if (imageInfo.RepoDigests?.includes(imageName)) {
-          core.info(`Skipping current image ${imageInfo.RepoDigests}`)
+        // The given imageName is expected to be a digest, however to avoid any surprises in future
+        // we fail over to check for a match on tags as well.
+        //
+        // This means we won't remove any image which matches an imageName of either of these notations:
+        // - dependabot/image@sha256:$REF (current implementation)
+        // - dependabot/image:v1
+        //
+        // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
+        // this was the active version.
+        if (
+          imageInfo.RepoDigests?.includes(imageName) ||
+          imageInfo.RepoTags?.includes(imageName)
+        ) {
+          core.info(`Skipping current image ${imageInfo.Id}`)
           continue
         }
 
-        core.info(`Removing image ${imageInfo.RepoDigests}`)
+        core.info(`Removing image ${imageInfo.Id}`)
         try {
           await docker.getImage(imageInfo.Id).remove()
         } catch (error) {
           if (error.statusCode === 409) {
             core.info(
-              `Unable to remove ${imageInfo.RepoDigests} as it is currently in use`
+              `Unable to remove ${imageInfo.Id} as it is currently in use`
             )
           }
         }
