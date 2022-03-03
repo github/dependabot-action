@@ -39,9 +39,9 @@ export async function cleanupOldImageVersions(
 
   core.info(`Cleaning up images for ${repo}`)
 
-  docker.listImages(options, async function (err, images) {
-    if (images && images.length > 0) {
-      for (const imageInfo of images) {
+  docker.listImages(options, async function (err, imageInfoList) {
+    if (imageInfoList && imageInfoList.length > 0) {
+      for (const imageInfo of imageInfoList) {
         // The given imageName is expected to be a digest, however to avoid any surprises in future
         // we fail over to check for a match on tags as well.
         //

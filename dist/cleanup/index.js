@@ -36581,11 +36581,11 @@ function cleanupOldImageVersions(docker, imageName) {
             }
         };
         core.info(`Cleaning up images for ${repo}`);
-        docker.listImages(options, function (err, images) {
+        docker.listImages(options, function (err, imageInfoList) {
             var _a, _b;
             return __awaiter(this, void 0, void 0, function* () {
-                if (images && images.length > 0) {
-                    for (const imageInfo of images) {
+                if (imageInfoList && imageInfoList.length > 0) {
+                    for (const imageInfo of imageInfoList) {
                         // The given imageName is expected to be a digest, however to avoid any surprises in future
                         // we fail over to check for a match on tags as well.
                         //
