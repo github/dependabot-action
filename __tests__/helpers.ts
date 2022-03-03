@@ -58,3 +58,7 @@ export const eventFixturePath = (fixtureName: string): string => {
 export const integration = process.env.SKIP_INTEGRATION_TESTS
   ? describe.skip
   : describe
+
+export async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
