@@ -2,7 +2,7 @@ version: 2
 registries:
   ghpr:
     type: docker-registry
-    url: https://docker.pkg.github.com
+    url: docker.pkg.github.com
     username: x
     password: ${{ secrets.DEPENDABOT_GHPR_TOKEN }}
 updates:
