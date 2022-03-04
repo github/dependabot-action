@@ -30,7 +30,7 @@ jobs:
     if: needs.fetch-dependabot-metadata.output.package-ecosystem == 'docker' || ( needs.fetch-dependabot-metadata.output.package-ecosystem == 'npm_and_yarn' && needs.fetch-dependabot-metadata.outputs.dependency-type == 'direct:production' )
     steps:
       # Check out using a PAT so any pushed changes will trigger checkruns
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.DEPENDABOT_AUTOBUILD }}
