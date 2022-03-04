@@ -1,1 +1,1 @@
-FROM docker.pkg.github.com/github/dependabot-update-job-proxy@sha256:208134c602d749400c050b03469dbe6d38af64363492f0f70ea5aba916f32ff9
+FROM docker.pkg.github.com/github/dependabot-update-job-proxy@sha256:21ca670ef8ef375e4168be3e1cedfe1a165724314299e147303cbeae57d6ba3c
