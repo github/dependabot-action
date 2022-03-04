@@ -5,7 +5,7 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"docker.pkg.github.com/github/dependabot-update-job-proxy@sha256:208134c602d749400c050b03469dbe6d38af64363492f0f70ea5aba916f32ff9","updater":"docker.pkg.github.com/dependabot/dependabot-updater@sha256:3d6c07043f4f2baf32047634a00a6581cf1124f12a30dcc859ab128f24333a3a"}');
+module.exports = JSON.parse('{"proxy":"docker.pkg.github.com/github/dependabot-update-job-proxy@sha256:21ca670ef8ef375e4168be3e1cedfe1a165724314299e147303cbeae57d6ba3c","updater":"docker.pkg.github.com/dependabot/dependabot-updater@sha256:a0883887e3144470e09d02bafd8db38e3ca0e7fa82756aa60ffd72a3e56cccbf"}');
 
 /***/ }),
 

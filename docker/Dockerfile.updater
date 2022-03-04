@@ -1,1 +1,1 @@
-FROM docker.pkg.github.com/dependabot/dependabot-updater@sha256:3d6c07043f4f2baf32047634a00a6581cf1124f12a30dcc859ab128f24333a3a
+FROM docker.pkg.github.com/dependabot/dependabot-updater@sha256:a0883887e3144470e09d02bafd8db38e3ca0e7fa82756aa60ffd72a3e56cccbf
