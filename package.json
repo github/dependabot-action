@@ -52,7 +52,7 @@
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-github": "^4.1.5",
     "eslint-plugin-jest": "^25.2.4",
-    "husky": "^7.0.2",
+    "husky": "^7.0.4",
     "jest": "^27.5.1",
     "jest-circus": "^27.3.1",
     "js-yaml": "^4.1.0",
