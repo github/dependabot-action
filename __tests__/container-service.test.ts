@@ -40,7 +40,7 @@ describe('ContainerService', () => {
 
     test('raises an exception', async () => {
       await expect(ContainerService.run(container)).rejects.toThrow(
-        /Failure running container/
+        /The updater encountered one or more errors/
       )
     })
   })

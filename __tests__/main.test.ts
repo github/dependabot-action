@@ -3,6 +3,7 @@ import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient} from '../src/api-client'
+import {ContainerRuntimeError} from '../src/container-service'
 import {Updater, UpdaterFetchError} from '../src/updater'
 import {ImageService} from '../src/image-service'
 import * as inputs from '../src/inputs'
@@ -242,7 +243,41 @@ describe('run', () => {
     })
   })
 
-  describe('when there is an error running the update', () => {
+  describe('when there the update container exits with an error signal', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(Updater.prototype, 'runUpdater')
+        .mockImplementationOnce(
+          jest.fn(async () =>
+            Promise.reject(new ContainerRuntimeError('the container melted'))
+          )
+        )
+
+      context = new Context()
+    })
+
+    test('it fails the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        `Dependabot encountered an error performing the update\n\nError: the container melted\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+      )
+    })
+
+    test('it relays a failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_updater',
+        'error-details': {
+          'action-error': 'the container melted'
+        }
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when there is an unexpected error running the update', () => {
     beforeEach(() => {
       jest
         .spyOn(Updater.prototype, 'runUpdater')
