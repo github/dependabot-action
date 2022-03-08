@@ -26,3 +26,5 @@ git add package.json package-lock.json
 git commit -m "${new_version}"
 
 echo "Branch prepared for ${new_version}"
+echo "To prepare a release, run:"
+echo "  gh create ${new_version} --draft --generate-notes"
