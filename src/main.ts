@@ -59,10 +59,13 @@ export async function run(context: Context): Promise<void> {
       try {
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
-      } catch (error) {
-        core.error('Error fetching updater images')
-
-        await failJob(apiClient, error, DependabotErrorType.Image)
+      } catch (error: any) {
+        await failJob(
+          apiClient,
+          'Error fetching updater images',
+          error,
+          DependabotErrorType.Image
+        )
         return
       }
       core.endGroup()
@@ -71,29 +74,42 @@ export async function run(context: Context): Promise<void> {
         core.info('Starting update process')
 
         await updater.runUpdater()
-      } catch (error) {
+      } catch (error: any) {
         // If we have encountered a UpdaterFetchError, the Updater will already have
         // reported the error and marked the job as processed, so we only need to
         // set an exit status.
         if (error instanceof UpdaterFetchError) {
           setFailed(
-            'Dependabot was unable to retrieve the files required to perform the update'
+            'Dependabot was unable to retrieve the files required to perform the update',
+            null
           )
           botSay('finished: unable to fetch files')
           return
         } else {
-          core.error('Error performing update')
-          await failJob(apiClient, error, DependabotErrorType.UpdateRun)
+          await failJob(
+            apiClient,
+            'Dependabot encountered an error performing the update',
+            error,
+            DependabotErrorType.UpdateRun
+          )
           return
         }
       }
       botSay('finished')
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof CredentialFetchingError) {
-        core.error('Error retrieving update job credentials')
-        await failJob(apiClient, error, DependabotErrorType.UpdateRun)
+        await failJob(
+          apiClient,
+          'Dependabot was unable to retrieve job credentials',
+          error,
+          DependabotErrorType.UpdateRun
+        )
       } else {
-        await failJob(apiClient, error)
+        await failJob(
+          apiClient,
+          'Dependabot was unable to start the update',
+          error
+        )
       }
 
       return
@@ -104,13 +120,14 @@ export async function run(context: Context): Promise<void> {
     //
     // We output the raw error in the Action logs and defer
     // to workflow_run monitoring to detect the job failure.
-    setFailed(error)
+    setFailed('Dependabot encountered an unexpected problem', error)
     botSay('finished: unexpected error')
   }
 }
 
 async function failJob(
   apiClient: ApiClient,
+  message: string,
   error: Error,
   errorType = DependabotErrorType.Unknown
 ): Promise<void> {
@@ -121,7 +138,7 @@ async function failJob(
     }
   })
   await apiClient.markJobAsProcessed()
-  setFailed(error.message)
+  setFailed(message, error)
   botSay('finished: error reported to Dependabot')
 }
 
@@ -129,17 +146,22 @@ function botSay(message: string): void {
   core.info(`🤖 ~ ${message} ~`)
 }
 
-function setFailed(message: string | Error): void {
+function setFailed(message: string, error: Error | null): void {
   if (jobId) {
-    message = [
-      message,
-      `For more information see: ${dependabotJobUrl(
-        jobId
-      )} (write access required)`
-    ].join('\n\n')
+    message = [message, error, dependabotJobHelp()].filter(Boolean).join('\n\n')
   }
 
   core.setFailed(message)
+}
+
+function dependabotJobHelp(): string | null {
+  if (jobId) {
+    return `For more information see: ${dependabotJobUrl(
+      jobId
+    )} (write access required)`
+  } else {
+    return null
+  }
 }
 
 function dependabotJobUrl(id: number): string {

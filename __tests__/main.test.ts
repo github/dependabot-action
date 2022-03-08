@@ -133,7 +133,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Error: unexpected error retrieving job params\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an unexpected problem\n\nError: unexpected error retrieving job params\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
       )
     })
 
@@ -162,7 +162,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Error: error getting job details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an unexpected problem\n\nError: error getting job details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
       )
     })
 
@@ -259,7 +259,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('error running the update')
+        `Dependabot encountered an error performing the update\n\nError: error running the update\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
       )
     })
 
