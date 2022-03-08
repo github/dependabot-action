@@ -4,7 +4,7 @@ import {pack} from 'tar-stream'
 import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
 import {outStream, errStream} from './utils'
 
-class ContainerRuntimeError extends Error {}
+export class ContainerRuntimeError extends Error {}
 
 export const ContainerService = {
   async storeInput(
@@ -50,8 +50,9 @@ export const ContainerService = {
       if (outcome.StatusCode === 0) {
         return true
       } else {
+        core.info(`Failure running container ${container.id}`)
         throw new ContainerRuntimeError(
-          `Failure running container ${container.id}`
+          'The updater encountered one or more errors.'
         )
       }
     } finally {
