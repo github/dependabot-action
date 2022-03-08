@@ -29,6 +29,9 @@ describe('run', () => {
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
+    process.env.GITHUB_SERVER_URL = 'https://test.dev'
+    process.env.GITHUB_REPOSITORY = 'foo/bar'
+
     markJobAsProcessedSpy = jest.spyOn(
       ApiClient.prototype,
       'markJobAsProcessed'
@@ -130,7 +133,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        new Error('unexpected error retrieving job params')
+        `Error: unexpected error retrieving job params\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
       )
     })
 
@@ -159,7 +162,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        new Error('error getting job details')
+        `Error: error getting job details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
       )
     })
 

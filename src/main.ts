@@ -130,14 +130,16 @@ function botSay(message: string): void {
 }
 
 function setFailed(message: string | Error): void {
-  core.setFailed(message)
   if (jobId) {
-    core.error(
+    message = [
+      message,
       `For more information see: ${dependabotJobUrl(
         jobId
       )} (write access required)`
-    )
+    ].join('\n\n')
   }
+
+  core.setFailed(message)
 }
 
 function dependabotJobUrl(id: number): string {
