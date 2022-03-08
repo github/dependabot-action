@@ -74733,12 +74733,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ContainerService = void 0;
+exports.ContainerService = exports.ContainerRuntimeError = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const tar_stream_1 = __nccwpck_require__(2283);
 const utils_1 = __nccwpck_require__(1314);
 class ContainerRuntimeError extends Error {
 }
+exports.ContainerRuntimeError = ContainerRuntimeError;
 exports.ContainerService = {
     storeInput(name, path, container, input) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -74771,7 +74772,8 @@ exports.ContainerService = {
                     return true;
                 }
                 else {
-                    throw new ContainerRuntimeError(`Failure running container ${container.id}`);
+                    core.info(`Failure running container ${container.id}`);
+                    throw new ContainerRuntimeError('The updater encountered one or more errors.');
                 }
             }
             finally {
@@ -75117,8 +75119,7 @@ function run(context) {
                     yield image_service_1.ImageService.pull(docker_tags_1.PROXY_IMAGE_NAME);
                 }
                 catch (error) {
-                    core.error('Error fetching updater images');
-                    yield failJob(apiClient, error, DependabotErrorType.Image);
+                    yield failJob(apiClient, 'Error fetching updater images', error, DependabotErrorType.Image);
                     return;
                 }
                 core.endGroup();
@@ -75131,13 +75132,12 @@ function run(context) {
                     // reported the error and marked the job as processed, so we only need to
                     // set an exit status.
                     if (error instanceof updater_1.UpdaterFetchError) {
-                        setFailed('Dependabot was unable to retrieve the files required to perform the update');
+                        setFailed('Dependabot was unable to retrieve the files required to perform the update', null);
                         botSay('finished: unable to fetch files');
                         return;
                     }
                     else {
-                        core.error('Error performing update');
-                        yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                        yield failJob(apiClient, 'Dependabot encountered an error performing the update', error, DependabotErrorType.UpdateRun);
                         return;
                     }
                 }
@@ -75145,11 +75145,10 @@ function run(context) {
             }
             catch (error) {
                 if (error instanceof api_client_1.CredentialFetchingError) {
-                    core.error('Error retrieving update job credentials');
-                    yield failJob(apiClient, error, DependabotErrorType.UpdateRun);
+                    yield failJob(apiClient, 'Dependabot was unable to retrieve job credentials', error, DependabotErrorType.UpdateRun);
                 }
                 else {
-                    yield failJob(apiClient, error);
+                    yield failJob(apiClient, 'Dependabot was unable to start the update', error);
                 }
                 return;
             }
@@ -75160,13 +75159,13 @@ function run(context) {
             //
             // We output the raw error in the Action logs and defer
             // to workflow_run monitoring to detect the job failure.
-            setFailed(error);
+            setFailed('Dependabot encountered an unexpected problem', error);
             botSay('finished: unexpected error');
         }
     });
 }
 exports.run = run;
-function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
+function failJob(apiClient, message, error, errorType = DependabotErrorType.Unknown) {
     return __awaiter(this, void 0, void 0, function* () {
         yield apiClient.reportJobError({
             'error-type': errorType,
@@ -75175,17 +75174,25 @@ function failJob(apiClient, error, errorType = DependabotErrorType.Unknown) {
             }
         });
         yield apiClient.markJobAsProcessed();
-        setFailed(error.message);
+        setFailed(message, error);
         botSay('finished: error reported to Dependabot');
     });
 }
 function botSay(message) {
     core.info(`🤖 ~ ${message} ~`);
 }
-function setFailed(message) {
-    core.setFailed(message);
+function setFailed(message, error) {
     if (jobId) {
-        core.error(`For more information see: ${dependabotJobUrl(jobId)} (write access required)`);
+        message = [message, error, dependabotJobHelp()].filter(Boolean).join('\n\n');
+    }
+    core.setFailed(message);
+}
+function dependabotJobHelp() {
+    if (jobId) {
+        return `For more information see: ${dependabotJobUrl(jobId)} (write access required)`;
+    }
+    else {
+        return null;
     }
 }
 function dependabotJobUrl(id) {
