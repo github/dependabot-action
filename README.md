@@ -4,7 +4,7 @@
 
 # Updater Action
 
-**Name:** `dependabot/updater-action`
+**Name:** `github/dependabot-action`
 
 Runs Dependabot workloads via GitHub Actions.
 
