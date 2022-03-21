@@ -49,11 +49,11 @@ export const ImageService = {
       } // else fallthrough to pull
     }
 
-    const auth = {
-      username: 'x',
-      password: process.env.GITHUB_TOKEN
-    }
-    await this.fetchImage(imageName, auth, docker)
+    // const auth = {
+    //   username: 'x',
+    //   password: process.env.GITHUB_TOKEN
+    // }
+    await this.fetchImage(imageName, {}, docker)
   },
 
   /* Retrieve the imageName using the auth details provided, if any */
