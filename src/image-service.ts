@@ -14,12 +14,9 @@ const endOfStream = async (docker: Docker, stream: Readable): Promise<void> => {
 export const ImageService = {
   async pull(imageName: string, force = false): Promise<void> {
     /*
-      This method fetches images using a GITHUB_TOKEN we should check two things:
-      - The process has a GITHUB_TOKEN set so we don't attempt a failed call to docker
-      - The image being requested is actually hosted on GitHub.
+      This method fetches images hosts on GitHub infrastructure.
 
-      We expose the `fetch_image` utility method to allow us to pull in arbitrary images
-      without auth in unit tests.
+      We expose the `fetch_image` utility method to allow us to pull in arbitrary images for unit tests.
     */
     if (
       !(
@@ -30,10 +27,6 @@ export const ImageService = {
       throw new Error(
         'Only images distributed via docker.pkg.github.com or ghcr.io can be fetched'
       )
-    }
-
-    if (!process.env.GITHUB_TOKEN) {
-      throw new Error('No GITHUB_TOKEN set, unable to pull images.')
     }
 
     const docker = new Docker()
@@ -49,11 +42,8 @@ export const ImageService = {
       } // else fallthrough to pull
     }
 
-    // const auth = {
-    //   username: 'x',
-    //   password: process.env.GITHUB_TOKEN
-    // }
-    await this.fetchImage(imageName, {}, docker)
+    const auth = {} // Images are public so not authentication info is required
+    await this.fetchImage(imageName, auth, docker)
   },
 
   /* Retrieve the imageName using the auth details provided, if any */
