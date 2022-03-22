@@ -31,10 +31,6 @@ jobs:
 
       - name: Pre-fetch the pinned images
         run: npm run fetch-images
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run integration tests
         run: npm run test-integration
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
