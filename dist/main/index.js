@@ -21703,6 +21703,8 @@ var _getValueLength = function(bytes, remaining) {
  * @param [options] object with options or boolean strict flag
  *          [strict] true to be strict when checking value lengths, false to
  *            allow truncated values (default: true).
+ *          [parseAllBytes] true to ensure all bytes are parsed
+ *            (default: true)
  *          [decodeBitStrings] true to attempt to decode the content of
  *            BIT STRINGs (not OCTET STRINGs) using strict mode. Note that
  *            without schema support to understand the data context this can
@@ -21710,23 +21712,30 @@ var _getValueLength = function(bytes, remaining) {
  *            flag will be deprecated or removed as soon as schema support is
  *            available. (default: true)
  *
+ * @throws Will throw an error for various malformed input conditions.
+ *
  * @return the parsed asn1 object.
  */
 asn1.fromDer = function(bytes, options) {
   if(options === undefined) {
     options = {
       strict: true,
+      parseAllBytes: true,
       decodeBitStrings: true
     };
   }
   if(typeof options === 'boolean') {
     options = {
       strict: options,
+      parseAllBytes: true,
       decodeBitStrings: true
     };
   }
   if(!('strict' in options)) {
     options.strict = true;
+  }
+  if(!('parseAllBytes' in options)) {
+    options.parseAllBytes = true;
   }
   if(!('decodeBitStrings' in options)) {
     options.decodeBitStrings = true;
@@ -21737,7 +21746,15 @@ asn1.fromDer = function(bytes, options) {
     bytes = forge.util.createBuffer(bytes);
   }
 
-  return _fromDer(bytes, bytes.length(), 0, options);
+  var byteCount = bytes.length();
+  var value = _fromDer(bytes, bytes.length(), 0, options);
+  if(options.parseAllBytes && bytes.length() !== 0) {
+    var error = new Error('Unparsed DER bytes remain after ASN.1 parsing.');
+    error.byteCount = byteCount;
+    error.remaining = bytes.length();
+    throw error;
+  }
+  return value;
 };
 
 /**
@@ -21858,7 +21875,6 @@ function _fromDer(bytes, remaining, depth, options) {
         start = bytes.length();
         var subOptions = {
           // enforce strict mode to avoid parsing ASN.1 from plain data
-          verbose: options.verbose,
           strict: true,
           decodeBitStrings: true
         };
@@ -21907,6 +21923,7 @@ function _fromDer(bytes, remaining, depth, options) {
       }
     } else {
       value = bytes.getBytes(length);
+      remaining -= length;
     }
   }
 
@@ -22683,7 +22700,16 @@ asn1.prettyPrint = function(obj, level, indentation) {
       }
       rval += '0x' + forge.util.bytesToHex(obj.value);
     } else if(obj.type === asn1.Type.UTF8) {
-      rval += forge.util.decodeUtf8(obj.value);
+      try {
+        rval += forge.util.decodeUtf8(obj.value);
+      } catch(e) {
+        if(e.message === 'URI malformed') {
+          rval +=
+            '0x' + forge.util.bytesToHex(obj.value) + ' (malformed UTF8)';
+        } else {
+          throw e;
+        }
+      }
     } else if(obj.type === asn1.Type.PRINTABLESTRING ||
       obj.type === asn1.Type.IA5String) {
       rval += obj.value;
@@ -28174,6 +28200,10 @@ _IN('1.3.14.3.2.29', 'sha1WithRSASignature');
 _IN('2.16.840.1.101.3.4.2.1', 'sha256');
 _IN('2.16.840.1.101.3.4.2.2', 'sha384');
 _IN('2.16.840.1.101.3.4.2.3', 'sha512');
+_IN('2.16.840.1.101.3.4.2.4', 'sha224');
+_IN('2.16.840.1.101.3.4.2.5', 'sha512-224');
+_IN('2.16.840.1.101.3.4.2.6', 'sha512-256');
+_IN('1.2.840.113549.2.2', 'md2');
 _IN('1.2.840.113549.2.5', 'md5');
 
 // pkcs#7 content types
@@ -34815,6 +34845,40 @@ var publicKeyValidator = forge.pki.rsa.publicKeyValidator = {
   }]
 };
 
+// validator for a DigestInfo structure
+var digestInfoValidator = {
+  name: 'DigestInfo',
+  tagClass: asn1.Class.UNIVERSAL,
+  type: asn1.Type.SEQUENCE,
+  constructed: true,
+  value: [{
+    name: 'DigestInfo.DigestAlgorithm',
+    tagClass: asn1.Class.UNIVERSAL,
+    type: asn1.Type.SEQUENCE,
+    constructed: true,
+    value: [{
+      name: 'DigestInfo.DigestAlgorithm.algorithmIdentifier',
+      tagClass: asn1.Class.UNIVERSAL,
+      type: asn1.Type.OID,
+      constructed: false,
+      capture: 'algorithmIdentifier'
+    }, {
+      // NULL paramters
+      name: 'DigestInfo.DigestAlgorithm.parameters',
+      tagClass: asn1.Class.UNIVERSAL,
+      type: asn1.Type.NULL,
+      constructed: false
+    }]
+  }, {
+    // digest
+    name: 'DigestInfo.digest',
+    tagClass: asn1.Class.UNIVERSAL,
+    type: asn1.Type.OCTETSTRING,
+    constructed: false,
+    capture: 'digest'
+  }]
+};
+
 /**
  * Wrap digest in DigestInfo object.
  *
@@ -35643,14 +35707,26 @@ pki.setRsaPublicKey = pki.rsa.setPublicKey = function(n, e) {
    *          a Forge PSS object for RSASSA-PSS,
    *          'NONE' or null for none, DigestInfo will not be expected, but
    *            PKCS#1 v1.5 padding will still be used.
+   * @param options optional verify options
+   *          _parseAllDigestBytes testing flag to control parsing of all
+   *            digest bytes. Unsupported and not for general usage.
+   *            (default: true)
    *
    * @return true if the signature was verified, false if not.
    */
-  key.verify = function(digest, signature, scheme) {
+  key.verify = function(digest, signature, scheme, options) {
     if(typeof scheme === 'string') {
       scheme = scheme.toUpperCase();
     } else if(scheme === undefined) {
       scheme = 'RSASSA-PKCS1-V1_5';
+    }
+    if(options === undefined) {
+      options = {
+        _parseAllDigestBytes: true
+      };
+    }
+    if(!('_parseAllDigestBytes' in options)) {
+      options._parseAllDigestBytes = true;
     }
 
     if(scheme === 'RSASSA-PKCS1-V1_5') {
@@ -35659,9 +35735,41 @@ pki.setRsaPublicKey = pki.rsa.setPublicKey = function(n, e) {
           // remove padding
           d = _decodePkcs1_v1_5(d, key, true);
           // d is ASN.1 BER-encoded DigestInfo
-          var obj = asn1.fromDer(d);
+          var obj = asn1.fromDer(d, {
+            parseAllBytes: options._parseAllDigestBytes
+          });
+
+          // validate DigestInfo
+          var capture = {};
+          var errors = [];
+          if(!asn1.validate(obj, digestInfoValidator, capture, errors)) {
+            var error = new Error(
+              'ASN.1 object does not contain a valid RSASSA-PKCS1-v1_5 ' +
+              'DigestInfo value.');
+            error.errors = errors;
+            throw error;
+          }
+          // check hash algorithm identifier
+          // see PKCS1-v1-5DigestAlgorithms in RFC 8017
+          // FIXME: add support to vaidator for strict value choices
+          var oid = asn1.derToOid(capture.algorithmIdentifier);
+          if(!(oid === forge.oids.md2 ||
+            oid === forge.oids.md5 ||
+            oid === forge.oids.sha1 ||
+            oid === forge.oids.sha224 ||
+            oid === forge.oids.sha256 ||
+            oid === forge.oids.sha384 ||
+            oid === forge.oids.sha512 ||
+            oid === forge.oids['sha512-224'] ||
+            oid === forge.oids['sha512-256'])) {
+            var error = new Error(
+              'Unknown RSASSA-PKCS1-v1_5 DigestAlgorithm identifier.');
+            error.oid = oid;
+            throw error;
+          }
+
           // compare the given digest to the decrypted one
-          return digest === obj.value[1].value;
+          return digest === capture.digest;
         }
       };
     } else if(scheme === 'NONE' || scheme === 'NULL' || scheme === null) {
