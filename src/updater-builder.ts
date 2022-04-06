@@ -50,7 +50,8 @@ export class UpdaterBuilder {
         `HTTP_PROXY=${this.proxy.url}`,
         `https_proxy=${this.proxy.url}`,
         `HTTPS_PROXY=${this.proxy.url}`,
-        `ENABLE_CONNECTIVITY_CHECK=1`
+        `ENABLE_CONNECTIVITY_CHECK=1`,
+        `OPEN_TIMEOUT_IN_SECONDS=10`
       ],
       Cmd: ['sh', '-c', cmd],
       HostConfig: {
