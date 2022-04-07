@@ -42,7 +42,7 @@ export class UpdaterBuilder {
         `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
         `DEPENDABOT_JOB_TOKEN=${this.jobParams.jobToken}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
-        `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=10`,
+        `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=15`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
