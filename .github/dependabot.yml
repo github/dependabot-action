@@ -8,8 +8,16 @@ updates:
     directory: '/docker'
     schedule:
       interval: 'daily'
+    registries:
+      - ghcr
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
 
+registries:
+  ghcr:
+    type: docker-registry
+    url: ghcr.io
+    username: x
+    password: ${{ secrets.DEPENDABOT_GHPR_TOKEN }}
