@@ -51,7 +51,7 @@ export class Updater {
       this.apiClient.params.jobId,
       this.credentials
     )
-    proxy.container.start()
+    await proxy.container.start()
 
     try {
       const files = await this.runFileFetcher(proxy)

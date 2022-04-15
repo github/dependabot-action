@@ -35,9 +35,6 @@ integration('ProxyBuilder', () => {
     const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
-    expect(proxy.networkName).toBe('dependabot-job-1-internal-network')
-    expect(proxy.url).toMatch(/^http:\/\/1:.+job-1-proxy:1080$/)
-
     const containerInfo = await proxy.container.inspect()
     expect(containerInfo.Name).toBe('/dependabot-job-1-proxy')
     expect(containerInfo.Config.Entrypoint).toEqual([
@@ -45,6 +42,16 @@ integration('ProxyBuilder', () => {
       '-c',
       '/usr/sbin/update-ca-certificates && /update-job-proxy'
     ])
+
+    expect(proxy.networkName).toBe('dependabot-job-1-internal-network')
+
+    const proxyUrl = await proxy.url()
+    expect(proxyUrl).toMatch(/^http:\/\/1:.+:1080$/)
+
+    const proxyIPAddress =
+      containerInfo.NetworkSettings.Networks[proxy.networkName].IPAddress
+    expect(proxyIPAddress.length).toBeGreaterThan(0)
+    expect(proxyUrl).toContain(proxyIPAddress)
 
     const networkInfo = await proxy.network.inspect()
     expect(networkInfo.Name).toBe('dependabot-job-1-internal-network')
