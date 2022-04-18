@@ -75413,7 +75413,17 @@ class ProxyBuilder {
                 stderr: true
             });
             container.modem.demuxStream(stream, utils_1.outStream('  proxy'), utils_1.errStream('  proxy'));
-            const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`;
+            const url = () => __awaiter(this, void 0, void 0, function* () {
+                const containerInfo = yield container.inspect();
+                if (containerInfo.State.Running === true) {
+                    const ipAddress = containerInfo.NetworkSettings.Networks[`${internalNetworkName}`]
+                        .IPAddress;
+                    return `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${ipAddress}:1080`;
+                }
+                else {
+                    throw new Error("proxy container isn't running");
+                }
+            });
             return {
                 container,
                 network: internalNetwork,
@@ -75557,6 +75567,7 @@ class UpdaterBuilder {
      rm -Rf /usr/share/ca-certificates/ &&\
       /usr/sbin/update-ca-certificates &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
+            const proxyUrl = yield this.proxy.url();
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
                 name: containerName,
@@ -75572,10 +75583,10 @@ class UpdaterBuilder {
                     `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
                     `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
                     `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-                    `http_proxy=${this.proxy.url}`,
-                    `HTTP_PROXY=${this.proxy.url}`,
-                    `https_proxy=${this.proxy.url}`,
-                    `HTTPS_PROXY=${this.proxy.url}`,
+                    `http_proxy=${proxyUrl}`,
+                    `HTTP_PROXY=${proxyUrl}`,
+                    `https_proxy=${proxyUrl}`,
+                    `HTTPS_PROXY=${proxyUrl}`,
                     `ENABLE_CONNECTIVITY_CHECK=1`
                 ],
                 Cmd: ['sh', '-c', cmd],
@@ -75674,7 +75685,7 @@ class Updater {
             fs_1.default.mkdirSync(this.outputHostPath);
             fs_1.default.mkdirSync(this.repoHostPath);
             const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
-            proxy.container.start();
+            yield proxy.container.start();
             try {
                 const files = yield this.runFileFetcher(proxy);
                 yield this.runFileUpdater(proxy, files);

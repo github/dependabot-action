@@ -49,7 +49,9 @@ describe('Updater', () => {
     },
     network: jest.fn(),
     networkName: 'mockNetworkName',
-    url: 'http://localhost',
+    url: () => {
+      'http://localhost'
+    },
     cert: 'mockCertificate',
     shutdown: jest.fn()
   }
