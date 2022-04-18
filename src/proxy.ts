@@ -49,7 +49,7 @@ export type Proxy = {
   container: Container
   network: Network
   networkName: string
-  url: string
+  url: () => Promise<string>
   cert: string
   shutdown: () => Promise<void>
 }
@@ -111,7 +111,19 @@ export class ProxyBuilder {
       errStream('  proxy')
     )
 
-    const url = `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${name}:1080`
+    const url = async (): Promise<string> => {
+      const containerInfo = await container.inspect()
+
+      if (containerInfo.State.Running === true) {
+        const ipAddress =
+          containerInfo.NetworkSettings.Networks[`${internalNetworkName}`]
+            .IPAddress
+        return `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${ipAddress}:1080`
+      } else {
+        throw new Error("proxy container isn't running")
+      }
+    }
+
     return {
       container,
       network: internalNetwork,
