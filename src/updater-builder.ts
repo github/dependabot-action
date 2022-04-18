@@ -32,6 +32,7 @@ export class UpdaterBuilder {
       /usr/sbin/update-ca-certificates &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
 
+    const proxyUrl = await this.proxy.url()
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       name: containerName,
@@ -47,10 +48,10 @@ export class UpdaterBuilder {
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
-        `http_proxy=${this.proxy.url}`,
-        `HTTP_PROXY=${this.proxy.url}`,
-        `https_proxy=${this.proxy.url}`,
-        `HTTPS_PROXY=${this.proxy.url}`,
+        `http_proxy=${proxyUrl}`,
+        `HTTP_PROXY=${proxyUrl}`,
+        `https_proxy=${proxyUrl}`,
+        `HTTPS_PROXY=${proxyUrl}`,
         `ENABLE_CONNECTIVITY_CHECK=1`
       ],
       Cmd: ['sh', '-c', cmd],
