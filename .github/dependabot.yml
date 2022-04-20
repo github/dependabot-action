@@ -12,6 +12,7 @@ updates:
       interval: "monthly"
   - package-ecosystem: 'npm'
     directory: '/'
+    open-pull-requests-limit: 20
     schedule:
       interval: 'monthly'
 
