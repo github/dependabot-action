@@ -97,4 +97,30 @@ integration('ProxyBuilder', () => {
     const stdout = proc.stdout.toString()
     expect(stdout).toEqual('ca-pem-contents')
   })
+
+  jest.setTimeout(20000)
+  it('forwards custom proxy urls if configured', async () => {
+    process.env.HTTP_PROXY = 'HTTP_PROXY'
+
+    const proxy = await builder.run(jobId, credentials)
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', ['exec', id, 'printenv', 'HTTP_PROXY'])
+    const output = proc.stdout.toString()
+    expect(output).toEqual('HTTP_PROXY')
+  })
+
+  jest.setTimeout(20000)
+  it('forwards downcased proxy urls if configured', async () => {
+    process.env.https_proxy = 'https_proxy'
+
+    const proxy = await builder.run(jobId, credentials)
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
+    const output = proc.stdout.toString()
+    expect(output).toEqual('https_proxy')
+  })
 })
