@@ -75486,12 +75486,9 @@ class ProxyBuilder {
                 AttachStdout: true,
                 AttachStderr: true,
                 Env: [
-                    `http_proxy=${process.env.http_proxy}`,
-                    `HTTP_PROXY=${process.env.HTTP_PROXY}`,
-                    `https_proxy=${process.env.https_proxy}`,
-                    `HTTPS_PROXY=${process.env.HTTPS_PROXY}`,
-                    `no_proxy=${process.env.no_proxy}`,
-                    `NO_PROXY=${process.env.NO_PROXY}`,
+                    `http_proxy=${process.env.http_proxy || process.env.HTTP_PROXY}`,
+                    `https_proxy=${process.env.https_proxy || process.env.HTTPS_PROXY}`,
+                    `no_proxy=${process.env.no_proxy || process.env.NO_PROXY}`,
                     `JOB_ID=${jobId}`
                 ],
                 Entrypoint: [
