@@ -112,8 +112,6 @@ integration('ProxyBuilder', () => {
     const proc = spawnSync('docker', ['exec', id, 'printenv', 'http_proxy'])
     const output = proc.stdout.toString().trim()
     expect(output).toMatch(url)
-
-    await proxy.shutdown()
   })
 
   jest.setTimeout(20000)
@@ -128,7 +126,5 @@ integration('ProxyBuilder', () => {
     const proc = spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
     const output = proc.stdout.toString().trim()
     expect(output).toEqual(url)
-
-    await proxy.shutdown()
   })
 })
