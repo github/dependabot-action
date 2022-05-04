@@ -96,31 +96,39 @@ integration('ProxyBuilder', () => {
     ])
     const stdout = proc.stdout.toString()
     expect(stdout).toEqual('ca-pem-contents')
+
+    await proxy.shutdown()
   })
 
   jest.setTimeout(20000)
   it('forwards custom proxy urls if configured', async () => {
-    process.env.HTTP_PROXY = 'HTTP_PROXY'
+    const url = 'http://example.com'
+    process.env.HTTP_PROXY = url
 
     const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
     const id = proxy.container.id
     const proc = spawnSync('docker', ['exec', id, 'printenv', 'http_proxy'])
-    const output = proc.stdout.toString()
-    expect(output).toEqual('HTTP_PROXY')
+    const output = proc.stdout.toString().trim()
+    expect(output).toMatch(url)
+
+    await proxy.shutdown()
   })
 
   jest.setTimeout(20000)
   it('forwards downcased proxy urls if configured', async () => {
-    process.env.https_proxy = 'https_proxy'
+    const url = 'https://example.com'
+    process.env.https_proxy = url
 
     const proxy = await builder.run(jobId, credentials)
     await proxy.container.start()
 
     const id = proxy.container.id
-    const proc = spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
-    const output = proc.stdout.toString()
-    expect(output).toEqual('https_proxy')
+    const proc = await spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
+    const output = proc.stdout.toString().trim()
+    expect(output).toEqual(url)
+
+    await proxy.shutdown()
   })
 })
