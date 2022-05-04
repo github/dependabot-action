@@ -125,7 +125,7 @@ integration('ProxyBuilder', () => {
     await proxy.container.start()
 
     const id = proxy.container.id
-    const proc = await spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
+    const proc = spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
     const output = proc.stdout.toString().trim()
     expect(output).toEqual(url)
 
