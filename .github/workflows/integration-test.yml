@@ -27,7 +27,7 @@ jobs:
           node-version: ${{ steps.nvm.outputs.NVMRC }}
 
       - name: Install npm dependencies
-        run: npm ci
+        run: npm clean-install
 
       - name: Pre-fetch the pinned images
         run: npm run fetch-images
