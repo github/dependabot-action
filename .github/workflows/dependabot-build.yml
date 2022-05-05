@@ -45,7 +45,7 @@ jobs:
           node-version: ${{ steps.nvm.outputs.NVMRC }}
 
       - name: Install npm dependencies
-        run: npm ci
+        run: npm clean-install
 
       # If we're reacting to a Docker PR, we have on extra step to refresh and check in the container manifest,
       # this **must** happen before rebuilding dist/ so it uses the new version of the manifest
