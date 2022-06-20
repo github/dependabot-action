@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/7659/174585920-65023f96-fd57-456d-a4a8-464c8c2affcb.svg" alt="Dependabot" width="336">
+  <img src="https://user-images.githubusercontent.com/7659/174594540-5e29e523-396a-465b-9a6e-6cab5b15a568.svg#gh-light-mode-only" alt="Dependabot" width="336">
+    <img src="https://user-images.githubusercontent.com/7659/174594559-0b3ddaa7-e75b-4f10-9dee-b51431a9fd4c.svg#gh-dark-mode-only" alt="Dependabot" width="336">
 </p>
 
 
