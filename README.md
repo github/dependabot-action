@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="https://s3.eu-west-2.amazonaws.com/dependabot-images/logo-with-name-horizontal.svg?v5" alt="Dependabot" width="336">
+  <img src="https://user-images.githubusercontent.com/7659/174585920-65023f96-fd57-456d-a4a8-464c8c2affcb.svg" alt="Dependabot" width="336">
 </p>
+
 
 # Updater Action
 
