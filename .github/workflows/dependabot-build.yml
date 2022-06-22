@@ -50,7 +50,7 @@ jobs:
       # If we're reacting to a Docker PR, we have on extra step to refresh and check in the container manifest,
       # this **must** happen before rebuilding dist/ so it uses the new version of the manifest
       - name: Rebuild docker/containers.json
-        if: needs.fetch-dependabot-metadata.output.package-ecosystem == 'docker'
+        if: needs.fetch-dependabot-metadata.outputs.package-ecosystem == 'docker'
         run: |
           npm run update-container-manifest
           git add docker/containers.json
