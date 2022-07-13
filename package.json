@@ -50,7 +50,7 @@
     "@vercel/ncc": "^0.31.1",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-github": "^4.1.5",
+    "eslint-plugin-github": "^4.3.2",
     "eslint-plugin-jest": "^25.2.4",
     "husky": "^7.0.4",
     "jest": "^27.5.1",
