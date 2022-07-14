@@ -5,7 +5,7 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:a6031b3134f6ece9fadb298113700584610b41940c6bf9ad8b312e5d44cded5b","updater":"ghcr.io/dependabot/dependabot-updater/dependabot-updater@sha256:5d6921070504592f7f6e59798471b1f0953efff4ee01cd10896aab2b869472ea"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:a6031b3134f6ece9fadb298113700584610b41940c6bf9ad8b312e5d44cded5b","updater":"ghcr.io/dependabot/dependabot-updater/dependabot-updater@sha256:52c4105b3ba4f09f0aa8ec2a32f6e89943df308fabbd44c2cef6f4efdb44016c"}');
 
 /***/ }),
 
