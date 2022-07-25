@@ -101,6 +101,33 @@ integration('ProxyBuilder', () => {
   })
 
   jest.setTimeout(20000)
+  it('copies in the default node custom root CA if configured', async () => {
+    // make a tmp dir at the repo root unless it already exists
+    const tmpDir = path.join(__dirname, '../tmp')
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir)
+    }
+    const certPath = path.join(__dirname, '../tmp/custom-cert.crt')
+    fs.writeFileSync(certPath, 'ca-pem-contents')
+    process.env.NODE_EXTRA_CA_CERTS = certPath
+
+    const proxy = await builder.run(jobId, credentials)
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', [
+      'exec',
+      id,
+      'cat',
+      '/usr/local/share/ca-certificates/custom-ca-cert.crt'
+    ])
+    const stdout = proc.stdout.toString()
+    expect(stdout).toEqual('ca-pem-contents')
+
+    await proxy.shutdown()
+  })
+
+  jest.setTimeout(20000)
   it('forwards custom proxy urls if configured', async () => {
     const url = 'http://example.com'
     process.env.HTTP_PROXY = url

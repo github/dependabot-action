@@ -75400,11 +75400,10 @@ class ProxyBuilder {
             const internalNetwork = yield this.ensureNetwork(internalNetworkName, true);
             const container = yield this.createContainer(jobId, name, externalNetwork, internalNetwork, internalNetworkName);
             yield container_service_1.ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
-            if (process.env.CUSTOM_CA_PATH) {
+            const customCAPath = this.customCAPath();
+            if (customCAPath) {
                 core.info('Detected custom CA certificate, adding to proxy');
-                const customCert = fs_1.default
-                    .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
-                    .toString();
+                const customCert = fs_1.default.readFileSync(customCAPath, 'utf8').toString();
                 yield container_service_1.ContainerService.storeCert(CUSTOM_CA_CERT_NAME, CA_CERT_INPUT_PATH, container, customCert);
             }
             const stream = yield container.attach({
@@ -75504,6 +75503,13 @@ class ProxyBuilder {
             core.info(`Created proxy container: ${container.id}`);
             return container;
         });
+    }
+    customCAPath() {
+        if ('CUSTOM_CA_PATH' in process.env) {
+            return process.env.CUSTOM_CA_PATH;
+        }
+        // default to node.js configuration
+        return process.env.NODE_EXTRA_CA_CERTS;
     }
 }
 exports.ProxyBuilder = ProxyBuilder;
