@@ -86,12 +86,11 @@ export class ProxyBuilder {
       config
     )
 
-    if (process.env.CUSTOM_CA_PATH) {
+    const customCAPath = this.customCAPath()
+    if (customCAPath) {
       core.info('Detected custom CA certificate, adding to proxy')
 
-      const customCert = fs
-        .readFileSync(process.env.CUSTOM_CA_PATH, 'utf8')
-        .toString()
+      const customCert = fs.readFileSync(customCAPath, 'utf8').toString()
       await ContainerService.storeCert(
         CUSTOM_CA_CERT_NAME,
         CA_CERT_INPUT_PATH,
@@ -223,5 +222,13 @@ export class ProxyBuilder {
 
     core.info(`Created proxy container: ${container.id}`)
     return container
+  }
+
+  private customCAPath(): string | undefined {
+    if ('CUSTOM_CA_PATH' in process.env) {
+      return process.env.CUSTOM_CA_PATH
+    }
+    // default to node.js configuration
+    return process.env.NODE_EXTRA_CA_CERTS
   }
 }
