@@ -36565,6 +36565,8 @@ function run(cutoff = '24h') {
             yield docker.pruneContainers({ filters: untilFilter });
             yield cleanupOldImageVersions(docker, docker_tags_1.UPDATER_IMAGE_NAME);
             yield cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
+            core.info('Pruning dangling volumes');
+            yield docker.pruneVolumes({ filters: { label: ['!keep'] } });
         }
         catch (error) {
             core.error(`Error cleaning up: ${error.message}`);

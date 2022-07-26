@@ -21,6 +21,8 @@ export async function run(cutoff = '24h'): Promise<void> {
     await docker.pruneContainers({filters: untilFilter})
     await cleanupOldImageVersions(docker, UPDATER_IMAGE_NAME)
     await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
+    core.info('Pruning dangling volumes')
+    await docker.pruneVolumes({filters: {label: ['!keep']}})
   } catch (error) {
     core.error(`Error cleaning up: ${error.message}`)
   }
