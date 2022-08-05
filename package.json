@@ -1,6 +1,6 @@
 {
   "name": "dependabot-updater-action",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "private": true,
   "description": "Runs Dependabot workloads via GitHub Actions.",
   "main": "src/main.ts",
