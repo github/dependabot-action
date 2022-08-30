@@ -59,14 +59,16 @@ export async function run(context: Context): Promise<void> {
       try {
         await ImageService.pull(UPDATER_IMAGE_NAME)
         await ImageService.pull(PROXY_IMAGE_NAME)
-      } catch (error: any) {
-        await failJob(
-          apiClient,
-          'Error fetching updater images',
-          error,
-          DependabotErrorType.Image
-        )
-        return
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          await failJob(
+            apiClient,
+            'Error fetching updater images',
+            error,
+            DependabotErrorType.Image
+          )
+          return
+        }
       }
       core.endGroup()
 
@@ -74,7 +76,7 @@ export async function run(context: Context): Promise<void> {
         core.info('Starting update process')
 
         await updater.runUpdater()
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If we have encountered a UpdaterFetchError, the Updater will already have
         // reported the error and marked the job as processed, so we only need to
         // set an exit status.
@@ -85,7 +87,7 @@ export async function run(context: Context): Promise<void> {
           )
           botSay('finished: unable to fetch files')
           return
-        } else {
+        } else if (error instanceof Error) {
           await failJob(
             apiClient,
             'Dependabot encountered an error performing the update',
@@ -96,7 +98,7 @@ export async function run(context: Context): Promise<void> {
         }
       }
       botSay('finished')
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof CredentialFetchingError) {
         await failJob(
           apiClient,
@@ -104,7 +106,7 @@ export async function run(context: Context): Promise<void> {
           error,
           DependabotErrorType.UpdateRun
         )
-      } else {
+      } else if (error instanceof Error) {
         await failJob(
           apiClient,
           'Dependabot was unable to start the update',
@@ -114,14 +116,16 @@ export async function run(context: Context): Promise<void> {
 
       return
     }
-  } catch (error) {
-    // If we've reached this point, we do not have a viable
-    // API client to report back to Dependabot API.
-    //
-    // We output the raw error in the Action logs and defer
-    // to workflow_run monitoring to detect the job failure.
-    setFailed('Dependabot encountered an unexpected problem', error)
-    botSay('finished: unexpected error')
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      // If we've reached this point, we do not have a viable
+      // API client to report back to Dependabot API.
+      //
+      // We output the raw error in the Action logs and defer
+      // to workflow_run monitoring to detect the job failure.
+      setFailed('Dependabot encountered an unexpected problem', error)
+      botSay('finished: unexpected error')
+    }
   }
 }
 

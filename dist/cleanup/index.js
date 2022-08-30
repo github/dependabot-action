@@ -37625,7 +37625,11 @@ function wrappy (fn, cb) {
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -37677,14 +37681,16 @@ function run(cutoff = '24h') {
             yield cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
         }
         catch (error) {
-            core.error(`Error cleaning up: ${error.message}`);
+            if (error instanceof Error) {
+                core.error(`Error cleaning up: ${error.message}`);
+            }
         }
     });
 }
 exports.run = run;
 function cleanupOldImageVersions(docker, imageName) {
     return __awaiter(this, void 0, void 0, function* () {
-        const repo = docker_tags_1.repositoryName(imageName);
+        const repo = (0, docker_tags_1.repositoryName)(imageName);
         const options = {
             filters: {
                 reference: [repo]
@@ -37715,8 +37721,8 @@ function cleanupOldImageVersions(docker, imageName) {
                             yield docker.getImage(imageInfo.Id).remove();
                         }
                         catch (error) {
-                            if (error.statusCode === 409) {
-                                core.info(`Unable to remove ${imageInfo.Id} as it is currently in use`);
+                            if (error instanceof Error) {
+                                core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
                             }
                         }
                     }

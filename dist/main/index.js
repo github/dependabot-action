@@ -76411,7 +76411,11 @@ function wrappy (fn, cb) {
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -76534,7 +76538,11 @@ exports.ApiClient = ApiClient;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -76571,7 +76579,7 @@ exports.ContainerRuntimeError = ContainerRuntimeError;
 exports.ContainerService = {
     storeInput(name, path, container, input) {
         return __awaiter(this, void 0, void 0, function* () {
-            const tar = tar_stream_1.pack();
+            const tar = (0, tar_stream_1.pack)();
             tar.entry({ name }, JSON.stringify(input));
             tar.finalize();
             yield container.putArchive(tar, { path });
@@ -76579,7 +76587,7 @@ exports.ContainerService = {
     },
     storeCert(name, path, container, cert) {
         return __awaiter(this, void 0, void 0, function* () {
-            const tar = tar_stream_1.pack();
+            const tar = (0, tar_stream_1.pack)();
             tar.entry({ name }, cert);
             tar.finalize();
             yield container.putArchive(tar, { path });
@@ -76593,7 +76601,7 @@ exports.ContainerService = {
                     stdout: true,
                     stderr: true
                 });
-                container.modem.demuxStream(stream, utils_1.outStream('updater'), utils_1.errStream('updater'));
+                container.modem.demuxStream(stream, (0, utils_1.outStream)('updater'), (0, utils_1.errStream)('updater'));
                 yield container.start();
                 const outcome = yield container.wait();
                 if (outcome.StatusCode === 0) {
@@ -76650,7 +76658,11 @@ exports.repositoryName = repositoryName;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -76710,7 +76722,7 @@ exports.ImageService = {
                 } // else fallthrough to pull
             }
             catch (e) {
-                if (!e.message.includes('no such image')) {
+                if (e instanceof Error && !e.message.includes('no such image')) {
                     throw e;
                 } // else fallthrough to pull
             }
@@ -76739,7 +76751,11 @@ exports.ImageService = {
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -76841,14 +76857,20 @@ function directoryExistsSync(directoryPath) {
     let stats;
     try {
         stats = fs_1.default.statSync(directoryPath);
+        return stats.isDirectory();
     }
     catch (error) {
-        if (error.code === 'ENOENT') {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             return false;
         }
-        throw new Error(`Encountered an error when checking whether path '${directoryPath}' exists: ${error.message}`);
+        else if (error instanceof Error) {
+            throw new Error(`Encountered an error when checking whether path '${directoryPath}' exists: ${error.message}`);
+        }
     }
-    return stats.isDirectory();
+    return false;
+}
+function isNodeError(error) {
+    return error instanceof Error;
 }
 
 
@@ -76861,7 +76883,11 @@ function directoryExistsSync(directoryPath) {
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -76912,7 +76938,7 @@ function run(context) {
         try {
             botSay('starting update');
             // Retrieve JobParameters from the Actions environment
-            const params = inputs_1.getJobParameters(context);
+            const params = (0, inputs_1.getJobParameters)(context);
             // The parameters will be null if the Action environment
             // is not a valid Dependabot-triggered dynamic event.
             if (params === null) {
@@ -76938,8 +76964,10 @@ function run(context) {
                     yield image_service_1.ImageService.pull(docker_tags_1.PROXY_IMAGE_NAME);
                 }
                 catch (error) {
-                    yield failJob(apiClient, 'Error fetching updater images', error, DependabotErrorType.Image);
-                    return;
+                    if (error instanceof Error) {
+                        yield failJob(apiClient, 'Error fetching updater images', error, DependabotErrorType.Image);
+                        return;
+                    }
                 }
                 core.endGroup();
                 try {
@@ -76955,7 +76983,7 @@ function run(context) {
                         botSay('finished: unable to fetch files');
                         return;
                     }
-                    else {
+                    else if (error instanceof Error) {
                         yield failJob(apiClient, 'Dependabot encountered an error performing the update', error, DependabotErrorType.UpdateRun);
                         return;
                     }
@@ -76966,20 +76994,22 @@ function run(context) {
                 if (error instanceof api_client_1.CredentialFetchingError) {
                     yield failJob(apiClient, 'Dependabot was unable to retrieve job credentials', error, DependabotErrorType.UpdateRun);
                 }
-                else {
+                else if (error instanceof Error) {
                     yield failJob(apiClient, 'Dependabot was unable to start the update', error);
                 }
                 return;
             }
         }
         catch (error) {
-            // If we've reached this point, we do not have a viable
-            // API client to report back to Dependabot API.
-            //
-            // We output the raw error in the Action logs and defer
-            // to workflow_run monitoring to detect the job failure.
-            setFailed('Dependabot encountered an unexpected problem', error);
-            botSay('finished: unexpected error');
+            if (error instanceof Error) {
+                // If we've reached this point, we do not have a viable
+                // API client to report back to Dependabot API.
+                //
+                // We output the raw error in the Action logs and defer
+                // to workflow_run monitoring to detect the job failure.
+                setFailed('Dependabot encountered an unexpected problem', error);
+                botSay('finished: unexpected error');
+            }
         }
     });
 }
@@ -77035,7 +77065,11 @@ run(github.context);
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -77131,7 +77165,7 @@ class ProxyBuilder {
                 stdout: true,
                 stderr: true
             });
-            container.modem.demuxStream(stream, utils_1.outStream('  proxy'), utils_1.errStream('  proxy'));
+            container.modem.demuxStream(stream, (0, utils_1.outStream)('  proxy'), (0, utils_1.errStream)('  proxy'));
             const url = () => __awaiter(this, void 0, void 0, function* () {
                 const containerInfo = yield container.inspect();
                 if (containerInfo.State.Running === true) {
@@ -77244,7 +77278,11 @@ exports.ProxyBuilder = ProxyBuilder;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -77349,7 +77387,11 @@ exports.UpdaterBuilder = UpdaterBuilder;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -77443,7 +77485,7 @@ class Updater {
             const fetchedFiles = {
                 base_commit_sha: fileFetcherOutput.base_commit_sha,
                 base64_dependency_files: fileFetcherOutput.base64_dependency_files,
-                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => utils_1.base64DecodeDependencyFile(file))
+                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => (0, utils_1.base64DecodeDependencyFile)(file))
             };
             return fetchedFiles;
         });

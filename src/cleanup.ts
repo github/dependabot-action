@@ -21,8 +21,10 @@ export async function run(cutoff = '24h'): Promise<void> {
     await docker.pruneContainers({filters: untilFilter})
     await cleanupOldImageVersions(docker, UPDATER_IMAGE_NAME)
     await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
-  } catch (error) {
-    core.error(`Error cleaning up: ${error.message}`)
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      core.error(`Error cleaning up: ${error.message}`)
+    }
   }
 }
 
@@ -62,11 +64,9 @@ export async function cleanupOldImageVersions(
         core.info(`Removing image ${imageInfo.Id}`)
         try {
           await docker.getImage(imageInfo.Id).remove()
-        } catch (error) {
-          if (error.statusCode === 409) {
-            core.info(
-              `Unable to remove ${imageInfo.Id} as it is currently in use`
-            )
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`)
           }
         }
       }

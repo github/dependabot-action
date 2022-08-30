@@ -36,8 +36,8 @@ export const ImageService = {
         core.info(`Resolved ${imageName} to existing ${image.RepoDigests}`)
         return
       } // else fallthrough to pull
-    } catch (e) {
-      if (!e.message.includes('no such image')) {
+    } catch (e: unknown) {
+      if (e instanceof Error && !e.message.includes('no such image')) {
         throw e
       } // else fallthrough to pull
     }
