@@ -70,7 +70,7 @@ export class ApiClient {
       }
 
       return res.data.data.attributes.credentials
-    } catch (error) {
+    } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const err = error
         throw new CredentialFetchingError(

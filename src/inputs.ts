@@ -113,15 +113,19 @@ function directoryExistsSync(directoryPath: string): boolean {
 
   try {
     stats = fs.statSync(directoryPath)
-  } catch (error) {
-    if (error.code === 'ENOENT') {
+    return stats.isDirectory()
+  } catch (error: unknown) {
+    if (isNodeError(error) && error.code === 'ENOENT') {
       return false
+    } else if (error instanceof Error) {
+      throw new Error(
+        `Encountered an error when checking whether path '${directoryPath}' exists: ${error.message}`
+      )
     }
-
-    throw new Error(
-      `Encountered an error when checking whether path '${directoryPath}' exists: ${error.message}`
-    )
   }
+  return false
+}
 
-  return stats.isDirectory()
+function isNodeError(error: any): error is NodeJS.ErrnoException {
+  return error instanceof Error
 }
