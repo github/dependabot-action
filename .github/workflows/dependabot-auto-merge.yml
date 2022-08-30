@@ -9,7 +9,7 @@ jobs:
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     steps:
       - name: Fetch metadata
-        uses: dependabot/fetch-metadata@v1.3.1
+        uses: dependabot/fetch-metadata@v1.3.3
 
       # Enable the automerge using a PAT so the merge commits trigger workflows
       - name: Auto-merge
