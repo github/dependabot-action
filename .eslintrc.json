@@ -46,6 +46,14 @@
       "@typescript-eslint/no-shadow": "error",
       "no-shadow": "off"
     },
+    "overrides": [
+      {
+        "files": ["*.ts"],
+        "rules": {
+          "no-undef": "off"
+        }
+      }
+    ],
     "env": {
       "node": true,
       "es6": true,
