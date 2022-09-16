@@ -54,6 +54,7 @@ export class UpdaterBuilder {
         `HTTPS_PROXY=${proxyUrl}`,
         `ENABLE_CONNECTIVITY_CHECK=1`
       ],
+      User: 'root',
       Cmd: ['sh', '-c', cmd],
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
