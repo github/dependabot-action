@@ -46,7 +46,7 @@ integration('ProxyBuilder', () => {
     expect(proxy.networkName).toBe('dependabot-job-1-internal-network')
 
     const proxyUrl = await proxy.url()
-    expect(proxyUrl).toMatch(/^http:\/\/1:.+:1080$/)
+    expect(proxyUrl).toMatch(/^http:\/\/.+:1080$/)
 
     const proxyIPAddress =
       containerInfo.NetworkSettings.Networks[proxy.networkName].IPAddress

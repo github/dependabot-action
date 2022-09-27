@@ -30,13 +30,7 @@ export type CertificateAuthority = {
   key: string
 }
 
-export type BasicAuthCredentials = {
-  username: string
-  password: string
-}
-
 export type ProxyConfig = {
   all_credentials: Credential[]
   ca: CertificateAuthority
-  proxy_auth: BasicAuthCredentials
 }
