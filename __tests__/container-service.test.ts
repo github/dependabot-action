@@ -23,6 +23,7 @@ describe('ContainerService', () => {
       })
     })
 
+    jest.setTimeout(5000)
     test('it returns true', async () => {
       expect(await ContainerService.run(container)).toBe(true)
     })
@@ -38,6 +39,7 @@ describe('ContainerService', () => {
       })
     })
 
+    jest.setTimeout(5000)
     test('raises an exception', async () => {
       await expect(ContainerService.run(container)).rejects.toThrow(
         /The updater encountered one or more errors/
