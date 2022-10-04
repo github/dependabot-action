@@ -1,12 +1,7 @@
 import fs from 'fs'
 import * as core from '@actions/core'
 import Docker, {Container, Network} from 'dockerode'
-import crypto from 'crypto'
-import {
-  BasicAuthCredentials,
-  CertificateAuthority,
-  ProxyConfig
-} from './config-types'
+import {CertificateAuthority, ProxyConfig} from './config-types'
 import {ContainerService} from './container-service'
 import {Credential} from './api-client'
 import {pki} from 'node-forge'
@@ -62,7 +57,7 @@ export class ProxyBuilder {
 
   async run(jobId: number, credentials: Credential[]): Promise<Proxy> {
     const name = `dependabot-job-${jobId}-proxy`
-    const config = this.buildProxyConfig(credentials, jobId)
+    const config = this.buildProxyConfig(credentials)
     const cert = config.ca.cert
 
     const externalNetworkName = `dependabot-job-${jobId}-external-network`
@@ -117,7 +112,7 @@ export class ProxyBuilder {
         const ipAddress =
           containerInfo.NetworkSettings.Networks[`${internalNetworkName}`]
             .IPAddress
-        return `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${ipAddress}:1080`
+        return `http://${ipAddress}:1080`
       } else {
         throw new Error("proxy container isn't running")
       }
@@ -149,18 +144,10 @@ export class ProxyBuilder {
     }
   }
 
-  private buildProxyConfig(
-    credentials: Credential[],
-    jobId: number
-  ): ProxyConfig {
+  private buildProxyConfig(credentials: Credential[]): ProxyConfig {
     const ca = this.generateCertificateAuthority()
-    const password = crypto.randomBytes(20).toString('hex')
-    const proxy_auth: BasicAuthCredentials = {
-      username: `${jobId}`,
-      password
-    }
 
-    const config: ProxyConfig = {all_credentials: credentials, ca, proxy_auth}
+    const config: ProxyConfig = {all_credentials: credentials, ca}
 
     return config
   }

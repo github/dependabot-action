@@ -77102,7 +77102,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProxyBuilder = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const core = __importStar(__nccwpck_require__(2186));
-const crypto_1 = __importDefault(__nccwpck_require__(6113));
 const container_service_1 = __nccwpck_require__(2429);
 const node_forge_1 = __nccwpck_require__(7655);
 const utils_1 = __nccwpck_require__(1314);
@@ -77146,7 +77145,7 @@ class ProxyBuilder {
     run(jobId, credentials) {
         return __awaiter(this, void 0, void 0, function* () {
             const name = `dependabot-job-${jobId}-proxy`;
-            const config = this.buildProxyConfig(credentials, jobId);
+            const config = this.buildProxyConfig(credentials);
             const cert = config.ca.cert;
             const externalNetworkName = `dependabot-job-${jobId}-external-network`;
             const externalNetwork = yield this.ensureNetwork(externalNetworkName, false);
@@ -77171,7 +77170,7 @@ class ProxyBuilder {
                 if (containerInfo.State.Running === true) {
                     const ipAddress = containerInfo.NetworkSettings.Networks[`${internalNetworkName}`]
                         .IPAddress;
-                    return `http://${config.proxy_auth.username}:${config.proxy_auth.password}@${ipAddress}:1080`;
+                    return `http://${ipAddress}:1080`;
                 }
                 else {
                     throw new Error("proxy container isn't running");
@@ -77205,14 +77204,9 @@ class ProxyBuilder {
             }
         });
     }
-    buildProxyConfig(credentials, jobId) {
+    buildProxyConfig(credentials) {
         const ca = this.generateCertificateAuthority();
-        const password = crypto_1.default.randomBytes(20).toString('hex');
-        const proxy_auth = {
-            username: `${jobId}`,
-            password
-        };
-        const config = { all_credentials: credentials, ca, proxy_auth };
+        const config = { all_credentials: credentials, ca };
         return config;
     }
     generateCertificateAuthority() {
