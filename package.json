@@ -36,12 +36,12 @@
     "axios": "^0.23.0",
     "ci": "^2.1.1",
     "commander": "^9.1.0",
-    "dockerode": "^3.3.1",
+    "dockerode": "^3.3.4",
     "npm": "^8.19.2",
     "tar-stream": "^2.2.0"
   },
   "devDependencies": {
-    "@types/dockerode": "^3.2.6",
+    "@types/dockerode": "^3.3.11",
     "@types/jest": "^27.0.2",
     "@types/node": "^18.7.13",
     "@types/node-forge": "^1.0.1",
