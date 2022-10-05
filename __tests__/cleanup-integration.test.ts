@@ -23,9 +23,7 @@ integration('cleanupOldImageVersions', () => {
   const testImage = 'ghcr.io/github/hello-docker'
   const docker = new Docker()
   const imageOptions = {
-    filters: {
-      reference: [testImage]
-    }
+    filters: testImage
   }
 
   const currentImage = `${testImage}@sha256:f32f4412fa4b6c7ece72cb85ae652751f11ac0d075c1131df09bb24f46b2f4e3`

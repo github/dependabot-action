@@ -34,9 +34,7 @@ export async function cleanupOldImageVersions(
 ): Promise<void> {
   const repo = repositoryName(imageName)
   const options = {
-    filters: {
-      reference: [repo]
-    }
+    filters: repo
   }
 
   core.info(`Cleaning up images for ${repo}`)
