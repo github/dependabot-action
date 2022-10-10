@@ -7,6 +7,11 @@
       "sourceType": "module",
       "project": "./tsconfig.eslint.json"
     },
+    "settings": {
+      "import/resolver": {
+        "typescript": {}
+      }
+    },
     "rules": {
       "eslint-comments/no-use": "off",
       "import/no-namespace": "off",
