@@ -76035,6 +76035,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+// eslint-disable-next-line import/extensions
 const containers_json_1 = __importDefault(__nccwpck_require__(8708));
 exports.UPDATER_IMAGE_NAME = containers_json_1.default.updater;
 exports.PROXY_IMAGE_NAME = containers_json_1.default.proxy;
