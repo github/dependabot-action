@@ -53,7 +53,7 @@
     "eslint-import-resolver-typescript": "^3.5.1",
     "eslint-plugin-github": "^4.3.7",
     "eslint-plugin-jest": "^27.1.1",
-    "husky": "^7.0.4",
+    "husky": "^8.0.1",
     "jest": "^27.5.1",
     "jest-circus": "^27.3.1",
     "js-yaml": "^4.1.0",
