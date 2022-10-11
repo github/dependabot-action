@@ -25,7 +25,9 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
   await docker.pruneContainers()
 }
 
-export const runFakeDependabotApi = async (port = 9000): Promise<Function> => {
+export const runFakeDependabotApi = async (
+  port = 9000
+): Promise<() => void> => {
   const server = spawn('node', [
     `${path.join(__dirname, 'server/server.js')}`,
     `${port}`
