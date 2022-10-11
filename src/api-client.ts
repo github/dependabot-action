@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
-import axios, {AxiosInstance} from 'axios'
+import axios from 'axios'
+import type {AxiosInstance} from 'axios'
 import {JobParameters} from './inputs'
 
 // JobDetails are information about the repository and dependencies to be updated
