@@ -4,9 +4,9 @@ import {JobParameters} from './inputs'
 
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {
-  'allowed-updates': {
+  'allowed-updates': Array<{
     'dependency-type': string
-  }[]
+  }>
   id: string
   'package-manager': string
 }
