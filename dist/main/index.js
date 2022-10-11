@@ -35330,6 +35330,9 @@ var digestInfoValidator = {
       name: 'DigestInfo.DigestAlgorithm.parameters',
       tagClass: asn1.Class.UNIVERSAL,
       type: asn1.Type.NULL,
+      // captured only to check existence for md2 and md5
+      capture: 'parameters',
+      optional: true,
       constructed: false
     }]
   }, {
@@ -36229,6 +36232,16 @@ pki.setRsaPublicKey = pki.rsa.setPublicKey = function(n, e) {
               'Unknown RSASSA-PKCS1-v1_5 DigestAlgorithm identifier.');
             error.oid = oid;
             throw error;
+          }
+
+          // special check for md2 and md5 that NULL parameters exist
+          if(oid === forge.oids.md2 || oid === forge.oids.md5) {
+            if(!('parameters' in capture)) {
+              throw new Error(
+                'ASN.1 object does not contain a valid RSASSA-PKCS1-v1_5 ' +
+                'DigestInfo value. ' +
+                'Missing algorithm identifer NULL parameters.');
+            }
           }
 
           // compare the given digest to the decrypted one
@@ -76022,6 +76035,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+// eslint-disable-next-line import/extensions
 const containers_json_1 = __importDefault(__nccwpck_require__(8708));
 exports.UPDATER_IMAGE_NAME = containers_json_1.default.updater;
 exports.PROXY_IMAGE_NAME = containers_json_1.default.proxy;

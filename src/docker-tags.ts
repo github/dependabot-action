@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/extensions
 import dockerContainerConfig from '../docker/containers.json'
 
 export const UPDATER_IMAGE_NAME = dockerContainerConfig.updater
