@@ -23,7 +23,7 @@ integration('cleanupOldImageVersions', () => {
   const testImage = 'ghcr.io/github/hello-docker'
   const docker = new Docker()
   const imageOptions = {
-    filters: testImage
+    filters: `{"reference":["${testImage}"]}`
   }
 
   const currentImage = `${testImage}@sha256:f32f4412fa4b6c7ece72cb85ae652751f11ac0d075c1131df09bb24f46b2f4e3`
@@ -52,8 +52,8 @@ integration('cleanupOldImageVersions', () => {
   }, 10000)
 
   test('it removes unused versions of the given image', async () => {
-    const imageCount = (await docker.listImages(imageOptions)).length
-    expect(imageCount).toEqual(2)
+    const initialImages = await docker.listImages(imageOptions)
+    expect(initialImages.length).toEqual(2)
 
     await cleanupOldImageVersions(docker, currentImage)
     // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
