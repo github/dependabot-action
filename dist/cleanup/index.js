@@ -1762,6 +1762,377 @@ exports.checkBypass = checkBypass;
 
 /***/ }),
 
+/***/ 3358:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+/**
+ * @license
+ * Copyright 2020 Balena Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * ------------------------------------------------------------------------
+ *
+ * Copyright 2018 Zeit, Inc.
+ * Licensed under the MIT License. See file LICENSE.md for a full copy.
+ *
+ * ------------------------------------------------------------------------
+ */
+
+/**
+ * This module implements the [dockerignore
+ * spec](https://docs.docker.com/engine/reference/builder/#dockerignore-file),
+ * closely following Docker's (Moby) Golang implementation:
+ * https://github.com/moby/moby/blob/v19.03.8/builder/dockerignore/dockerignore.go
+ * https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go
+ * https://github.com/moby/moby/blob/v19.03.8/pkg/archive/archive.go#L825
+ *
+ * Something the spec is not clear about, but we discovered by reading source code
+ * and testing against the "docker build" command, is the handling of backslashes and
+ * forward slashes as path separators and escape characters in the .dockerignore file
+ * across platforms including Windows, Linux and macOS:
+ *
+ * * On Linux and macOS, only forward slashes can be used as path separators in the
+ *   .dockerignore file, and the backslash works as an escape character.
+ * * On Windows, both forward slashes and backslashes are allowed as path separators
+ *   in the .dockerignore file, and the backslash is not used as an escape character.
+ *
+ * This is consistent with how Windows works generally: both forward slashes and
+ * backslashes are accepted as path separators by the cmd.exe Command Prompt or
+ * PowerShell, and by library functions like the Golang filepath.Clean or the
+ * Node.js path.normalize.
+ *
+ * Similarly, path strings provided to the IgnoreBase.ignores() and IgnoreBase.filter()
+ * methods can use either forward slashes or backslashes as path separators on Windows,
+ * but only forward slashes are accepted as path separators on Linux and macOS.
+ */
+
+const path = __nccwpck_require__(1017);
+
+const factory = options => new IgnoreBase(options); // https://github.com/kaelzhang/node-ignore/blob/5.1.4/index.js#L538-L539
+// Fixes typescript module import
+
+
+factory.default = factory;
+module.exports = factory;
+
+function make_array(subject) {
+  return Array.isArray(subject) ? subject : [subject];
+}
+
+const REGEX_TRAILING_SLASH = /(?<=.)\/$/;
+const REGEX_TRAILING_BACKSLASH = /(?<=.)\\$/;
+const REGEX_TRAILING_PATH_SEP = path.sep === '\\' ? REGEX_TRAILING_BACKSLASH : REGEX_TRAILING_SLASH;
+const KEY_IGNORE = typeof Symbol !== 'undefined' ? Symbol.for('dockerignore') : 'dockerignore'; // An implementation of Go's filepath.Clean
+// https://golang.org/pkg/path/filepath/#Clean
+// https://github.com/golang/go/blob/master/src/path/filepath/path.go
+// Note that, like Go, on Windows this function converts forward slashes
+// to backslashes.
+
+function cleanPath(file) {
+  return path.normalize(file).replace(REGEX_TRAILING_PATH_SEP, '');
+} // Javascript port of Golang's filepath.ToSlash
+// https://golang.org/pkg/path/filepath/#ToSlash
+// https://github.com/golang/go/blob/master/src/path/filepath/path.go
+// Convert any OS-specific path separator to '/'. Backslash is converted
+// to forward slash on Windows, but not on Linux/macOS.
+// Note that both forward slashes and backslashes are valid path separators on
+// Windows. As a result, code such as `pattern.split(path.sep).join('/')` fails
+// on Windows when forward slashes are used as path separators.
+
+
+function toSlash(file) {
+  if (path.sep === '/') {
+    return file;
+  }
+
+  return file.replace(/\\/g, '/');
+} // Javascript port of Golang's filepath.FromSlash
+// https://github.com/golang/go/blob/master/src/path/filepath/path.go
+
+
+function fromSlash(file) {
+  if (path.sep === '/') {
+    return file;
+  }
+
+  return file.replace(/\//g, path.sep);
+}
+
+class IgnoreBase {
+  constructor({
+    // https://github.com/kaelzhang/node-ignore/blob/5.1.4/index.js#L372
+    ignorecase = true
+  } = {}) {
+    this._rules = [];
+    this._ignorecase = ignorecase;
+    this[KEY_IGNORE] = true;
+
+    this._initCache();
+  }
+
+  _initCache() {
+    this._cache = {};
+  } // @param {Array.<string>|string|Ignore} pattern
+
+
+  add(pattern) {
+    this._added = false;
+
+    if (typeof pattern === 'string') {
+      pattern = pattern.split(/\r?\n/g);
+    }
+
+    make_array(pattern).forEach(this._addPattern, this); // Some rules have just added to the ignore,
+    // making the behavior changed.
+
+    if (this._added) {
+      this._initCache();
+    }
+
+    return this;
+  } // legacy
+
+
+  addPattern(pattern) {
+    return this.add(pattern);
+  }
+
+  _addPattern(pattern) {
+    // https://github.com/kaelzhang/node-ignore/issues/32
+    if (pattern && pattern[KEY_IGNORE]) {
+      this._rules = this._rules.concat(pattern._rules);
+      this._added = true;
+      return;
+    }
+
+    if (this._checkPattern(pattern)) {
+      const rule = this._createRule(pattern.trim());
+
+      if (rule !== null) {
+        this._added = true;
+
+        this._rules.push(rule);
+      }
+    }
+  }
+
+  _checkPattern(pattern) {
+    // https://github.com/moby/moby/blob/v19.03.8/builder/dockerignore/dockerignore.go#L34-L40
+    return pattern && typeof pattern === 'string' && pattern.indexOf('#') !== 0 && pattern.trim() !== "";
+  }
+
+  filter(paths) {
+    return make_array(paths).filter(path => this._filter(path));
+  }
+
+  createFilter() {
+    return path => this._filter(path);
+  }
+
+  ignores(path) {
+    return !this._filter(path);
+  } // https://github.com/moby/moby/blob/v19.03.8/builder/dockerignore/dockerignore.go#L41-L53
+  // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L29-L55
+
+
+  _createRule(pattern) {
+    const origin = pattern;
+    let negative = false; // > An optional prefix "!" which negates the pattern;
+    // https://github.com/moby/moby/blob/v19.03.8/builder/dockerignore/dockerignore.go#L43-L46
+
+    if (pattern[0] === '!') {
+      negative = true;
+      pattern = pattern.substring(1).trim();
+    } // https://github.com/moby/moby/blob/v19.03.8/builder/dockerignore/dockerignore.go#L47-L53
+
+
+    if (pattern.length > 0) {
+      pattern = cleanPath(pattern);
+      pattern = toSlash(pattern);
+
+      if (pattern.length > 1 && pattern[0] === '/') {
+        pattern = pattern.slice(1);
+      }
+    } // https://github.com/moby/moby/blob/v19.03.8/builder/dockerignore/dockerignore.go#L54-L55
+
+
+    if (negative) {
+      pattern = '!' + pattern;
+    } // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L30
+
+
+    pattern = pattern.trim();
+
+    if (pattern === "") {
+      return null;
+    } // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L34
+    // convert forward slashes to backslashes on Windows
+
+
+    pattern = cleanPath(pattern); // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L36-L42
+
+    if (pattern[0] === '!') {
+      if (pattern.length === 1) {
+        return null;
+      }
+
+      negative = true;
+      pattern = pattern.substring(1);
+    } else {
+      negative = false;
+    }
+
+    return {
+      origin,
+      pattern,
+      // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L54
+      dirs: pattern.split(path.sep),
+      negative
+    };
+  } // @returns `Boolean` true if the `path` is NOT ignored
+
+
+  _filter(path) {
+    if (!path) {
+      return false;
+    }
+
+    if (path in this._cache) {
+      return this._cache[path];
+    }
+
+    return this._cache[path] = this._test(path);
+  } // @returns {Boolean} true if a file is NOT ignored
+  // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L62
+
+
+  _test(file) {
+    file = fromSlash(file); // equivalent to golang filepath.Dir() https://golang.org/src/path/filepath/path.go
+
+    const parentPath = cleanPath(path.dirname(file));
+    const parentPathDirs = parentPath.split(path.sep);
+    let matched = false;
+
+    this._rules.forEach(rule => {
+      let match = this._match(file, rule); // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L80
+
+
+      if (!match && parentPath !== ".") {
+        // Check to see if the pattern matches one of our parent dirs.
+        if (rule.dirs.includes('**')) {
+          // Ah shucks! We have to test every possible parent path that has 
+          // a number of dirs _n_ where 
+          // `rule.dirs.filter(doubleStar).length <= _n_ <= parentPathDirs.length`
+          // since the ** can imply any number of directories including 0
+          for (let i = rule.dirs.filter(x => x !== '**').length; i <= parentPathDirs.length; i++) {
+            match = match || this._match(parentPathDirs.slice(0, i).join(path.sep), rule);
+          }
+        } else if (rule.dirs.length <= parentPathDirs.length) {
+          // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L83
+          match = this._match(parentPathDirs.slice(0, rule.dirs.length).join(path.sep), rule);
+        }
+      }
+
+      if (match) {
+        matched = !rule.negative;
+      }
+    });
+
+    return !matched;
+  } // @returns {Boolean} true if a file is matched by a rule
+
+
+  _match(file, rule) {
+    return this._compile(rule).regexp.test(file);
+  } // https://github.com/moby/moby/blob/v19.03.8/pkg/fileutils/fileutils.go#L139
+
+
+  _compile(rule) {
+    if (rule.regexp) {
+      return rule;
+    }
+
+    let regStr = '^'; // Go through the pattern and convert it to a regexp.
+
+    let escapedSlash = path.sep === '\\' ? '\\\\' : path.sep;
+
+    for (let i = 0; i < rule.pattern.length; i++) {
+      const ch = rule.pattern[i];
+
+      if (ch === '*') {
+        if (rule.pattern[i + 1] === '*') {
+          // is some flavor of "**"
+          i++; // Treat **/ as ** so eat the "/"
+
+          if (rule.pattern[i + 1] === path.sep) {
+            i++;
+          }
+
+          if (rule.pattern[i + 1] === undefined) {
+            // is "**EOF" - to align with .gitignore just accept all
+            regStr += ".*";
+          } else {
+            // is "**"
+            // Note that this allows for any # of /'s (even 0) because
+            // the .* will eat everything, even /'s
+            regStr += `(.*${escapedSlash})?`;
+          }
+        } else {
+          // is "*" so map it to anything but "/"
+          regStr += `[^${escapedSlash}]*`;
+        }
+      } else if (ch === '?') {
+        // "?" is any char except "/"
+        regStr += `[^${escapedSlash}]`;
+      } else if (ch === '.' || ch === '$') {
+        // Escape some regexp special chars that have no meaning
+        // in golang's filepath.Match
+        regStr += `\\${ch}`;
+      } else if (ch === '\\') {
+        // escape next char. Note that a trailing \ in the pattern
+        // will be left alone (but need to escape it)
+        if (path.sep === '\\') {
+          // On windows map "\" to "\\", meaning an escaped backslash,
+          // and then just continue because filepath.Match on
+          // Windows doesn't allow escaping at all
+          regStr += escapedSlash;
+          continue;
+        }
+
+        if (rule.pattern[i + 1] !== undefined) {
+          regStr += '\\' + rule.pattern[i + 1];
+          i++;
+        } else {
+          regStr += '\\';
+        }
+      } else {
+        regStr += ch;
+      }
+    }
+
+    regStr += "$";
+    rule.regexp = new RegExp(regStr, this._ignorecase ? 'i' : '');
+    return rule;
+  }
+
+}
+
+
+/***/ }),
+
 /***/ 9348:
 /***/ ((module) => {
 
@@ -3717,6 +4088,9 @@ chownr.sync = chownrSync
 /***/ 4137:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
+"use strict";
+
+
 const binding = __nccwpck_require__(4240);
 
 module.exports = binding.getCPUInfo;
@@ -4732,7 +5106,6 @@ var querystring = __nccwpck_require__(3477),
   debug = __nccwpck_require__(8237)('modem'),
   utils = __nccwpck_require__(4967),
   util = __nccwpck_require__(3837),
-  url = __nccwpck_require__(7310),
   splitca = __nccwpck_require__(9798),
   isWin = (__nccwpck_require__(2037).type)() === 'Windows_NT';
 
@@ -4800,7 +5173,7 @@ var Modem = function (options) {
 
   this.host = opts.host;
 
-  if(!this.host) {
+  if (!this.host) {
     this.socketPath = opts.socketPath;
   }
 
@@ -4818,7 +5191,7 @@ var Modem = function (options) {
   this.headers = opts.headers || {};
   this.sshOptions = Object.assign({}, options ? options.sshOptions : {}, optDefaults.sshOptions);
   //retrocompabitlity
-  if(this.sshOptions.agentForward === undefined) {
+  if (this.sshOptions.agentForward === undefined) {
     this.sshOptions.agentForward = opts.agentForward;
   }
 
@@ -4889,7 +5262,7 @@ Modem.prototype.dial = function (options, callback) {
 
   if (options.authconfig) {
     optionsf.headers['X-Registry-Auth'] = options.authconfig.key || options.authconfig.base64 ||
-      Buffer.from(JSON.stringify(options.authconfig)).toString('base64');
+      Buffer.from(JSON.stringify(options.authconfig)).toString('base64').replace(/\+/g, "-").replace(/\//g, "_");
   }
 
   if (options.registryconfig) {
@@ -4949,6 +5322,7 @@ Modem.prototype.dial = function (options, callback) {
 Modem.prototype.buildRequest = function (options, context, data, callback) {
   var self = this;
   var connectionTimeoutTimer;
+  var finished = false;
 
   var opts = self.protocol === 'ssh' ? Object.assign(options, {
     agent: ssh(Object.assign({}, self.sshOptions, {
@@ -4987,7 +5361,10 @@ Modem.prototype.buildRequest = function (options, context, data, callback) {
   if (context.hijack === true) {
     clearTimeout(connectionTimeoutTimer);
     req.on('upgrade', function (res, sock, head) {
-      return callback(null, sock);
+      if (finished === false) {
+        finished = true;
+        return callback(null, sock);
+      }
     });
   }
 
@@ -5002,7 +5379,10 @@ Modem.prototype.buildRequest = function (options, context, data, callback) {
   req.on('response', function (res) {
     clearTimeout(connectionTimeoutTimer);
     if (context.isStream === true) {
-      self.buildPayload(null, context.isStream, context.statusCodes, context.openStdin, req, res, null, callback);
+      if (finished === false) {
+        finished = true;
+        self.buildPayload(null, context.isStream, context.statusCodes, context.openStdin, req, res, null, callback);
+      }
     } else {
       var chunks = [];
       res.on('data', function (chunk) {
@@ -5016,14 +5396,20 @@ Modem.prototype.buildRequest = function (options, context, data, callback) {
         debug('Received: %s', result);
 
         var json = utils.parseJSON(result) || buffer;
-        self.buildPayload(null, context.isStream, context.statusCodes, false, req, res, json, callback);
+        if (finished === false) {
+          finished = true;
+          self.buildPayload(null, context.isStream, context.statusCodes, false, req, res, json, callback);
+        }
       });
     }
   });
 
   req.on('error', function (error) {
     clearTimeout(connectionTimeoutTimer);
-    self.buildPayload(error, context.isStream, context.statusCodes, false, {}, {}, null, callback);
+    if (finished === false) {
+      finished = true;
+      self.buildPayload(error, context.isStream, context.statusCodes, false, {}, {}, null, callback);
+    }
   });
 
   if (typeof data === 'string' || Buffer.isBuffer(data)) {
@@ -5170,7 +5556,7 @@ Modem.prototype.followProgress = function (stream, onFinished, onProgress) {
   }
 
   function onStreamEnd() {
-    if(!finished) onFinished(null, output);
+    if (!finished) onFinished(null, output);
     finished = true;
   }
 };
@@ -5178,14 +5564,13 @@ Modem.prototype.followProgress = function (stream, onFinished, onProgress) {
 Modem.prototype.buildQuerystring = function (opts) {
   var clone = {};
 
-  // serialize map values as JSON strings, else querystring truncates.
+  // serialize map and array values as JSON strings, else querystring truncates.
+  // 't' and 'extrahosts' can be arrays but need special treatment so that they're
+  // passed as multiple qs parameters instead of JSON values.
   Object.keys(opts).map(function (key, i) {
     if (opts[key]
       && typeof opts[key] === 'object'
-      && !Array.isArray(opts[key])
-      // Ref: https://docs.docker.com/engine/api/v1.40/#operation/ImageBuild
-      // > cachefrom (string) JSON array of images used for build cache resolution.
-      || key === 'cachefrom'
+      && !['t', 'extrahosts'].includes(key)
     ) {
       clone[key] = JSON.stringify(opts[key]);
     } else {
@@ -5734,6 +6119,7 @@ Container.prototype.createCheckpoint = function(opts, callback) {
     allowEmpty: true,
     statusCodes: {
       200: true, //unofficial, but proxies may return it
+      201: true,
       204: true,
       404: 'no such container',
       500: 'server error'
@@ -6508,8 +6894,6 @@ module.exports = Container;
 
 var EventEmitter = (__nccwpck_require__(2361).EventEmitter),
   Modem = __nccwpck_require__(6042),
-  tar = __nccwpck_require__(366),
-  zlib = __nccwpck_require__(9796),
   Container = __nccwpck_require__(5815),
   Image = __nccwpck_require__(6689),
   Volume = __nccwpck_require__(4877),
@@ -6766,35 +7150,40 @@ Docker.prototype.buildImage = function(file, opts, callback) {
     opts = null;
   }
 
-  function build(file) {
-    var optsf = {
-      path: '/build?',
-      method: 'POST',
-      file: file,
-      options: opts,
-      abortSignal: opts && opts.abortSignal,
-      isStream: true,
-      statusCodes: {
-        200: true,
-        500: 'server error'
-      }
-    };
+  var optsf = {
+    path: '/build?',
+    method: 'POST',
+    file: undefined,
+    options: opts,
+    abortSignal: opts && opts.abortSignal,
+    isStream: true,
+    statusCodes: {
+      200: true,
+      500: 'server error'
+    }
+  };
 
-    if (opts) {
-      if (opts.registryconfig) {
-        optsf.registryconfig = optsf.options.registryconfig;
-        delete optsf.options.registryconfig;
-      }
-
-      //undocumented?
-      if (opts.authconfig) {
-        optsf.authconfig = optsf.options.authconfig;
-        delete optsf.options.authconfig;
-      }
+  if (opts) {
+    if (opts.registryconfig) {
+      optsf.registryconfig = optsf.options.registryconfig;
+      delete optsf.options.registryconfig;
     }
 
-    if (callback === undefined) {
+    //undocumented?
+    if (opts.authconfig) {
+      optsf.authconfig = optsf.options.authconfig;
+      delete optsf.options.authconfig;
+    }
+  }
+
+  if (callback === undefined) {
+    const prepareCtxPromise = new self.modem.Promise(function(resolve, _) {
+      util.prepareBuildContext(file, resolve)
+    });
+
+    return prepareCtxPromise.then((ctx)=> {
       return new self.modem.Promise(function(resolve, reject) {
+        optsf.file = ctx;
         self.modem.dial(optsf, function(err, data) {
           if (err) {
             return reject(err);
@@ -6802,20 +7191,14 @@ Docker.prototype.buildImage = function(file, opts, callback) {
           resolve(data);
         });
       });
-    } else {
+    })
+  } else {
+    util.prepareBuildContext(file, (ctx) => {
+      optsf.file = ctx;
       self.modem.dial(optsf, function(err, data) {
         callback(err, data);
       });
-    }
-  }
-
-  if (file && file.context) {
-    var pack = tar.pack(file.context, {
-      entries: file.src
-    });
-    return build(pack.pipe(zlib.createGzip()));
-  } else {
-    return build(file);
+    })
   }
 };
 
@@ -9907,7 +10290,13 @@ module.exports = Task;
 /***/ }),
 
 /***/ 1604:
-/***/ ((module) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+var DockerIgnore = __nccwpck_require__(3358);
+var fs = __nccwpck_require__(7147);
+var path = __nccwpck_require__(1017);
+var tar = __nccwpck_require__(366);
+var zlib = __nccwpck_require__(9796);
 
 // https://github.com/HenrikJoreteg/extend-object/blob/v0.1.0/extend-object.js
 
@@ -9979,6 +10368,36 @@ module.exports.parseRepositoryTag = function(input) {
     repository: input
   };
 };
+
+
+module.exports.prepareBuildContext = function(file, next) {
+  if (file && file.context) {
+    fs.readFile(path.join(file.context, '.dockerignore'), (err, data) => {
+      let ignoreFn;
+      let filterFn;
+
+      if (!err) {
+        const dockerIgnore = DockerIgnore({ ignorecase: false }).add(data.toString());
+
+        filterFn = dockerIgnore.createFilter();
+        ignoreFn = (path) => {
+          return !filterFn(path);
+        }
+      }
+
+      const entries = file.src.slice() || []
+
+      const pack = tar.pack(file.context, {
+        entries: filterFn ? entries.filter(filterFn) : entries,
+        ignore: ignoreFn // Only works on directories
+      });
+
+      next(pack.pipe(zlib.createGzip()));
+    })
+  } else {
+    next(file);
+  }
+}
 
 
 /***/ }),
@@ -21325,6 +21744,91 @@ class SFTP extends EventEmitter {
       this._debug(`SFTP: Outbound: ${status} expand-path@openssh.com`);
     }
   }
+  ext_copy_data(srcHandle, srcOffset, len, dstHandle, dstOffset, cb) {
+    if (this.server)
+      throw new Error('Client-only method called in server mode');
+
+    const ext = this._extensions['copy-data'];
+    if (ext !== '1')
+      throw new Error('Server does not support this extended request');
+
+    if (!Buffer.isBuffer(srcHandle))
+      throw new Error('Source handle is not a Buffer');
+
+    if (!Buffer.isBuffer(dstHandle))
+      throw new Error('Destination handle is not a Buffer');
+
+    /*
+      uint32    id
+      string    "copy-data"
+      string    read-from-handle
+      uint64    read-from-offset
+      uint64    read-data-length
+      string    write-to-handle
+      uint64    write-to-offset
+    */
+    let p = 0;
+    const buf = Buffer.allocUnsafe(
+      4 + 1
+      + 4
+      + 4 + 9
+      + 4 + srcHandle.length
+      + 8
+      + 8
+      + 4 + dstHandle.length
+      + 8
+    );
+
+    writeUInt32BE(buf, buf.length - 4, p);
+    p += 4;
+
+    buf[p] = REQUEST.EXTENDED;
+    ++p;
+
+    const reqid = this._writeReqid = (this._writeReqid + 1) & MAX_REQID;
+    writeUInt32BE(buf, reqid, p);
+    p += 4;
+
+    writeUInt32BE(buf, 9, p);
+    p += 4;
+    buf.utf8Write('copy-data', p, 9);
+    p += 9;
+
+    writeUInt32BE(buf, srcHandle.length, p);
+    p += 4;
+    buf.set(srcHandle, p);
+    p += srcHandle.length;
+
+    for (let i = 7; i >= 0; --i) {
+      buf[p + i] = srcOffset & 0xFF;
+      srcOffset /= 256;
+    }
+    p += 8;
+
+    for (let i = 7; i >= 0; --i) {
+      buf[p + i] = len & 0xFF;
+      len /= 256;
+    }
+    p += 8;
+
+    writeUInt32BE(buf, dstHandle.length, p);
+    p += 4;
+    buf.set(dstHandle, p);
+    p += dstHandle.length;
+
+    for (let i = 7; i >= 0; --i) {
+      buf[p + i] = dstOffset & 0xFF;
+      dstOffset /= 256;
+    }
+
+    this._requests[reqid] = { cb };
+
+    const isBuffered = sendOrBuffer(this, buf);
+    if (this._debug) {
+      const status = (isBuffered ? 'Buffered' : 'Sending');
+      this._debug(`SFTP: Outbound: ${status} copy-data`);
+    }
+  }
   // ===========================================================================
   // Server-specific ===========================================================
   // ===========================================================================
@@ -21651,11 +22155,12 @@ function read_(self, handle, buf, off, len, position, cb, req_) {
         return;
       }
 
+      nb = (nb || 0);
       if (req.origOff === 0 && buf.length === req.nb)
         data = buf;
       else
-        data = bufferSlice(buf, req.origOff, req.origOff + req.nb);
-      cb(undefined, req.nb + (nb || 0), data, req.position);
+        data = bufferSlice(buf, req.origOff, req.origOff + req.nb + nb);
+      cb(undefined, req.nb + nb, data, req.position);
     },
     buffer: undefined,
   });
@@ -22145,7 +22650,8 @@ function tryWritePayload(sftp, payload) {
     return;
 
   if (outgoing.window === 0) {
-    sftp._waitWindow = true; // XXX: Unnecessary?
+    sftp._waitWindow = true;
+    sftp._chunkcb = drainBuffer;
     return payload;
   }
 
@@ -23115,7 +23621,7 @@ function ReadStream(sftp, path, options) {
   this.autoClose = options.autoClose === undefined ? true : options.autoClose;
   this.pos = 0;
   this.bytesRead = 0;
-  this.closed = false;
+  this.isClosed = false;
 
   this.handle = options.handle === undefined ? null : options.handle;
   this.sftp = sftp;
@@ -23267,7 +23773,7 @@ function closeStream(stream, cb, err) {
   function onclose(er) {
     er = er || err;
     cb(er);
-    stream.closed = true;
+    stream.isClosed = true;
     if (!er)
       stream.emit('close');
   }
@@ -23310,7 +23816,7 @@ function WriteStream(sftp, path, options) {
   this.autoClose = options.autoClose === undefined ? true : options.autoClose;
   this.pos = 0;
   this.bytesWritten = 0;
-  this.closed = false;
+  this.isClosed = false;
 
   this.handle = options.handle === undefined ? null : options.handle;
   this.sftp = sftp;
@@ -23470,7 +23976,7 @@ if (typeof WritableStream.prototype.destroy !== 'function')
 WriteStream.prototype._destroy = ReadStream.prototype._destroy;
 WriteStream.prototype.close = function(cb) {
   if (cb) {
-    if (this.closed) {
+    if (this.isClosed) {
       process.nextTick(cb);
       return;
     }
@@ -23521,7 +24027,7 @@ try {
   cpuInfo = __nccwpck_require__(4137)();
 } catch {}
 
-const { bindingAvailable } = __nccwpck_require__(5708);
+const { bindingAvailable, CIPHER_INFO, MAC_INFO } = __nccwpck_require__(5708);
 
 const eddsaSupported = (() => {
   if (typeof crypto.sign === 'function'
@@ -23590,7 +24096,11 @@ const SUPPORTED_SERVER_HOST_KEY = DEFAULT_SERVER_HOST_KEY.concat([
 ]);
 
 
-const DEFAULT_CIPHER = [
+const canUseCipher = (() => {
+  const ciphers = crypto.getCiphers();
+  return (name) => ciphers.includes(CIPHER_INFO[name].sslName);
+})();
+let DEFAULT_CIPHER = [
   // http://tools.ietf.org/html/rfc5647
   'aes128-gcm@openssh.com',
   'aes256-gcm@openssh.com',
@@ -23613,6 +24123,7 @@ if (cpuInfo && cpuInfo.flags && !cpuInfo.flags.aes) {
 } else {
   DEFAULT_CIPHER.push('chacha20-poly1305@openssh.com');
 }
+DEFAULT_CIPHER = DEFAULT_CIPHER.filter(canUseCipher);
 const SUPPORTED_CIPHER = DEFAULT_CIPHER.concat([
   'aes256-cbc',
   'aes192-cbc',
@@ -23628,9 +24139,13 @@ const SUPPORTED_CIPHER = DEFAULT_CIPHER.concat([
 
   'cast128-cbc',
   'arcfour',
-]);
+].filter(canUseCipher));
 
 
+const canUseMAC = (() => {
+  const hashes = crypto.getHashes();
+  return (name) => hashes.includes(MAC_INFO[name].sslName);
+})();
 const DEFAULT_MAC = [
   'hmac-sha2-256-etm@openssh.com',
   'hmac-sha2-512-etm@openssh.com',
@@ -23638,7 +24153,7 @@ const DEFAULT_MAC = [
   'hmac-sha2-256',
   'hmac-sha2-512',
   'hmac-sha1',
-];
+].filter(canUseMAC);
 const SUPPORTED_MAC = DEFAULT_MAC.concat([
   'hmac-md5',
   'hmac-sha2-256-96', // first 96 bits of HMAC-SHA256
@@ -23646,7 +24161,7 @@ const SUPPORTED_MAC = DEFAULT_MAC.concat([
   'hmac-ripemd160',
   'hmac-sha1-96',     // first 96 bits of HMAC-SHA1
   'hmac-md5-96',      // first 96 bits of HMAC-MD5
-]);
+].filter(canUseMAC));
 
 const DEFAULT_COMPRESSION = [
   'none',
@@ -30393,7 +30908,7 @@ module.exports = {
   doFatalError: (protocol, msg, level, reason) => {
     let err;
     if (DISCONNECT_REASON === undefined)
-      ({ DISCONNECT_REASON } = __nccwpck_require__(9475));
+      ({ DISCONNECT_REASON } = __nccwpck_require__(6832));
     if (msg instanceof Error) {
       // doFatalError(protocol, err[, reason])
       err = msg;
@@ -37720,9 +38235,7 @@ function cleanupOldImageVersions(docker, imageName) {
     return __awaiter(this, void 0, void 0, function* () {
         const repo = (0, docker_tags_1.repositoryName)(imageName);
         const options = {
-            filters: {
-                reference: [repo]
-            }
+            filters: repo
         };
         core.info(`Cleaning up images for ${repo}`);
         docker.listImages(options, function (err, imageInfoList) {
@@ -37988,7 +38501,7 @@ module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-prox
 /***/ ((module) => {
 
 "use strict";
-module.exports = {"i8":"1.6.0"};
+module.exports = {"i8":"1.11.0"};
 
 /***/ })
 
