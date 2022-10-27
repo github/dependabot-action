@@ -75621,15 +75621,7 @@ function run(context) {
                     yield updater.runUpdater();
                 }
                 catch (error) {
-                    // If we have encountered a UpdaterFetchError, the Updater will already have
-                    // reported the error and marked the job as processed, so we only need to
-                    // set an exit status.
-                    if (error instanceof updater_1.UpdaterFetchError) {
-                        setFailed('Dependabot was unable to retrieve the files required to perform the update', null);
-                        botSay('finished: unable to fetch files');
-                        return;
-                    }
-                    else if (error instanceof Error) {
+                    if (error instanceof Error) {
                         yield failJob(apiClient, 'Dependabot encountered an error performing the update', error, DependabotErrorType.UpdateRun);
                         return;
                     }
@@ -76037,20 +76029,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Updater = exports.UpdaterFetchError = void 0;
+exports.Updater = void 0;
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const container_service_1 = __nccwpck_require__(2429);
 const proxy_1 = __nccwpck_require__(7364);
 const updater_builder_1 = __nccwpck_require__(1179);
-class UpdaterFetchError extends Error {
-    constructor(msg) {
-        super(msg);
-        Object.setPrototypeOf(this, UpdaterFetchError.prototype);
-    }
-}
-exports.UpdaterFetchError = UpdaterFetchError;
 class Updater {
     constructor(updaterImage, proxyImage, apiClient, details, credentials, workingDirectory) {
         this.updaterImage = updaterImage;

@@ -7,13 +7,6 @@ import {FileUpdaterInput, FileFetcherInput} from './config-types'
 import {ProxyBuilder, Proxy} from './proxy'
 import {UpdaterBuilder} from './updater-builder'
 
-export class UpdaterFetchError extends Error {
-  constructor(msg: string) {
-    super(msg)
-    Object.setPrototypeOf(this, UpdaterFetchError.prototype)
-  }
-}
-
 export class Updater {
   docker: Docker
   outputHostPath: string
