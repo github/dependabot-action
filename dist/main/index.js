@@ -7133,16 +7133,6 @@ CombinedStream.prototype._emitError = function(err) {
 
 /***/ }),
 
-/***/ 4137:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const binding = __nccwpck_require__(4240);
-
-module.exports = binding.getCPUInfo;
-
-
-/***/ }),
-
 /***/ 8222:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -60895,7 +60885,7 @@ const crypto = __nccwpck_require__(6113);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(4137)();
+  cpuInfo = __nccwpck_require__(7295)();
 } catch {}
 
 const { bindingAvailable } = __nccwpck_require__(5708);
@@ -75961,21 +75951,21 @@ const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates';
 const CA_CERT_FILENAME = 'dbot-ca.crt';
 const UPDATER_MAX_MEMORY = 8 * 1024 * 1024 * 1024; // 8GB in bytes
 class UpdaterBuilder {
-    constructor(docker, jobParams, input, outputHostPath, proxy, repoHostPath, updaterImage) {
+    constructor(docker, jobParams, input, outputHostPath, proxy, updaterImage) {
         this.docker = docker;
         this.jobParams = jobParams;
         this.input = input;
         this.outputHostPath = outputHostPath;
         this.proxy = proxy;
-        this.repoHostPath = repoHostPath;
         this.updaterImage = updaterImage;
     }
-    run(containerName, updaterCommand) {
+    run(containerName) {
         return __awaiter(this, void 0, void 0, function* () {
             const cmd = `(echo > /etc/ca-certificates.conf) &&\
      rm -Rf /usr/share/ca-certificates/ &&\
       /usr/sbin/update-ca-certificates &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`;
+       $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
+       $DEPENDABOT_HOME/dependabot-updater/bin/run update_files &&`;
             const proxyUrl = yield this.proxy.url();
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
@@ -75996,6 +75986,7 @@ class UpdaterBuilder {
                     `HTTP_PROXY=${proxyUrl}`,
                     `https_proxy=${proxyUrl}`,
                     `HTTPS_PROXY=${proxyUrl}`,
+                    `UPDATER_ONE_CONTAINER=1`,
                     `ENABLE_CONNECTIVITY_CHECK=1`
                 ],
                 User: 'root',
@@ -76003,15 +75994,12 @@ class UpdaterBuilder {
                 HostConfig: {
                     Memory: UPDATER_MAX_MEMORY,
                     NetworkMode: this.proxy.networkName,
-                    Binds: [
-                        `${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`,
-                        `${this.repoHostPath}:${REPO_CONTENTS_PATH}:rw`
-                    ]
+                    Binds: [`${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`]
                 }
             });
             yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, this.proxy.cert);
             yield container_service_1.ContainerService.storeInput(JOB_INPUT_FILENAME, JOB_INPUT_PATH, container, this.input);
-            core.info(`Created ${updaterCommand} container: ${container.id}`);
+            core.info(`Created container: ${container.id}`);
             return container;
         });
     }
@@ -76026,29 +76014,6 @@ exports.UpdaterBuilder = UpdaterBuilder;
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -76063,12 +76028,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Updater = exports.UpdaterFetchError = void 0;
-const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const container_service_1 = __nccwpck_require__(2429);
-const utils_1 = __nccwpck_require__(1314);
 const proxy_1 = __nccwpck_require__(7364);
 const updater_builder_1 = __nccwpck_require__(1179);
 class UpdaterFetchError extends Error {
@@ -76097,12 +76060,10 @@ class Updater {
         return __awaiter(this, void 0, void 0, function* () {
             // Create required folders in the workingDirectory
             fs_1.default.mkdirSync(this.outputHostPath);
-            fs_1.default.mkdirSync(this.repoHostPath);
             const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
             yield proxy.container.start();
             try {
-                const files = yield this.runFileFetcher(proxy);
-                yield this.runFileUpdater(proxy, files);
+                yield this.runUpdate(proxy);
                 return true;
             }
             finally {
@@ -76110,44 +76071,18 @@ class Updater {
             }
         });
     }
-    runFileFetcher(proxy) {
+    runUpdate(proxy) {
         return __awaiter(this, void 0, void 0, function* () {
-            const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`;
-            const container = yield this.createContainer(proxy, name, 'fetch_files', {
+            const name = `dependabot-job-${this.apiClient.params.jobId}`;
+            const container = yield this.createContainer(proxy, name, {
                 job: this.details
             });
             yield container_service_1.ContainerService.run(container);
-            const outputPath = path_1.default.join(this.outputHostPath, 'output.json');
-            if (!fs_1.default.existsSync(outputPath)) {
-                throw new UpdaterFetchError('No output.json created by the fetcher container');
-            }
-            const fileFetcherSync = fs_1.default.readFileSync(outputPath).toString();
-            const fileFetcherOutput = JSON.parse(fileFetcherSync);
-            const fetchedFiles = {
-                base_commit_sha: fileFetcherOutput.base_commit_sha,
-                base64_dependency_files: fileFetcherOutput.base64_dependency_files,
-                dependency_files: fileFetcherOutput.base64_dependency_files.map((file) => (0, utils_1.base64DecodeDependencyFile)(file))
-            };
-            return fetchedFiles;
         });
     }
-    runFileUpdater(proxy, files) {
+    createContainer(proxy, containerName, input) {
         return __awaiter(this, void 0, void 0, function* () {
-            core.info(`Running update job ${this.apiClient.params.jobId}`);
-            const name = `dependabot-job-${this.apiClient.params.jobId}-updater`;
-            const containerInput = {
-                base_commit_sha: files.base_commit_sha,
-                base64_dependency_files: files.base64_dependency_files,
-                dependency_files: files.dependency_files,
-                job: this.details
-            };
-            const container = yield this.createContainer(proxy, name, 'update_files', containerInput);
-            yield container_service_1.ContainerService.run(container);
-        });
-    }
-    createContainer(proxy, containerName, updaterCommand, input) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new updater_builder_1.UpdaterBuilder(this.docker, this.apiClient.params, input, this.outputHostPath, proxy, this.repoHostPath, this.updaterImage).run(containerName, updaterCommand);
+            return new updater_builder_1.UpdaterBuilder(this.docker, this.apiClient.params, input, this.outputHostPath, proxy, this.updaterImage).run(containerName);
         });
     }
     cleanup(proxy) {
@@ -76207,17 +76142,18 @@ exports.errStream = errStream;
 
 /***/ }),
 
-/***/ 4240:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
-
-/***/ }),
-
 /***/ 9041:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
+
+/***/ }),
+
+/***/ 7295:
+/***/ ((module) => {
+
+module.exports = eval("require")("cpu-features");
+
 
 /***/ }),
 

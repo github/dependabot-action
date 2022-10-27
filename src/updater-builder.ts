@@ -21,16 +21,16 @@ export class UpdaterBuilder {
     private readonly input: FileFetcherInput | FileUpdaterInput,
     private readonly outputHostPath: string,
     private readonly proxy: Proxy,
-    private readonly repoHostPath: string,
 
     private readonly updaterImage: string
   ) {}
 
-  async run(containerName: string, updaterCommand: string): Promise<Container> {
+  async run(containerName: string): Promise<Container> {
     const cmd = `(echo > /etc/ca-certificates.conf) &&\
      rm -Rf /usr/share/ca-certificates/ &&\
       /usr/sbin/update-ca-certificates &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run ${updaterCommand}`
+       $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
+       $DEPENDABOT_HOME/dependabot-updater/bin/run update_files &&`
 
     const proxyUrl = await this.proxy.url()
     const container = await this.docker.createContainer({
@@ -52,6 +52,7 @@ export class UpdaterBuilder {
         `HTTP_PROXY=${proxyUrl}`,
         `https_proxy=${proxyUrl}`,
         `HTTPS_PROXY=${proxyUrl}`,
+        `UPDATER_ONE_CONTAINER=1`,
         `ENABLE_CONNECTIVITY_CHECK=1`
       ],
       User: 'root',
@@ -59,10 +60,7 @@ export class UpdaterBuilder {
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
         NetworkMode: this.proxy.networkName,
-        Binds: [
-          `${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`,
-          `${this.repoHostPath}:${REPO_CONTENTS_PATH}:rw`
-        ]
+        Binds: [`${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`]
       }
     })
 
@@ -80,7 +78,7 @@ export class UpdaterBuilder {
       this.input
     )
 
-    core.info(`Created ${updaterCommand} container: ${container.id}`)
+    core.info(`Created container: ${container.id}`)
     return container
   }
 }

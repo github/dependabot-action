@@ -71,9 +71,8 @@ integration('UpdaterBuilder', () => {
       input,
       outputPath,
       proxy,
-      repoPath,
       UPDATER_IMAGE_NAME
-    ).run('updater-image-test', 'fetch_files')
+    ).run('updater-image-test')
 
     const containerInfo = await container.inspect()
 
