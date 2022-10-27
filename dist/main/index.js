@@ -7133,6 +7133,16 @@ CombinedStream.prototype._emitError = function(err) {
 
 /***/ }),
 
+/***/ 4137:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const binding = __nccwpck_require__(4240);
+
+module.exports = binding.getCPUInfo;
+
+
+/***/ }),
+
 /***/ 8222:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -60885,7 +60895,7 @@ const crypto = __nccwpck_require__(6113);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(7295)();
+  cpuInfo = __nccwpck_require__(4137)();
 } catch {}
 
 const { bindingAvailable } = __nccwpck_require__(5708);
@@ -75965,7 +75975,7 @@ class UpdaterBuilder {
      rm -Rf /usr/share/ca-certificates/ &&\
       /usr/sbin/update-ca-certificates &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run update_files &&`;
+       $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`;
             const proxyUrl = yield this.proxy.url();
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
@@ -76142,18 +76152,17 @@ exports.errStream = errStream;
 
 /***/ }),
 
+/***/ 4240:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
+
+/***/ }),
+
 /***/ 9041:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
-
-/***/ }),
-
-/***/ 7295:
-/***/ ((module) => {
-
-module.exports = eval("require")("cpu-features");
-
 
 /***/ }),
 
