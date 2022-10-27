@@ -96,21 +96,12 @@ describe('Updater', () => {
         .mockResolvedValue(mockContainer)
 
       jest.spyOn(ProxyBuilder.prototype, 'run').mockResolvedValue(mockProxy)
-      jest
-        .spyOn(ContainerService, 'run')
-        .mockImplementationOnce(
-          jest.fn(async () => {
-            fs.copyFileSync(outputFixture, outputFilePath)
-            return true
-          })
-        )
-        .mockImplementationOnce(
-          jest.fn(
-            jest.fn(async () => {
-              return true
-            })
-          )
-        )
+      jest.spyOn(ContainerService, 'run').mockImplementationOnce(
+        jest.fn(async () => {
+          fs.copyFileSync(outputFixture, outputFilePath)
+          return true
+        })
+      )
     })
 
     it('should be successful', async () => {
