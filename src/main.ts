@@ -6,7 +6,7 @@ import {ApiClient, CredentialFetchingError} from './api-client'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
 import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from './docker-tags'
-import {Updater, UpdaterFetchError} from './updater'
+import {Updater} from './updater'
 
 export enum DependabotErrorType {
   Unknown = 'actions_workflow_unknown',
@@ -77,17 +77,7 @@ export async function run(context: Context): Promise<void> {
 
         await updater.runUpdater()
       } catch (error: unknown) {
-        // If we have encountered a UpdaterFetchError, the Updater will already have
-        // reported the error and marked the job as processed, so we only need to
-        // set an exit status.
-        if (error instanceof UpdaterFetchError) {
-          setFailed(
-            'Dependabot was unable to retrieve the files required to perform the update',
-            null
-          )
-          botSay('finished: unable to fetch files')
-          return
-        } else if (error instanceof Error) {
+        if (error instanceof Error) {
           await failJob(
             apiClient,
             'Dependabot encountered an error performing the update',
