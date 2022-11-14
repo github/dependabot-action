@@ -37980,7 +37980,7 @@ module.exports = require("zlib");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:8ff61cd2985caba8360455a3c9496dd42c7a9946878d3ffacb2e1fe60e5cde17","updater":"ghcr.io/dependabot/dependabot-updater@sha256:3eafe21bc6b337493b870eddc01d652401148b49974bd1747c0aa043fae6c905"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:d88d32a293a5e65af768e9e911a4bcfcc04038b50b7f0b265612506db9a0ad12","updater":"ghcr.io/dependabot/dependabot-updater@sha256:3eafe21bc6b337493b870eddc01d652401148b49974bd1747c0aa043fae6c905"}');
 
 /***/ }),
 
