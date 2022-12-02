@@ -2,6 +2,6 @@ name: 'Updater Action'
 description: 'Runs dependabot-updater in Actions'
 author: 'GitHub'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/main/index.js'
   post: 'dist/cleanup/index.js'
