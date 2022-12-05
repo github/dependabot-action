@@ -80111,7 +80111,7 @@ module.exports = axios;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:c4d68b711d260099f5cfa06651910a613617d1c2b585361ac7139904e42a1f59","updater":"ghcr.io/dependabot/dependabot-updater@sha256:3eafe21bc6b337493b870eddc01d652401148b49974bd1747c0aa043fae6c905"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:c4d68b711d260099f5cfa06651910a613617d1c2b585361ac7139904e42a1f59","updater":"ghcr.io/dependabot/dependabot-updater@sha256:d8d43dc17c1f0d354429e4cbc90204166193efcdcb000df3a8ef64926e9c08a0"}');
 
 /***/ }),
 
