@@ -34,3 +34,5 @@ jobs:
 
       - name: Run integration tests
         run: npm run test-integration
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
