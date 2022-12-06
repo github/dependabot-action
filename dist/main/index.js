@@ -7133,16 +7133,6 @@ CombinedStream.prototype._emitError = function(err) {
 
 /***/ }),
 
-/***/ 4137:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const binding = __nccwpck_require__(4240);
-
-module.exports = binding.getCPUInfo;
-
-
-/***/ }),
-
 /***/ 8222:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -60895,7 +60885,7 @@ const crypto = __nccwpck_require__(6113);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(4137)();
+  cpuInfo = __nccwpck_require__(7295)();
 } catch {}
 
 const { bindingAvailable } = __nccwpck_require__(5708);
@@ -76137,17 +76127,18 @@ exports.errStream = errStream;
 
 /***/ }),
 
-/***/ 4240:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
-
-/***/ }),
-
 /***/ 9041:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
+
+/***/ }),
+
+/***/ 7295:
+/***/ ((module) => {
+
+module.exports = eval("require")("cpu-features");
+
 
 /***/ }),
 
@@ -80111,7 +80102,7 @@ module.exports = axios;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:c4d68b711d260099f5cfa06651910a613617d1c2b585361ac7139904e42a1f59","updater":"ghcr.io/dependabot/dependabot-updater@sha256:d8d43dc17c1f0d354429e4cbc90204166193efcdcb000df3a8ef64926e9c08a0"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:c4d68b711d260099f5cfa06651910a613617d1c2b585361ac7139904e42a1f59","updater":"ghcr.io/dependabot/dependabot-updater@sha256:6030d5a8cd23246af8fc0276c906316fbd166d7a400479b1b87589aea7abcac9"}');
 
 /***/ }),
 
