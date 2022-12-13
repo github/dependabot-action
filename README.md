@@ -21,3 +21,4 @@ If you have any problems with Dependabot, please [open an issue][code-dependabot
 [code-dependabot-core-new-issue]: https://github.com/dependabot/dependabot-core/issues/new
 [docs-version-updates]: https://docs.github.com/en/code-security/supply-chain-security/keeping-your-dependencies-updated-automatically/about-dependabot-version-updates
 [docs-security-updates]: https://docs.github.com/en/code-security/supply-chain-security/managing-vulnerabilities-in-your-projects-dependencies/about-dependabot-security-updates
+
