@@ -26,7 +26,7 @@ export class UpdaterBuilder {
   ) {}
 
   async run(containerName: string): Promise<Container> {
-    const cmd = `echo "Press enter to run the update"; sleep 60;\
+    const cmd = `echo "Press enter to run the update"; sleep 60; mkdir -p ${JOB_OUTPUT_PATH};\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 
