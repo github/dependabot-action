@@ -58,7 +58,7 @@ integration('Updater', () => {
     fs.rmdirSync(workingDirectory, {recursive: true})
   })
 
-  jest.setTimeout(120000)
+  jest.setTimeout(130_000)
   it('should run the updater and create a pull request', async () => {
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
