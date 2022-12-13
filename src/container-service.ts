@@ -76,6 +76,11 @@ export const ContainerService = {
         AttachStderr: true
       })
       const execStream = await exec.start({})
+      exec.modem.demuxStream(
+        execStream,
+        outStream('updater'),
+        errStream('updater')
+      )
       await new Promise((resolve, reject) => {
         execStream.on('end', resolve)
         execStream.on('error', reject)
