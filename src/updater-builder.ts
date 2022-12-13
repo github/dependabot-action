@@ -34,8 +34,6 @@ export class UpdaterBuilder {
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       name: containerName,
-      Tty: true,
-      AttachStdin: true,
       AttachStdout: true,
       AttachStderr: true,
       Env: [
