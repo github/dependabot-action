@@ -26,9 +26,7 @@ export class UpdaterBuilder {
   ) {}
 
   async run(containerName: string): Promise<Container> {
-    const cmd = `(echo > /etc/ca-certificates.conf) &&\
-     rm -Rf /usr/share/ca-certificates/ &&\
-      /usr/sbin/update-ca-certificates &&\
+    const cmd = `/usr/sbin/update-ca-certificates &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 
@@ -55,7 +53,6 @@ export class UpdaterBuilder {
         `UPDATER_ONE_CONTAINER=1`,
         `ENABLE_CONNECTIVITY_CHECK=1`
       ],
-      User: 'root',
       Cmd: ['sh', '-c', cmd],
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
