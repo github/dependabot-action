@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
-import {ContainerService} from './container-service'
+import {ContainerService, WAITING_MESSAGE} from './container-service'
 import {FileFetcherInput, FileUpdaterInput} from './config-types'
 import {JobParameters} from './inputs'
 import {Proxy} from './proxy'
@@ -26,7 +26,7 @@ export class UpdaterBuilder {
   ) {}
 
   async run(containerName: string): Promise<Container> {
-    const cmd = `echo "Press enter to run the update"; sleep 60; mkdir -p ${JOB_OUTPUT_PATH};\
+    const cmd = `echo "${WAITING_MESSAGE}"; sleep 60; mkdir -p ${JOB_OUTPUT_PATH};\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 

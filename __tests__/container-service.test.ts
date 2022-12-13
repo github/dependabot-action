@@ -1,6 +1,6 @@
 import Docker from 'dockerode'
 
-import {ContainerService} from '../src/container-service'
+import {ContainerService, WAITING_MESSAGE} from '../src/container-service'
 import {ImageService} from '../src/image-service'
 
 describe('ContainerService', () => {
@@ -18,7 +18,11 @@ describe('ContainerService', () => {
         Image: 'alpine',
         AttachStdout: true,
         AttachStderr: true,
-        Cmd: ['/bin/sh', '-c', 'echo $VAR'],
+        Cmd: [
+          '/bin/sh',
+          '-c',
+          `echo "${WAITING_MESSAGE}"; sleep 100; echo $VAR`
+        ],
         Env: ['VAR=env-var']
       })
     })
@@ -35,7 +39,11 @@ describe('ContainerService', () => {
         Image: 'alpine',
         AttachStdout: true,
         AttachStderr: true,
-        Cmd: ['/bin/sh', '-c', 'nosuchccommand']
+        Cmd: [
+          '/bin/sh',
+          '-c',
+          `echo "${WAITING_MESSAGE}"; sleep 100; nosuchccommand`
+        ]
       })
     })
 

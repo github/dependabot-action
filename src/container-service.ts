@@ -5,6 +5,8 @@ import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
 import {outStream, errStream} from './utils'
 import {PassThrough} from 'stream'
 
+export const WAITING_MESSAGE = 'Waiting for certificates to be installed...'
+
 export class ContainerRuntimeError extends Error {}
 
 export const ContainerService = {
@@ -50,7 +52,7 @@ export const ContainerService = {
       )
       const running = new Promise(resolve => {
         passthrough.on('data', (data: Buffer) => {
-          if (data.toString().includes('Press enter to run the update')) {
+          if (data.toString().includes(WAITING_MESSAGE)) {
             resolve(true)
           }
         })
@@ -69,8 +71,8 @@ export const ContainerService = {
           '-c',
           '(echo > /etc/ca-certificates.conf) && ' +
             'rm -Rf /usr/share/ca-certificates/ && ' +
-            '/usr/sbin/update-ca-certificates &&' +
-            'killall -u dependabot sleep'
+            '/usr/sbin/update-ca-certificates;' +
+            'killall sleep'
         ],
         AttachStdout: true,
         AttachStderr: true
@@ -81,16 +83,18 @@ export const ContainerService = {
         outStream('updater'),
         errStream('updater')
       )
-      await new Promise((resolve, reject) => {
+      await new Promise(resolve => {
         execStream.on('end', resolve)
-        execStream.on('error', reject)
+        execStream.on('error', resolve)
       })
       const outcome = await container.wait()
 
       if (outcome.StatusCode === 0) {
         return true
       } else {
-        core.info(`Failure running container ${container.id}`)
+        core.info(
+          `Failure running container ${container.id} status code ${outcome.StatusCode}`
+        )
         throw new ContainerRuntimeError(
           'The updater encountered one or more errors.'
         )
