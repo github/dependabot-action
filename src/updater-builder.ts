@@ -27,6 +27,7 @@ export class UpdaterBuilder {
 
   async run(containerName: string): Promise<Container> {
     const cmd = `/usr/sbin/update-ca-certificates &&\
+       mkdir -p ${JOB_OUTPUT_PATH} &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 
@@ -56,8 +57,7 @@ export class UpdaterBuilder {
       Cmd: ['sh', '-c', cmd],
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
-        NetworkMode: this.proxy.networkName,
-        Binds: [`${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`]
+        NetworkMode: this.proxy.networkName
       }
     })
 
