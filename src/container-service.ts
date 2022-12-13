@@ -14,7 +14,7 @@ export const ContainerService = {
     input: FileFetcherInput | FileUpdaterInput | ProxyConfig
   ): Promise<void> {
     const tar = pack()
-    tar.entry({name}, JSON.stringify(input))
+    tar.entry({name, mode: 0o777}, JSON.stringify(input))
     tar.finalize()
     await container.putArchive(tar, {path})
   },
