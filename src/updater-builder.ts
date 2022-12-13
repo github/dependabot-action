@@ -34,6 +34,7 @@ export class UpdaterBuilder {
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       name: containerName,
+      User: 'dependabot',
       AttachStdout: true,
       AttachStderr: true,
       Env: [
@@ -56,8 +57,7 @@ export class UpdaterBuilder {
       Cmd: ['bash', '-c', cmd],
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
-        NetworkMode: this.proxy.networkName,
-        Binds: [`${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`]
+        NetworkMode: this.proxy.networkName
       }
     })
 
