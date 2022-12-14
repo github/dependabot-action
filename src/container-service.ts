@@ -6,6 +6,8 @@ import {outStream, errStream} from './utils'
 
 export class ContainerRuntimeError extends Error {}
 
+const RWX_ALL = 0o777
+
 export const ContainerService = {
   async storeInput(
     name: string,
@@ -14,7 +16,7 @@ export const ContainerService = {
     input: FileFetcherInput | FileUpdaterInput | ProxyConfig
   ): Promise<void> {
     const tar = pack()
-    tar.entry({name}, JSON.stringify(input))
+    tar.entry({name, mode: RWX_ALL}, JSON.stringify(input))
     tar.finalize()
     await container.putArchive(tar, {path})
   },

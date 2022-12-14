@@ -75221,11 +75221,12 @@ const utils_1 = __nccwpck_require__(1314);
 class ContainerRuntimeError extends Error {
 }
 exports.ContainerRuntimeError = ContainerRuntimeError;
+const RWX_ALL = 0o777;
 exports.ContainerService = {
     storeInput(name, path, container, input) {
         return __awaiter(this, void 0, void 0, function* () {
             const tar = (0, tar_stream_1.pack)();
-            tar.entry({ name }, JSON.stringify(input));
+            tar.entry({ name, mode: RWX_ALL }, JSON.stringify(input));
             tar.finalize();
             yield container.putArchive(tar, { path });
         });
@@ -75963,9 +75964,8 @@ class UpdaterBuilder {
     }
     run(containerName) {
         return __awaiter(this, void 0, void 0, function* () {
-            const cmd = `(echo > /etc/ca-certificates.conf) &&\
-     rm -Rf /usr/share/ca-certificates/ &&\
-      /usr/sbin/update-ca-certificates &&\
+            const cmd = `/usr/sbin/update-ca-certificates &&\
+       mkdir -p ${JOB_OUTPUT_PATH} &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`;
             const proxyUrl = yield this.proxy.url();
@@ -75991,12 +75991,10 @@ class UpdaterBuilder {
                     `UPDATER_ONE_CONTAINER=1`,
                     `ENABLE_CONNECTIVITY_CHECK=1`
                 ],
-                User: 'root',
                 Cmd: ['sh', '-c', cmd],
                 HostConfig: {
                     Memory: UPDATER_MAX_MEMORY,
-                    NetworkMode: this.proxy.networkName,
-                    Binds: [`${this.outputHostPath}:${JOB_OUTPUT_PATH}:rw`]
+                    NetworkMode: this.proxy.networkName
                 }
             });
             yield container_service_1.ContainerService.storeCert(CA_CERT_FILENAME, CA_CERT_INPUT_PATH, container, this.proxy.cert);
@@ -80111,7 +80109,7 @@ module.exports = axios;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247","updater":"ghcr.io/dependabot/dependabot-updater@sha256:6030d5a8cd23246af8fc0276c906316fbd166d7a400479b1b87589aea7abcac9"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247","updater":"ghcr.io/dependabot/dependabot-updater@sha256:df82b95238fcc2e346e6eec226dc3af7eacc657fd1d2e78ffc431cc31d3e1011"}');
 
 /***/ }),
 
