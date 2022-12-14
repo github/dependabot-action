@@ -75221,11 +75221,12 @@ const utils_1 = __nccwpck_require__(1314);
 class ContainerRuntimeError extends Error {
 }
 exports.ContainerRuntimeError = ContainerRuntimeError;
+const RWX_ALL = 0o777;
 exports.ContainerService = {
     storeInput(name, path, container, input) {
         return __awaiter(this, void 0, void 0, function* () {
             const tar = (0, tar_stream_1.pack)();
-            tar.entry({ name, mode: 0o777 }, JSON.stringify(input));
+            tar.entry({ name, mode: RWX_ALL }, JSON.stringify(input));
             tar.finalize();
             yield container.putArchive(tar, { path });
         });
