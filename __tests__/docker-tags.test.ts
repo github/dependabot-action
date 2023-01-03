@@ -8,7 +8,7 @@ import {getImageName} from '../src/update-containers'
 describe('Docker tags', () => {
   test('UPDATER_IMAGE_NAME uses a pinned version and matches the config Dockerfile', () => {
     expect(UPDATER_IMAGE_NAME).toMatch(
-      /^ghcr\.io\/dependabot\/dependabot-updater@sha256:[a-zA-Z0-9]{64}$/
+      /^ghcr\.io\/dependabot\/dependabot-updater:v\d.\d.\d{14}@sha256:[a-zA-Z0-9]{64}$/
     )
 
     expect(UPDATER_IMAGE_NAME).toEqual(getImageName('Dockerfile.updater'))
@@ -16,7 +16,7 @@ describe('Docker tags', () => {
 
   test('PROXY_IMAGE_NAME uses a pinned version and matches the config Dockerfile', () => {
     expect(PROXY_IMAGE_NAME).toMatch(
-      /^ghcr\.io\/github\/dependabot-update-job-proxy\/dependabot-update-job-proxy@sha256:[a-zA-Z0-9]{64}$/
+      /^ghcr\.io\/github\/dependabot-update-job-proxy\/dependabot-update-job-proxy:v\d.\d.\d{14}@sha256:[a-zA-Z0-9]{64}$/
     )
 
     expect(PROXY_IMAGE_NAME).toEqual(getImageName('Dockerfile.proxy'))
