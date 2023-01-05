@@ -24,6 +24,7 @@ integration('Updater', () => {
   const internalDockerHost =
     process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
   const dependabotApiDockerUrl = `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
+  const updaterImage = UPDATER_IMAGE_NAME
   const workingDirectory = path.join(
     __dirname,
     '..',
@@ -37,6 +38,7 @@ integration('Updater', () => {
     'cred-token',
     dependabotApiUrl,
     dependabotApiDockerUrl,
+    updaterImage,
     workingDirectory
   )
 

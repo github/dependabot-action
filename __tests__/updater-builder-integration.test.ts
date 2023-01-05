@@ -63,6 +63,7 @@ integration('UpdaterBuilder', () => {
       'cred-token',
       'https://example.com',
       '172.17.0.1',
+      UPDATER_IMAGE_NAME,
       workingDirectory
     )
     const container = await new UpdaterBuilder(

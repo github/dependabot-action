@@ -40,14 +40,17 @@ export async function run(context: Context): Promise<void> {
     core.info('Fetching job details')
 
     // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
-    // so we do not try attempt to report back an exception if this fails and instead rely on the the workflow run
+    // so we do not try attempt to report back an exception if this fails and instead rely on the workflow run
     // webhook as it anticipates scenarios where jobs have failed while 'enqueued'.
     const details = await apiClient.getJobDetails()
+
+    // The dynamic workflow can specify which updater image to use. If it doesn't, fall back to the pinned version.
+    const updaterImage = params.updaterImage || UPDATER_IMAGE_NAME
 
     try {
       const credentials = await apiClient.getCredentials()
       const updater = new Updater(
-        UPDATER_IMAGE_NAME,
+        updaterImage,
         PROXY_IMAGE_NAME,
         apiClient,
         details,
@@ -57,7 +60,7 @@ export async function run(context: Context): Promise<void> {
 
       core.startGroup('Pulling updater images')
       try {
-        await ImageService.pull(UPDATER_IMAGE_NAME)
+        await ImageService.pull(updaterImage)
         await ImageService.pull(PROXY_IMAGE_NAME)
       } catch (error: unknown) {
         if (error instanceof Error) {
