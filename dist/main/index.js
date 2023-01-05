@@ -75432,12 +75432,13 @@ const DYNAMIC = 'dynamic';
 const DEPENDABOT_ACTOR = 'dependabot[bot]';
 // JobParameters are the Action inputs required to execute the job
 class JobParameters {
-    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl, workingDirectory) {
+    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl, updaterImage, workingDirectory) {
         this.jobId = jobId;
         this.jobToken = jobToken;
         this.credentialsToken = credentialsToken;
         this.dependabotApiUrl = dependabotApiUrl;
         this.dependabotApiDockerUrl = dependabotApiDockerUrl;
+        this.updaterImage = updaterImage;
         this.workingDirectory = workingDirectory;
     }
 }
@@ -75485,7 +75486,7 @@ function fromWorkflowInputs(ctx) {
     }
     const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
     const workingDirectory = absoluteWorkingDirectory(evt.inputs.workingDirectory);
-    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, workingDirectory);
+    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, evt.inputs.updaterImage, workingDirectory);
 }
 function absoluteWorkingDirectory(workingDirectory) {
     const workspace = process.env.GITHUB_WORKSPACE;
@@ -75600,15 +75601,17 @@ function run(context) {
             const apiClient = new api_client_1.ApiClient(client, params);
             core.info('Fetching job details');
             // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
-            // so we do not try attempt to report back an exception if this fails and instead rely on the the workflow run
+            // so we do not try attempt to report back an exception if this fails and instead rely on the workflow run
             // webhook as it anticipates scenarios where jobs have failed while 'enqueued'.
             const details = yield apiClient.getJobDetails();
+            // The dynamic workflow can specify which updater image to use. If it doesn't, fall back to the pinned version.
+            const updaterImage = params.updaterImage || docker_tags_1.UPDATER_IMAGE_NAME;
             try {
                 const credentials = yield apiClient.getCredentials();
-                const updater = new updater_1.Updater(docker_tags_1.UPDATER_IMAGE_NAME, docker_tags_1.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
+                const updater = new updater_1.Updater(updaterImage, docker_tags_1.PROXY_IMAGE_NAME, apiClient, details, credentials, params.workingDirectory);
                 core.startGroup('Pulling updater images');
                 try {
-                    yield image_service_1.ImageService.pull(docker_tags_1.UPDATER_IMAGE_NAME);
+                    yield image_service_1.ImageService.pull(updaterImage);
                     yield image_service_1.ImageService.pull(docker_tags_1.PROXY_IMAGE_NAME);
                 }
                 catch (error) {
