@@ -6,6 +6,7 @@ import {ApiClient} from '../src/api-client'
 import {ContainerRuntimeError} from '../src/container-service'
 import {Updater} from '../src/updater'
 import {ImageService} from '../src/image-service'
+import {UPDATER_IMAGE_NAME} from '../src/docker-tags'
 import * as inputs from '../src/inputs'
 import {run} from '../src/main'
 
@@ -70,6 +71,48 @@ describe('run', () => {
 
       expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
       expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when an updaterImage is not specified', () => {
+    beforeEach(() => {
+      context = new Context()
+      context.payload = {
+        ...context.payload,
+        inputs: {
+          ...context.payload.inputs,
+          updaterImage: null
+        }
+      }
+      jest.spyOn(ImageService, 'pull')
+    })
+
+    test('it runs with the pinned image', async () => {
+      await run(context)
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(ImageService.pull).toHaveBeenCalledWith(UPDATER_IMAGE_NAME)
+    })
+  })
+
+  describe('when an updaterImage is specified', () => {
+    beforeEach(() => {
+      context = new Context()
+      context.payload = {
+        ...context.payload,
+        inputs: {
+          ...context.payload.inputs,
+          updaterImage: 'alpine'
+        }
+      }
+      jest.spyOn(ImageService, 'pull')
+    })
+
+    test('it runs with the specified image', async () => {
+      await run(context)
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(ImageService.pull).toHaveBeenCalledWith('alpine')
     })
   })
 
