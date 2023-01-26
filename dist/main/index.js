@@ -75279,12 +75279,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+exports.digestName = exports.hasDigest = exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
 // eslint-disable-next-line import/extensions
 const containers_json_1 = __importDefault(__nccwpck_require__(8708));
 exports.UPDATER_IMAGE_NAME = containers_json_1.default.updater;
 exports.PROXY_IMAGE_NAME = containers_json_1.default.proxy;
-const imageNamePattern = '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(@sha256:[a-zA-Z0-9]{64})?$';
+const imageNamePattern = '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(?<digest>@sha256:[a-zA-Z0-9]{64})?$';
 function repositoryName(imageName) {
     const match = imageName.match(imageNamePattern);
     if (match === null || match === void 0 ? void 0 : match.groups) {
@@ -75295,6 +75295,29 @@ function repositoryName(imageName) {
     }
 }
 exports.repositoryName = repositoryName;
+function hasDigest(imageName) {
+    const match = imageName.match(imageNamePattern);
+    if (match === null || match === void 0 ? void 0 : match.groups) {
+        if (match === null || match === void 0 ? void 0 : match.groups['digest']) {
+            return true;
+        }
+        return false;
+    }
+    else {
+        throw Error('invalid image name');
+    }
+}
+exports.hasDigest = hasDigest;
+function digestName(imageName) {
+    const match = imageName.match(imageNamePattern);
+    if (match === null || match === void 0 ? void 0 : match.groups) {
+        return match.groups['repository'] + match.groups['digest'];
+    }
+    else {
+        throw Error('invalid image name');
+    }
+}
+exports.digestName = digestName;
 
 
 /***/ }),
