@@ -67,4 +67,19 @@ integration('cleanupOldImageVersions', () => {
       remainingImages[0].RepoDigests?.includes(digestName(currentImage))
     ).toEqual(true)
   })
+
+  test('it no-ops when disabled', async () => {
+    process.env.DEPENDABOT_DISABLE_CLEANUP = '1'
+
+    const imageCount = (await docker.listImages(imageOptions)).length
+    expect(imageCount).toEqual(2)
+
+    await run()
+    // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
+    // the verification query doesn't race the deletion
+    await delay(200)
+
+    const remainingImages = await docker.listImages(imageOptions)
+    expect(remainingImages.length).toEqual(2)
+  })
 })
