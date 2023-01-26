@@ -44,11 +44,11 @@ export async function cleanupOldImageVersions(
   docker.listImages(options, async function (err, imageInfoList) {
     if (imageInfoList && imageInfoList.length > 0) {
       for (const imageInfo of imageInfoList) {
-        // The given imageName is expected to be a digest, however to avoid any surprises in future
-        // we fail over to check for a match on tags as well.
+        // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
+        // we fail over to check for a match on just tags as well.
         //
         // This means we won't remove any image which matches an imageName of either of these notations:
-        // - dependabot/image@sha256:$REF (current implementation)
+        // - dependabot/image:$TAG@sha256:$REF (current implementation)
         // - dependabot/image:v1
         //
         // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
