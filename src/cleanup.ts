@@ -3,6 +3,8 @@ import Docker from 'dockerode'
 import {
   UPDATER_IMAGE_NAME,
   PROXY_IMAGE_NAME,
+  digestName,
+  hasDigest,
   repositoryName
 } from './docker-tags'
 
@@ -53,10 +55,7 @@ export async function cleanupOldImageVersions(
         //
         // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
         // this was the active version.
-        if (
-          imageInfo.RepoDigests?.includes(imageName) ||
-          imageInfo.RepoTags?.includes(imageName)
-        ) {
+        if (imageMatches(imageInfo, imageName)) {
           core.info(`Skipping current image ${imageInfo.Id}`)
           continue
         }
@@ -72,6 +71,15 @@ export async function cleanupOldImageVersions(
       }
     }
   })
+}
+
+function imageMatches(imageInfo: Docker.ImageInfo, imageName: string): boolean {
+  if (hasDigest(imageName)) {
+    return imageInfo.RepoDigests
+      ? imageInfo.RepoDigests.includes(digestName(imageName))
+      : false
+  }
+  return imageInfo.RepoTags ? imageInfo.RepoTags.includes(imageName) : false
 }
 
 run()

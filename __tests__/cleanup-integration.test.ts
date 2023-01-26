@@ -3,7 +3,7 @@ import Docker from 'dockerode'
 import {ImageService} from '../src/image-service'
 import {integration, delay} from './helpers'
 import {run, cleanupOldImageVersions} from '../src/cleanup'
-import {PROXY_IMAGE_NAME} from '../src/docker-tags'
+import {PROXY_IMAGE_NAME, digestName} from '../src/docker-tags'
 
 integration('run', () => {
   beforeEach(async () => {
@@ -63,6 +63,8 @@ integration('cleanupOldImageVersions', () => {
 
     const remainingImages = await docker.listImages(imageOptions)
     expect(remainingImages.length).toEqual(1)
-    expect(remainingImages[0].RepoDigests?.includes(currentImage))
+    expect(
+      remainingImages[0].RepoDigests?.includes(digestName(currentImage))
+    ).toEqual(true)
   })
 })

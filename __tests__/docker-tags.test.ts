@@ -1,6 +1,8 @@
 import {
   UPDATER_IMAGE_NAME,
   PROXY_IMAGE_NAME,
+  digestName,
+  hasDigest,
   repositoryName
 } from '../src/docker-tags'
 import {getImageName} from '../src/update-containers'
@@ -22,7 +24,7 @@ describe('Docker tags', () => {
     expect(PROXY_IMAGE_NAME).toEqual(getImageName('Dockerfile.proxy'))
   })
 
-  test('repositoryName returns the image name minus the tagged version or reference for our real values', () => {
+  test('repositoryName returns the image name minus the tagged version and reference for our real values', () => {
     expect(repositoryName(UPDATER_IMAGE_NAME)).toMatch(
       'ghcr.io/dependabot/dependabot-updater'
     )
@@ -33,7 +35,7 @@ describe('Docker tags', () => {
   })
 
   test('repositoryName handles named tags', () => {
-    // We currently use pinned SHA references instead of tags, but we should account for both notations
+    // We currently use pinned SHA references in addition to tags, but we should account for both notations
     // to avoid any surprises
     expect(
       repositoryName('docker.pkg.github.com/dependabot/dependabot-updater:v1')
@@ -91,5 +93,37 @@ describe('Docker tags', () => {
     expect(
       repositoryName('this-is-just-some-random-nonsense-with-a:in-it')
     ).toMatch('this-is-just-some-random-nonsense-with-a')
+  })
+
+  test('digestName returns the image name and digest minus the tagged version or reference', () => {
+    expect(
+      digestName(
+        'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20221206155623@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247'
+      )
+    ).toMatch(
+      'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247'
+    )
+
+    expect(
+      digestName(
+        'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247'
+      )
+    ).toMatch(
+      'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247'
+    )
+  })
+
+  test('hasDigest identifies when a digest is present', () => {
+    expect(
+      hasDigest(
+        'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20221206155623@sha256:1942aea0f57a3652d7694390dd4d8e6d08abca84b89383ee7ef9c6b57e00d247'
+      )
+    ).toEqual(true)
+
+    expect(
+      hasDigest(
+        'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v1'
+      )
+    ).toEqual(false)
   })
 })
