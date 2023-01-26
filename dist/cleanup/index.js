@@ -37698,6 +37698,9 @@ const docker_tags_1 = __nccwpck_require__(4665);
 // cutoff - a Go duration string to pass to the Docker API's 'until' argument, default '24h'
 function run(cutoff = '24h') {
     return __awaiter(this, void 0, void 0, function* () {
+        if (process.env.DEPENDABOT_DISABLE_CLEANUP === '1') {
+            return;
+        }
         try {
             const docker = new dockerode_1.default();
             const untilFilter = { until: [cutoff] };

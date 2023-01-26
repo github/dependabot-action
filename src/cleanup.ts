@@ -14,6 +14,10 @@ import {
 //
 // cutoff - a Go duration string to pass to the Docker API's 'until' argument, default '24h'
 export async function run(cutoff = '24h'): Promise<void> {
+  if (process.env.DEPENDABOT_DISABLE_CLEANUP === '1') {
+    return
+  }
+
   try {
     const docker = new Docker()
     const untilFilter = {until: [cutoff]}
