@@ -3,6 +3,7 @@ import Docker from 'dockerode'
 import {ImageService} from '../src/image-service'
 import {integration, delay} from './helpers'
 import {run, cleanupOldImageVersions} from '../src/cleanup'
+import {PROXY_IMAGE_NAME, digestName} from '../src/docker-tags'
 
 integration('run', () => {
   beforeEach(async () => {
@@ -17,19 +18,17 @@ integration('run', () => {
 })
 
 integration('cleanupOldImageVersions', () => {
-  // We use this GitHub-hosted hello world example as a small stand-in for this test
-  // in order to avoid hitting the rate limit on pulling containers from docker.io
-  // since this test needs to remove and pull containers per run.
-  const testImage = 'ghcr.io/github/hello-docker'
   const docker = new Docker()
   const imageOptions = {
     filters: {
-      reference: [testImage]
+      reference: [
+        'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy'
+      ]
     }
   }
 
-  const currentImage = `${testImage}@sha256:f32f4412fa4b6c7ece72cb85ae652751f11ac0d075c1131df09bb24f46b2f4e3`
-  const oldImage = `${testImage}@sha256:8cfee63309567569d3d7d0edc05fcf8be8f9f5130f0564dacea4cfe82a9db4b7`
+  const currentImage = PROXY_IMAGE_NAME
+  const oldImage = `ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20221204234507@sha256:c4d68b711d260099f5cfa06651910a613617d1c2b585361ac7139904e42a1f59`
 
   async function clearTestImages(): Promise<void> {
     const testImages = await docker.listImages(imageOptions)
@@ -64,6 +63,8 @@ integration('cleanupOldImageVersions', () => {
 
     const remainingImages = await docker.listImages(imageOptions)
     expect(remainingImages.length).toEqual(1)
-    expect(remainingImages[0].RepoDigests?.includes(currentImage))
+    expect(
+      remainingImages[0].RepoDigests?.includes(digestName(currentImage))
+    ).toEqual(true)
   })
 })

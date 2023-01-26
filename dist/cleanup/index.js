@@ -37726,21 +37726,19 @@ function cleanupOldImageVersions(docker, imageName) {
         };
         core.info(`Cleaning up images for ${repo}`);
         docker.listImages(options, function (err, imageInfoList) {
-            var _a, _b;
             return __awaiter(this, void 0, void 0, function* () {
                 if (imageInfoList && imageInfoList.length > 0) {
                     for (const imageInfo of imageInfoList) {
-                        // The given imageName is expected to be a digest, however to avoid any surprises in future
-                        // we fail over to check for a match on tags as well.
+                        // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
+                        // we fail over to check for a match on just tags as well.
                         //
                         // This means we won't remove any image which matches an imageName of either of these notations:
-                        // - dependabot/image@sha256:$REF (current implementation)
+                        // - dependabot/image:$TAG@sha256:$REF (current implementation)
                         // - dependabot/image:v1
                         //
                         // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
                         // this was the active version.
-                        if (((_a = imageInfo.RepoDigests) === null || _a === void 0 ? void 0 : _a.includes(imageName)) ||
-                            ((_b = imageInfo.RepoTags) === null || _b === void 0 ? void 0 : _b.includes(imageName))) {
+                        if (imageMatches(imageInfo, imageName)) {
                             core.info(`Skipping current image ${imageInfo.Id}`);
                             continue;
                         }
@@ -37760,6 +37758,14 @@ function cleanupOldImageVersions(docker, imageName) {
     });
 }
 exports.cleanupOldImageVersions = cleanupOldImageVersions;
+function imageMatches(imageInfo, imageName) {
+    if ((0, docker_tags_1.hasDigest)(imageName)) {
+        return imageInfo.RepoDigests
+            ? imageInfo.RepoDigests.includes((0, docker_tags_1.digestName)(imageName))
+            : false;
+    }
+    return imageInfo.RepoTags ? imageInfo.RepoTags.includes(imageName) : false;
+}
 run();
 
 
@@ -37774,12 +37780,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
+exports.digestName = exports.hasDigest = exports.repositoryName = exports.PROXY_IMAGE_NAME = exports.UPDATER_IMAGE_NAME = void 0;
 // eslint-disable-next-line import/extensions
 const containers_json_1 = __importDefault(__nccwpck_require__(8708));
 exports.UPDATER_IMAGE_NAME = containers_json_1.default.updater;
 exports.PROXY_IMAGE_NAME = containers_json_1.default.proxy;
-const imageNamePattern = '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(@sha256:[a-zA-Z0-9]{64})?$';
+const imageNamePattern = '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(?<digest>@sha256:[a-zA-Z0-9]{64})?$';
 function repositoryName(imageName) {
     const match = imageName.match(imageNamePattern);
     if (match === null || match === void 0 ? void 0 : match.groups) {
@@ -37790,6 +37796,29 @@ function repositoryName(imageName) {
     }
 }
 exports.repositoryName = repositoryName;
+function hasDigest(imageName) {
+    const match = imageName.match(imageNamePattern);
+    if (match === null || match === void 0 ? void 0 : match.groups) {
+        if (match === null || match === void 0 ? void 0 : match.groups['digest']) {
+            return true;
+        }
+        return false;
+    }
+    else {
+        throw Error('invalid image name');
+    }
+}
+exports.hasDigest = hasDigest;
+function digestName(imageName) {
+    const match = imageName.match(imageNamePattern);
+    if (match === null || match === void 0 ? void 0 : match.groups) {
+        return match.groups['repository'] + match.groups['digest'];
+    }
+    else {
+        throw Error('invalid image name');
+    }
+}
+exports.digestName = digestName;
 
 
 /***/ }),
