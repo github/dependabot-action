@@ -52,7 +52,9 @@ export class UpdaterBuilder {
         `https_proxy=${proxyUrl}`,
         `HTTPS_PROXY=${proxyUrl}`,
         `UPDATER_ONE_CONTAINER=1`,
-        `ENABLE_CONNECTIVITY_CHECK=1`
+        `ENABLE_CONNECTIVITY_CHECK=${
+          process.env.DEPENDABOT_ENABLE_CONNECTIVITY_CHECK || '1'
+        }`
       ],
       Cmd: ['sh', '-c', cmd],
       HostConfig: {
