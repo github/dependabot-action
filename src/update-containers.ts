@@ -21,7 +21,22 @@ export function getImageName(dockerfileName: string): string {
 
 const manifest = {
   proxy: getImageName('Dockerfile.proxy'),
-  updater: getImageName('Dockerfile.updater')
+  bundler: getImageName('Dockerfile.bundler'),
+  cargo: getImageName('Dockerfile.cargo'),
+  composer: getImageName('Dockerfile.composer'),
+  pub: getImageName('Dockerfile.pub'),
+  docker: getImageName('Dockerfile.docker'),
+  elm: getImageName('Dockerfile.elm'),
+  github_actions: getImageName('Dockerfile.github-actions'),
+  submodules: getImageName('Dockerfile.gitsubmodule'),
+  go_modules: getImageName('Dockerfile.gomod'),
+  gradle: getImageName('Dockerfile.gradle'),
+  maven: getImageName('Dockerfile.maven'),
+  hex: getImageName('Dockerfile.mix'),
+  nuget: getImageName('Dockerfile.nuget'),
+  npm_and_yarn: getImageName('Dockerfile.npm'),
+  pip: getImageName('Dockerfile.pip'),
+  terraform: getImageName('Dockerfile.terraform')
 }
 
 fs.writeFile(
