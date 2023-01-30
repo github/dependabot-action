@@ -30,7 +30,7 @@ jobs:
         run: npm clean-install
 
       - name: Pre-fetch the pinned images
-        run: npm run fetch-images
+        run: npm run fetch-images -- bundler
 
       - name: Run integration tests
         run: npm run test-integration
