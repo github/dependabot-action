@@ -5,7 +5,7 @@ import {Context} from '@actions/github/lib/context'
 import {ApiClient, CredentialFetchingError} from './api-client'
 import {getJobParameters} from './inputs'
 import {ImageService} from './image-service'
-import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from './docker-tags'
+import {updaterImageName, PROXY_IMAGE_NAME} from './docker-tags'
 import {Updater} from './updater'
 
 export enum DependabotErrorType {
@@ -45,7 +45,8 @@ export async function run(context: Context): Promise<void> {
     const details = await apiClient.getJobDetails()
 
     // The dynamic workflow can specify which updater image to use. If it doesn't, fall back to the pinned version.
-    const updaterImage = params.updaterImage || UPDATER_IMAGE_NAME
+    const updaterImage =
+      params.updaterImage || updaterImageName(details['package-manager'])
 
     try {
       const credentials = await apiClient.getCredentials()

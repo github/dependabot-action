@@ -9,6 +9,14 @@ export function updaterImageName(packageManager: string): string {
   ]
 }
 
+const updaterRegex = /ghcr.io\/dependabot\/dependabot-updater-([\w+])/
+
+export function updaterImages(): string[] {
+  return Object.values(dockerContainerConfig).filter(image =>
+    image.match(updaterRegex)
+  )
+}
+
 const imageNamePattern =
   '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(?<digest>@sha256:[a-zA-Z0-9]{64})?$'
 

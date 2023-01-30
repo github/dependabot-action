@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import Docker from 'dockerode'
 import {
-  UPDATER_IMAGE_NAME,
+  updaterImages,
   PROXY_IMAGE_NAME,
   digestName,
   hasDigest,
@@ -25,7 +25,9 @@ export async function run(cutoff = '24h'): Promise<void> {
     await docker.pruneNetworks({filters: untilFilter})
     core.info(`Pruning containers older than ${cutoff}`)
     await docker.pruneContainers({filters: untilFilter})
-    await cleanupOldImageVersions(docker, UPDATER_IMAGE_NAME)
+    for (const image of updaterImages()) {
+      await cleanupOldImageVersions(docker, image)
+    }
     await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
   } catch (error: unknown) {
     if (error instanceof Error) {
