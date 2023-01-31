@@ -24,7 +24,7 @@ integration('Updater', () => {
   const internalDockerHost =
     process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
   const dependabotApiDockerUrl = `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
-  const updaterImage = updaterImageName('bundler')
+  const updaterImage = updaterImageName('npm_and_yarn')
   const workingDirectory = path.join(
     __dirname,
     '..',
@@ -46,7 +46,7 @@ integration('Updater', () => {
   const apiClient = new ApiClient(client, params)
 
   beforeAll(async () => {
-    await ImageService.pull(updaterImageName('bundler'))
+    await ImageService.pull(updaterImageName('npm_and_yarn'))
     await ImageService.pull(PROXY_IMAGE_NAME)
 
     server = await runFakeDependabotApi(FAKE_SERVER_PORT)
@@ -66,7 +66,7 @@ integration('Updater', () => {
     const credentials = await apiClient.getCredentials()
 
     const updater = new Updater(
-      updaterImageName('bundler'),
+      updaterImageName('npm_and_yarn'),
       PROXY_IMAGE_NAME,
       apiClient,
       details,
