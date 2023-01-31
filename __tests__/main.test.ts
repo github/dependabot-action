@@ -54,6 +54,11 @@ describe('run', () => {
 
   describe('when the run follows the happy path', () => {
     beforeEach(() => {
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
@@ -236,6 +241,12 @@ describe('run', () => {
           )
         )
 
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
       context = new Context()
     })
 
@@ -269,7 +280,11 @@ describe('run', () => {
             Promise.reject(new Error('error pulling an image'))
           )
         )
-
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
@@ -303,7 +318,11 @@ describe('run', () => {
             Promise.reject(new ContainerRuntimeError('the container melted'))
           )
         )
-
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
@@ -337,7 +356,11 @@ describe('run', () => {
             Promise.reject(new Error('error running the update'))
           )
         )
-
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
