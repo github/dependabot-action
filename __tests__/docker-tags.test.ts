@@ -8,7 +8,7 @@ import {
 import {getImageName} from '../src/update-containers'
 
 describe('Docker tags', () => {
-  test('UPDATER_IMAGE_NAME uses a pinned version and matches the config Dockerfile', () => {
+  test('updater images use a pinned version and matches the config Dockerfile', () => {
     for (const image of updaterImages()) {
       expect(image).toMatch(
         /^ghcr\.io\/dependabot\/dependabot-updater-\w+:v\d.\d.\d{14}@sha256:[a-zA-Z0-9]{64}$/
