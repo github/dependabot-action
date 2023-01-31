@@ -11,10 +11,14 @@ describe('Docker tags', () => {
   test('updater images use a pinned version and matches the config Dockerfile', () => {
     for (const image of updaterImages()) {
       expect(image).toMatch(
-        /^ghcr\.io\/dependabot\/dependabot-updater-\w+:v\d.\d.\d{14}@sha256:[a-zA-Z0-9]{64}$/
+        /^ghcr\.io\/dependabot\/dependabot-updater-[-\w]+:v\d.\d.\d{14}@sha256:[a-zA-Z0-9]{64}$/
       )
 
-      expect(image).toEqual(getImageName('Dockerfile.updater'))
+      expect(image).toEqual(
+        getImageName(
+          `Dockerfile.${image.match(/dependabot-updater-([-\w]+)/)?.[1]}`
+        )
+      )
     }
   })
 
@@ -29,7 +33,7 @@ describe('Docker tags', () => {
   test('repositoryName returns the image name minus the tagged version and reference for our real values', () => {
     for (const image of updaterImages()) {
       expect(repositoryName(image)).toMatch(
-        /^ghcr.io\/dependabot\/dependabot-updater-\w+$/
+        /^ghcr.io\/dependabot\/dependabot-updater-[-\w]+$/
       )
     }
 
