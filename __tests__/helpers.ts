@@ -1,5 +1,5 @@
 import Docker from 'dockerode'
-import {UPDATER_IMAGE_NAME, PROXY_IMAGE_NAME} from '../src/docker-tags'
+import {updaterImages, PROXY_IMAGE_NAME} from '../src/docker-tags'
 import waitPort from 'wait-port'
 import path from 'path'
 import {spawn} from 'child_process'
@@ -10,7 +10,7 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
 
   for (const container of containers) {
     if (
-      container.Image.includes(UPDATER_IMAGE_NAME) ||
+      updaterImages().includes(container.Image) ||
       container.Image.includes(PROXY_IMAGE_NAME)
     ) {
       try {

@@ -1,8 +1,21 @@
 // eslint-disable-next-line import/extensions
 import dockerContainerConfig from '../docker/containers.json'
 
-export const UPDATER_IMAGE_NAME = dockerContainerConfig.updater
 export const PROXY_IMAGE_NAME = dockerContainerConfig.proxy
+
+export function updaterImageName(packageManager: string): string {
+  return dockerContainerConfig[
+    packageManager as keyof typeof dockerContainerConfig
+  ]
+}
+
+const updaterRegex = /ghcr.io\/dependabot\/dependabot-updater-([\w+])/
+
+export function updaterImages(): string[] {
+  return Object.values(dockerContainerConfig).filter(image =>
+    image.match(updaterRegex)
+  )
+}
 
 const imageNamePattern =
   '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(?<digest>@sha256:[a-zA-Z0-9]{64})?$'

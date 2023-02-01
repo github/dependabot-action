@@ -2,11 +2,11 @@ import fs from 'fs'
 import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
-import {ApiClient} from '../src/api-client'
+import {ApiClient, JobDetails} from '../src/api-client'
 import {ContainerRuntimeError} from '../src/container-service'
 import {Updater} from '../src/updater'
 import {ImageService} from '../src/image-service'
-import {UPDATER_IMAGE_NAME} from '../src/docker-tags'
+import {updaterImageName} from '../src/docker-tags'
 import * as inputs from '../src/inputs'
 import {run} from '../src/main'
 
@@ -54,6 +54,11 @@ describe('run', () => {
 
   describe('when the run follows the happy path', () => {
     beforeEach(() => {
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
@@ -85,13 +90,21 @@ describe('run', () => {
         }
       }
       jest.spyOn(ImageService, 'pull')
+
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
     })
 
     test('it runs with the pinned image', async () => {
       await run(context)
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(ImageService.pull).toHaveBeenCalledWith(UPDATER_IMAGE_NAME)
+      expect(ImageService.pull).toHaveBeenCalledWith(
+        updaterImageName('npm_and_yarn')
+      )
     })
   })
 
@@ -228,6 +241,12 @@ describe('run', () => {
           )
         )
 
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
       context = new Context()
     })
 
@@ -261,7 +280,11 @@ describe('run', () => {
             Promise.reject(new Error('error pulling an image'))
           )
         )
-
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
@@ -295,7 +318,11 @@ describe('run', () => {
             Promise.reject(new ContainerRuntimeError('the container melted'))
           )
         )
-
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
@@ -329,7 +356,11 @@ describe('run', () => {
             Promise.reject(new Error('error running the update'))
           )
         )
-
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
       context = new Context()
     })
 
