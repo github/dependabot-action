@@ -20,11 +20,7 @@ integration('run', () => {
 integration('cleanupOldImageVersions', () => {
   const docker = new Docker()
   const imageOptions = {
-    filters: {
-      reference: [
-        'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy'
-      ]
-    }
+    filters: 'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy'
   }
 
   const currentImage = PROXY_IMAGE_NAME
