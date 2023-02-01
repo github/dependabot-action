@@ -20,7 +20,7 @@ integration('run', () => {
 integration('cleanupOldImageVersions', () => {
   const docker = new Docker()
   const imageOptions = {
-    filters: 'ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy'
+    filters: `{"reference":["ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy"]}`
   }
 
   const currentImage = PROXY_IMAGE_NAME
@@ -49,8 +49,8 @@ integration('cleanupOldImageVersions', () => {
   }, 10000)
 
   test('it removes unused versions of the given image', async () => {
-    const imageCount = (await docker.listImages(imageOptions)).length
-    expect(imageCount).toEqual(2)
+    const initialImages = await docker.listImages(imageOptions)
+    expect(initialImages.length).toEqual(2)
 
     await cleanupOldImageVersions(docker, currentImage)
     // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
