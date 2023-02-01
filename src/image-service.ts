@@ -4,7 +4,7 @@ import {Readable} from 'stream'
 
 const endOfStream = async (docker: Docker, stream: Readable): Promise<void> => {
   return new Promise((resolve, reject) => {
-    docker.modem.followProgress(stream, (err: Error) =>
+    docker.modem.followProgress(stream, (err: Error | null) =>
       err ? reject(err) : resolve(undefined)
     )
   })
