@@ -15,5 +15,5 @@
   "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20230130173627@sha256:3f757d5efc797a7a4926c262dcc20c5fc8e07c305691bacdbe251fcb564e9d9c",
   "npm_and_yarn": "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20230130173627@sha256:7289f28657b1df36f0c1f676924aee4b3e5f966695cefa460f5950f56f307307",
   "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20230130173627@sha256:6bc01f132b73048d1a4b90ef5aaf0cfd8cfa8080b971981f29007a4bb51013b5",
-  "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20230130173627@sha256:0e4cde804093924957e419d80c9c165ef4ea27796999b02532f19031a01ab678"
+  "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20230201230055@sha256:cd1e74e9c6077d36472c61d196ddc99e9c009d82941574b9e112fabea2554a09"
 }
