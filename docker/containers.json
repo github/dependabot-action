@@ -1,6 +1,6 @@
 {
   "proxy": "ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20230130034108@sha256:64ab9d2d891b8655d05ae1368867ee6536d3afeaadeabf60d23f11fbc5964f5a",
-  "bundler": "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20230201230055@sha256:959139f7652c86215d834e5939e9a8a9ea7bd75076e3e8301c5a953dbda1fb06",
+  "bundler": "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20230202192327@sha256:959139f7652c86215d834e5939e9a8a9ea7bd75076e3e8301c5a953dbda1fb06",
   "cargo": "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20230130173627@sha256:6de589492642f030b2f30899e9906fa6b0fbfd5301b21ae2d5770fc9137b3293",
   "composer": "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20230130173627@sha256:1d09524e940f6d0bad141e5da0e295c34ed3cf3f1876a0021b966d17457fe128",
   "pub": "ghcr.io/dependabot/dependabot-updater-pub:v2.0.20230130173627@sha256:4cd4664352f4d993a1683e03a7394aa1cc8c46b15cd384a2fc0e6bda58e172b0",
