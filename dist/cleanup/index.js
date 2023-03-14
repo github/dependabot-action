@@ -6411,7 +6411,11 @@ var Docker = function(opts) {
     }
   }
 
-  this.modem = new Modem(opts);
+  if (opts && opts.modem) {
+    this.modem = opts.modem;
+  } else {
+    this.modem = new Modem(opts);
+  }
   this.modem.Promise = plibrary;
 };
 
@@ -8351,7 +8355,7 @@ Exec.prototype.inspect = function(opts, callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      if (err) return callback(err, data);
+      if (err) return args.callback(err, data);
       args.callback(err, data);
     });
   }
@@ -8854,7 +8858,7 @@ Node.prototype.inspect = function(opts, callback) {
   var optsf = {
     path: '/nodes/' + this.id,
     method: 'GET',
-    abortSignal: args.abortSignal,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such node',
@@ -23802,7 +23806,7 @@ let AESGCMDecipher;
 let ChaChaPolyDecipher;
 let GenericDecipher;
 try {
-  binding = __nccwpck_require__(9041);
+  binding = __nccwpck_require__(9623);
   ({ AESGCMCipher, ChaChaPolyCipher, GenericCipher,
      AESGCMDecipher, ChaChaPolyDecipher, GenericDecipher } = binding);
 } catch {}
@@ -38246,10 +38250,11 @@ module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.nod
 
 /***/ }),
 
-/***/ 9041:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 9623:
+/***/ ((module) => {
 
-module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
+module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
+
 
 /***/ }),
 
