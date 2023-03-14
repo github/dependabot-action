@@ -6411,7 +6411,11 @@ var Docker = function(opts) {
     }
   }
 
-  this.modem = new Modem(opts);
+  if (opts && opts.modem) {
+    this.modem = opts.modem;
+  } else {
+    this.modem = new Modem(opts);
+  }
   this.modem.Promise = plibrary;
 };
 
@@ -8351,7 +8355,7 @@ Exec.prototype.inspect = function(opts, callback) {
     });
   } else {
     this.modem.dial(optsf, function(err, data) {
-      if (err) return callback(err, data);
+      if (err) return args.callback(err, data);
       args.callback(err, data);
     });
   }
@@ -8854,7 +8858,7 @@ Node.prototype.inspect = function(opts, callback) {
   var optsf = {
     path: '/nodes/' + this.id,
     method: 'GET',
-    abortSignal: args.abortSignal,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       404: 'no such node',
