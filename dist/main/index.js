@@ -14161,16 +14161,6 @@ CombinedStream.prototype._emitError = function(err) {
 
 /***/ }),
 
-/***/ 4137:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const binding = __nccwpck_require__(4240);
-
-module.exports = binding.getCPUInfo;
-
-
-/***/ }),
-
 /***/ 8222:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -68951,7 +68941,7 @@ const crypto = __nccwpck_require__(6113);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(4137)();
+  cpuInfo = __nccwpck_require__(7295)();
 } catch {}
 
 const { bindingAvailable } = __nccwpck_require__(5708);
@@ -69326,7 +69316,7 @@ let AESGCMDecipher;
 let ChaChaPolyDecipher;
 let GenericDecipher;
 try {
-  binding = __nccwpck_require__(9041);
+  binding = __nccwpck_require__(9623);
   ({ AESGCMCipher, ChaChaPolyCipher, GenericCipher,
      AESGCMDecipher, ChaChaPolyDecipher, GenericDecipher } = binding);
 } catch {}
@@ -86517,17 +86507,19 @@ exports.errStream = errStream;
 
 /***/ }),
 
-/***/ 4240:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 9623:
+/***/ ((module) => {
 
-module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
+module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
+
 
 /***/ }),
 
-/***/ 9041:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 7295:
+/***/ ((module) => {
 
-module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
+module.exports = eval("require")("cpu-features");
+
 
 /***/ }),
 
@@ -90917,7 +90909,7 @@ module.exports = axios;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20230310184612@sha256:a89ef48e664ab82e2bcfb90d3c3a55af1235dec6c01dc113d8d763a657f3a860","bundler":"ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20230201230055@sha256:959139f7652c86215d834e5939e9a8a9ea7bd75076e3e8301c5a953dbda1fb06","cargo":"ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20230210184231@sha256:7c0d74f54209ddc2bb5758264158749bdf55db55cbd64a819be615f4c8e6a2ff","composer":"ghcr.io/dependabot/dependabot-updater-composer:v2.0.20230210184231@sha256:f38e048ff34a78c187053e192069dc96bf5696be6e417160440dec830560976f","pub":"ghcr.io/dependabot/dependabot-updater-pub:v2.0.20230210184231@sha256:7eccfede4c8936375e45d13785c4e10a114a8e234d2bb2586c723fe94fc336f5","docker":"ghcr.io/dependabot/dependabot-updater-docker:v2.0.20230210184231@sha256:5124d41eca400832d6978407d3dae8042661272bc8ab32b05fafc7482e56917e","elm":"ghcr.io/dependabot/dependabot-updater-elm:v2.0.20230210184231@sha256:a2a31eee179a12ca4dc77d653b97670b8629e6db57937b8950761efc0e668d8a","github_actions":"ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20230210184231@sha256:1d08506f41c9db18acf8351c1c065e7fa2963db6fa104771de417bff87efe772","submodules":"ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20230210184231@sha256:be7cc88b9136710056cb546c0b105454803d086a39df4b5be75b53fc958640cd","go_modules":"ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20230210184231@sha256:8aaf5035410260d049285f348862990afa00a387d0d02d80107cb22cfa722feb","gradle":"ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20230210184231@sha256:7e21f6eff72224b9ae7d6ca066b63fc21142c6260f826331a03b0a75f04f7abc","maven":"ghcr.io/dependabot/dependabot-updater-maven:v2.0.20230210184231@sha256:ff06a70ac17dc4272d46b179cc4644fefb88c348e593e990a1be14d6813cdc9d","hex":"ghcr.io/dependabot/dependabot-updater-mix:v2.0.20230130173627@sha256:cbe353e417c2f7ef2363f514da9edeb68147ee55f8f502ffd1938c52515a2fa6","nuget":"ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20230130173627@sha256:3f757d5efc797a7a4926c262dcc20c5fc8e07c305691bacdbe251fcb564e9d9c","npm_and_yarn":"ghcr.io/dependabot/dependabot-updater-npm:v2.0.20230210184231@sha256:893bd333596df961303026b7d432f4d47f5e1c9c61a01d535b6a73bba2210571","pip":"ghcr.io/dependabot/dependabot-updater-pip:v2.0.20230210184231@sha256:d24b58f99dea894dce45e50dd2e0cf06c58305b9c337546da11be5bd436a2c33","terraform":"ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20230210184231@sha256:1c7abab524ac4a97b278357725332dcce0db691424b504817863f0dca83f8468"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20230310184612@sha256:a89ef48e664ab82e2bcfb90d3c3a55af1235dec6c01dc113d8d763a657f3a860","bundler":"ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20230201230055@sha256:959139f7652c86215d834e5939e9a8a9ea7bd75076e3e8301c5a953dbda1fb06","cargo":"ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20230210184231@sha256:7c0d74f54209ddc2bb5758264158749bdf55db55cbd64a819be615f4c8e6a2ff","composer":"ghcr.io/dependabot/dependabot-updater-composer:v2.0.20230314124736@sha256:0d713c2f5cf2e9105f285ecbcea0817fbc796b482c66f2236fdfe9020db1e921","pub":"ghcr.io/dependabot/dependabot-updater-pub:v2.0.20230210184231@sha256:7eccfede4c8936375e45d13785c4e10a114a8e234d2bb2586c723fe94fc336f5","docker":"ghcr.io/dependabot/dependabot-updater-docker:v2.0.20230314124736@sha256:890d80c035fdd93bdf20b2e394910bd2787e64a51bd18d7fb0e05cf62d1a55b0","elm":"ghcr.io/dependabot/dependabot-updater-elm:v2.0.20230210184231@sha256:a2a31eee179a12ca4dc77d653b97670b8629e6db57937b8950761efc0e668d8a","github_actions":"ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20230314124736@sha256:3238c2ed642a0e8c58c08e613b9f442baf8d8002a6992eec3134c5a122581600","submodules":"ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20230210184231@sha256:be7cc88b9136710056cb546c0b105454803d086a39df4b5be75b53fc958640cd","go_modules":"ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20230314124736@sha256:e65940596d71ff2db88eb037f9691b33aeb2a1404402cf218d3cd16db828e1ee","gradle":"ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20230314124736@sha256:fede90b16cd40355c5201962e9c1a17a6263e4e0a85d24d0493c03176ba3ad43","maven":"ghcr.io/dependabot/dependabot-updater-maven:v2.0.20230210184231@sha256:ff06a70ac17dc4272d46b179cc4644fefb88c348e593e990a1be14d6813cdc9d","hex":"ghcr.io/dependabot/dependabot-updater-mix:v2.0.20230130173627@sha256:cbe353e417c2f7ef2363f514da9edeb68147ee55f8f502ffd1938c52515a2fa6","nuget":"ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20230130173627@sha256:3f757d5efc797a7a4926c262dcc20c5fc8e07c305691bacdbe251fcb564e9d9c","npm_and_yarn":"ghcr.io/dependabot/dependabot-updater-npm:v2.0.20230210184231@sha256:893bd333596df961303026b7d432f4d47f5e1c9c61a01d535b6a73bba2210571","pip":"ghcr.io/dependabot/dependabot-updater-pip:v2.0.20230210184231@sha256:d24b58f99dea894dce45e50dd2e0cf06c58305b9c337546da11be5bd436a2c33","terraform":"ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20230314124736@sha256:a6f7d618c8d71eef4fb1e433df58efee3e02136116880fb8779a9978aff56f7c"}');
 
 /***/ }),
 
