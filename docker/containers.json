@@ -7,7 +7,7 @@
   "docker": "ghcr.io/dependabot/dependabot-updater-docker:v2.0.20230315172159@sha256:d6d0c0c39462b478a47977cdae4a7e90c662850d6e27dff6ccc0ef1228f13c6c",
   "elm": "ghcr.io/dependabot/dependabot-updater-elm:v2.0.20230315172159@sha256:7752ac2b7da98557c350dcdf1cfadc23e31a6ae72e85e1f0c590fa4f1fb32cb2",
   "github_actions": "ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20230315172159@sha256:34eb33594ac652068061c7862d18b4cce79452c31c1b41681f465f80d5e517d3",
-  "submodules": "ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20230315172159@sha256:3c5493cf205281c4b939e110d60305af69ee2e67ad067923904ab275c1b93175",
+  "submodules": "ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20230316212504@sha256:61e613e56244439f1499d0a48e7a7e74a7eef1b4a81b133acddc5b3ea4333ec5",
   "go_modules": "ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20230315172159@sha256:1f80a66afd3e6f7e1e17d55eb16dd78cb06d7afb9c2a22a8cfa9ac0719db1721",
   "gradle": "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20230315172159@sha256:93990bed0abcc6afa6223077b36079e6175803469ada90e6d0da28ab1b990808",
   "maven": "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20230315172159@sha256:1e7d29416e220479fba8b173f7df96e9ca52bf7bb2ead55ff720a686aab3bad0",
