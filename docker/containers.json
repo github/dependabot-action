@@ -12,7 +12,7 @@
   "gradle": "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20230314124736@sha256:fede90b16cd40355c5201962e9c1a17a6263e4e0a85d24d0493c03176ba3ad43",
   "maven": "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20230314223122@sha256:27d3663810db09126ffd4ba051a616a7c512d5cf5fff5f80721069d484dc3142",
   "hex": "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20230315172159@sha256:355249f0beb6fbf483e5339b3aa62eb93c8b874379cc4968fbbd3555824bd529",
-  "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20230314223122@sha256:5da422261f199a325f24d90615f5f3c815242062d7f088588701913ebd4c7a21",
+  "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20230315172159@sha256:bdb85a4dc4a1fbbebdc0f07662f1e7b3ed84ed255036d78050a71bf951906ca5",
   "npm_and_yarn": "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20230314231206@sha256:d85efb8982fa9de4ae69465a60f8f5c8b00e300bf2b493ec081d3c6e79c24856",
   "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20230315172159@sha256:fae9b39091c98941004fb3894119ab6d82f8d1e80d0b7f85ffb37e5a6d52dd82",
   "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20230315172159@sha256:0b990a8e43dc8da13208132267e5ae779927087dbc1b8a41354dcd8118e1311c"
