@@ -3,7 +3,7 @@
   "bundler": "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20230315172159@sha256:b8a5c6f10b668bb4c48e2f243611dc71090761f30cc8f82426710a28627dae96",
   "cargo": "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20230315172159@sha256:d9df617e1a68f3382904b4ea25805419603f27f05ac17fb2284c49839584f4e0",
   "composer": "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20230317123045@sha256:771a6f90c90271a3fcd981f22a51c632c71341a86a2b58cc4fdcbbcda34df330",
-  "pub": "ghcr.io/dependabot/dependabot-updater-pub:v2.0.20230315172159@sha256:1dde9cc8bba563d5eb6ca97c4162f691e4648c64388359572d4e85fd06490957",
+  "pub": "ghcr.io/dependabot/dependabot-updater-pub:v2.0.20230317123045@sha256:5e15f33a6b5fc0fc7a83af93710c7f1cd2d99ceb67115738375180160c4f750e",
   "docker": "ghcr.io/dependabot/dependabot-updater-docker:v2.0.20230315172159@sha256:d6d0c0c39462b478a47977cdae4a7e90c662850d6e27dff6ccc0ef1228f13c6c",
   "elm": "ghcr.io/dependabot/dependabot-updater-elm:v2.0.20230317123045@sha256:6868c72adc784e7b23acd3e83f547912af14ba285154e6dd5941e7f57c0da29f",
   "github_actions": "ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20230315172159@sha256:34eb33594ac652068061c7862d18b4cce79452c31c1b41681f465f80d5e517d3",
