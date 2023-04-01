@@ -9,7 +9,7 @@
   "github_actions": "ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20230317130517@sha256:748f1ce08f5d5aa6a95bb830a255627e0a26ea1ed1477ca4a82abb62fb8f9137",
   "submodules": "ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20230317130517@sha256:a5f3288d1d58fdd914202f5987910f17cef3b5593a0f68e88a270fc1d0e5884d",
   "go_modules": "ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20230317123045@sha256:f31cbe940d186110013350acf9c60e22497162d8585e991655f00186702ae7ca",
-  "gradle": "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20230317123045@sha256:f1c98ec4639d6e27cb2cf2f94d2439b55475acc23f37d67a9d80081fc88bc72b",
+  "gradle": "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20230331232755@sha256:6066de45059bf6932c0c07737b8ee6b7e5b3c96d95225f144f318ae6a356f789",
   "maven": "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20230317134336@sha256:a997877e2a3a8c3e02f137d9ba1dff1bb7278f44c2b8302f347beb49d8387790",
   "hex": "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20230317134336@sha256:e455e64d2ab8e53e0a802f3144aa79bc4a8c923d10d41cc8fdc03a8be4bc5620",
   "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20230317123045@sha256:fe96b686b4bfd93ad59cbaed4a8d34c001c2f9974ff6547b87d3105e4017e652",
