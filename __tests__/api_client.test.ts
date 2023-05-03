@@ -1,5 +1,9 @@
 import * as core from '@actions/core'
-import {ApiClient, CredentialFetchingError} from '../src/api-client'
+import {
+  ApiClient,
+  CredentialFetchingError,
+  JobDetailsFetchingError
+} from '../src/api-client'
 
 describe('ApiClient', () => {
   const mockAxios: any = {
@@ -38,6 +42,28 @@ describe('ApiClient', () => {
     const jobDetails = await api.getJobDetails()
     expect(jobDetails['allowed-updates'].length).toBe(1)
     expect(jobDetails['package-manager']).toBe('npm_and_yarn')
+  })
+
+  test('job details errors', async () => {
+    const apiResponse = {
+      errors: [
+        {
+          status: 400,
+          title: 'Bad Request',
+          detail: 'Update job has already been processed'
+        }
+      ]
+    }
+    mockAxios.get.mockRejectedValue({
+      isAxiosError: true,
+      response: {status: 400, data: apiResponse}
+    })
+
+    await expect(api.getJobDetails()).rejects.toThrowError(
+      new JobDetailsFetchingError(
+        'fetching job details: received code 400: {"errors":[{"status":400,"title":"Bad Request","detail":"Update job has already been processed"}]}'
+      )
+    )
   })
 
   test('get job credentials', async () => {

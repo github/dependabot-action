@@ -2,7 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
-import {ApiClient, JobDetails, CredentialFetchingError} from '../src/api-client'
+import {
+  ApiClient,
+  JobDetails,
+  CredentialFetchingError,
+  JobDetailsFetchingError
+} from '../src/api-client'
 import {ContainerRuntimeError} from '../src/container-service'
 import {Updater} from '../src/updater'
 import {ImageService} from '../src/image-service'
@@ -215,7 +220,11 @@ describe('run', () => {
         .spyOn(ApiClient.prototype, 'getJobDetails')
         .mockImplementationOnce(
           jest.fn(async () =>
-            Promise.reject(new Error('error getting job details'))
+            Promise.reject(
+              new JobDetailsFetchingError(
+                'fetching job details: received code 400: more details'
+              )
+            )
           )
         )
 
@@ -226,7 +235,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Dependabot encountered an unexpected problem\n\nError: error getting job details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an unexpected problem\n\nError: fetching job details: received code 400: more details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
       )
     })
 

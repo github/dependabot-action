@@ -27,6 +27,7 @@ export type Credential = {
   token?: string
 }
 
+export class JobDetailsFetchingError extends Error {}
 export class CredentialFetchingError extends Error {}
 
 export class ApiClient {
@@ -43,14 +44,29 @@ export class ApiClient {
 
   async getJobDetails(): Promise<JobDetails> {
     const detailsURL = `/update_jobs/${this.params.jobId}/details`
-    const res: any = await this.client.get(detailsURL, {
-      headers: {Authorization: this.params.jobToken}
-    })
-    if (res.status !== 200) {
-      throw new Error(`Unexpected status code: ${res.status}`)
-    }
+    try {
+      const res: any = await this.client.get(detailsURL, {
+        headers: {Authorization: this.params.jobToken}
+      })
+      if (res.status !== 200) {
+        throw new JobDetailsFetchingError(
+          `fetching job details: unexpected status code: ${res.status}`
+        )
+      }
 
-    return res.data.data.attributes
+      return res.data.data.attributes
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        const err = error
+        throw new JobDetailsFetchingError(
+          `fetching job details: received code ${
+            err.response?.status
+          }: ${JSON.stringify(err.response?.data)}`
+        )
+      } else {
+        throw error
+      }
+    }
   }
 
   async getCredentials(): Promise<Credential[]> {
