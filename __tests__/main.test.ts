@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
-import {ApiClient, JobDetails} from '../src/api-client'
+import {ApiClient, JobDetails, CredentialFetchingError} from '../src/api-client'
 import {ContainerRuntimeError} from '../src/container-service'
 import {Updater} from '../src/updater'
 import {ImageService} from '../src/image-service'
@@ -13,7 +13,6 @@ import {run} from '../src/main'
 import {eventFixturePath} from './helpers'
 
 // We do not need to build actual containers or run updates for this test.
-jest.mock('../src/api-client')
 jest.mock('../src/image-service')
 jest.mock('../src/updater')
 
@@ -38,7 +37,15 @@ describe('run', () => {
       ApiClient.prototype,
       'markJobAsProcessed'
     )
+    markJobAsProcessedSpy.mockImplementation(jest.fn())
     reportJobErrorSpy = jest.spyOn(ApiClient.prototype, 'reportJobError')
+    reportJobErrorSpy.mockImplementation(jest.fn())
+    jest
+      .spyOn(ApiClient.prototype, 'getCredentials')
+      .mockImplementation(jest.fn())
+    jest
+      .spyOn(ApiClient.prototype, 'getJobDetails')
+      .mockImplementation(jest.fn())
 
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
     jest.spyOn(core, 'warning').mockImplementation(jest.fn())
@@ -231,13 +238,17 @@ describe('run', () => {
     })
   })
 
-  describe('when there is an error retrieving job credentials from DependabotAPI', () => {
+  describe('when there is an API error retrieving job credentials from DependabotAPI', () => {
     beforeEach(() => {
       jest
         .spyOn(ApiClient.prototype, 'getCredentials')
         .mockImplementationOnce(
           jest.fn(async () =>
-            Promise.reject(new Error('error getting credentials'))
+            Promise.reject(
+              new CredentialFetchingError(
+                'fetching credentials: received code 422: more details'
+              )
+            )
           )
         )
 
@@ -254,7 +265,48 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('error getting credentials')
+        expect.stringContaining(
+          'fetching credentials: received code 422: more details'
+        )
+      )
+    })
+
+    test('it relays a failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_updater',
+        'error-details': {
+          'action-error':
+            'fetching credentials: received code 422: more details'
+        }
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when there is an unexpected error retrieving job credentials from DependabotAPI', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(ApiClient.prototype, 'getCredentials')
+        .mockImplementationOnce(
+          jest.fn(async () => Promise.reject(new Error('something went wrong')))
+        )
+
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
+      context = new Context()
+    })
+
+    test('it fails the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('something went wrong')
       )
     })
 
@@ -264,7 +316,7 @@ describe('run', () => {
       expect(reportJobErrorSpy).toHaveBeenCalledWith({
         'error-type': 'actions_workflow_unknown',
         'error-details': {
-          'action-error': 'error getting credentials'
+          'action-error': 'something went wrong'
         }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
