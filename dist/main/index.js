@@ -85438,9 +85438,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ApiClient = exports.CredentialFetchingError = void 0;
+exports.ApiClient = exports.CredentialFetchingError = exports.JobDetailsFetchingError = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const axios_1 = __importDefault(__nccwpck_require__(8757));
+class JobDetailsFetchingError extends Error {
+}
+exports.JobDetailsFetchingError = JobDetailsFetchingError;
 class CredentialFetchingError extends Error {
 }
 exports.CredentialFetchingError = CredentialFetchingError;
@@ -85455,15 +85458,27 @@ class ApiClient {
         };
     }
     getJobDetails() {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             const detailsURL = `/update_jobs/${this.params.jobId}/details`;
-            const res = yield this.client.get(detailsURL, {
-                headers: { Authorization: this.params.jobToken }
-            });
-            if (res.status !== 200) {
-                throw new Error(`Unexpected status code: ${res.status}`);
+            try {
+                const res = yield this.client.get(detailsURL, {
+                    headers: { Authorization: this.params.jobToken }
+                });
+                if (res.status !== 200) {
+                    throw new JobDetailsFetchingError(`fetching job details: unexpected status code: ${res.status}`);
+                }
+                return res.data.data.attributes;
             }
-            return res.data.data.attributes;
+            catch (error) {
+                if (axios_1.default.isAxiosError(error)) {
+                    const err = error;
+                    throw new JobDetailsFetchingError(`fetching job details: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                }
+                else {
+                    throw error;
+                }
+            }
         });
     }
     getCredentials() {
