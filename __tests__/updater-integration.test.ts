@@ -1,4 +1,5 @@
 import axios from 'axios'
+import axiosRetry from 'axios-retry'
 import fs from 'fs'
 import path from 'path'
 import {ApiClient} from '../src/api-client'
@@ -43,13 +44,20 @@ integration('Updater', () => {
   )
 
   const client = axios.create({baseURL: dependabotApiUrl})
+  axiosRetry(client, {
+    retryDelay: axiosRetry.exponentialDelay, // eslint-disable-line @typescript-eslint/unbound-method
+    retryCondition: e => {
+      return axiosRetry.isNetworkError(e) || axiosRetry.isRetryableError(e)
+    }
+  })
   const apiClient = new ApiClient(client, params)
 
   beforeAll(async () => {
     await ImageService.pull(updaterImageName('npm_and_yarn'))
     await ImageService.pull(PROXY_IMAGE_NAME)
 
-    server = await runFakeDependabotApi(FAKE_SERVER_PORT)
+    const testRetry = true
+    server = await runFakeDependabotApi(FAKE_SERVER_PORT, testRetry)
 
     fs.mkdirSync(workingDirectory)
   })
@@ -61,7 +69,7 @@ integration('Updater', () => {
   })
 
   jest.setTimeout(120000)
-  it('should run the updater and create a pull request', async () => {
+  it('should run the updater, retry on apiClient failure, and create a pull request', async () => {
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
 
