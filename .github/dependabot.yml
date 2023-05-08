@@ -7,6 +7,10 @@ updates:
       interval: 'monthly'
     registries:
       - ghcr
+    groups:
+      dependabot-core-images:
+        patterns:
+          - dependabot/*
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
