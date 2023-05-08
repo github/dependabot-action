@@ -1,4 +1,5 @@
 import axios from 'axios'
+import axiosRetry from 'axios-retry'
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {Context} from '@actions/github/lib/context'
@@ -35,6 +36,12 @@ export async function run(context: Context): Promise<void> {
     core.setSecret(params.credentialsToken)
 
     const client = axios.create({baseURL: params.dependabotApiUrl})
+    axiosRetry(client, {
+      retryDelay: axiosRetry.exponentialDelay, // eslint-disable-line @typescript-eslint/unbound-method
+      retryCondition: e => {
+        return axiosRetry.isNetworkError(e) || axiosRetry.isRetryableError(e)
+      }
+    })
     const apiClient = new ApiClient(client, params)
 
     core.info('Fetching job details')

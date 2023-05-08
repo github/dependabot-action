@@ -26,12 +26,14 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
 }
 
 export const runFakeDependabotApi = async (
-  port = 9000
+  port = 9000,
+  testRetry = false
 ): Promise<() => void> => {
-  const server = spawn('node', [
-    `${path.join(__dirname, 'server/server.js')}`,
-    `${port}`
-  ])
+  const server = spawn(
+    'node',
+    [`${path.join(__dirname, 'server/server.js')}`, `${port}`],
+    {env: {...process.env, TEST_RETRY: `${testRetry}`}}
+  )
 
   server.stdout.on('data', (data: any) => {
     console.log(`json-server log: ${data}`) // eslint-disable-line no-console

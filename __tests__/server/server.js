@@ -6,6 +6,7 @@ const db = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json')))
 const router = jsonServer.router(db)
 const middlewares = jsonServer.defaults()
 const SERVER_PORT = process.argv.slice(2)[0] || 9000
+var failOneRequest = process.env.TEST_RETRY == 'true'
 
 // Sets up a fake dependabot-api using json-server
 //
@@ -31,6 +32,12 @@ server.get('/update_jobs/:id/details', (req, res) => {
   const updateJob = db.update_jobs.find(job => `${job.id}` === id)
   if (!updateJob) {
     return res.status(404).end()
+  }
+  if (failOneRequest) {
+    failOneRequest = false
+    return res.status(500).jsonp({
+      errors: [{ status: 500, title: 'Server error', detail: 'Test error to trigger retry' }]
+    })
   }
 
   res.jsonp({
@@ -60,7 +67,7 @@ server.post(
   '/update_jobs/:id/create_pull_request',
   jsonServer.bodyParser,
   (req, res) => {
-    const data = {...req.body.data, id: req.params.id}
+    const data = { ...req.body.data, id: req.params.id }
     db.pull_requests.push(data)
     router.db.write()
 
