@@ -7,6 +7,10 @@ updates:
       interval: 'monthly'
     registries:
       - ghcr
+    labels:
+      - dependencies
+      - docker
+      - Fanout
     groups:
       dependabot-core-images:
         patterns:
@@ -15,11 +19,19 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    labels:
+      - dependencies
+      - github_actions
+      - Fanout      
   - package-ecosystem: 'npm'
     directory: '/'
     open-pull-requests-limit: 20
     schedule:
       interval: 'monthly'
+    labels:
+      - dependencies
+      - javascript
+      - Fanout      
 
 registries:
   ghcr:
