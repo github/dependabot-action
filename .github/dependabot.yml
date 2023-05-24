@@ -31,7 +31,11 @@ updates:
     labels:
       - dependencies
       - javascript
-      - Fanout      
+      - Fanout
+    groups:
+      eslint-dependencies:
+        patterns:
+          - "*eslint*"
 
 registries:
   ghcr:
