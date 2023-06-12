@@ -33,9 +33,26 @@ updates:
       - javascript
       - Fanout
     groups:
-      eslint-dependencies:
+      dev-dependencies:
         patterns:
           - "*eslint*"
+          - "@types/*"
+          - "@typescript-eslint/parser"
+          - "@vercel/ncc"
+          - "eslint"
+          - "eslint-*"
+          - "husky"
+          - "jest"
+          - "jest-circus"
+          - "js-yaml"
+          - "json-server"
+          - "lint-staged"
+          - "node-forge"
+          - "prettier"
+          - "ts-jest"
+          - "ts-node"
+          - "typescript"
+          - "wait-port"
 
 registries:
   ghcr:
