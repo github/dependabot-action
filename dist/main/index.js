@@ -86032,7 +86032,7 @@ var DependabotErrorType;
     DependabotErrorType["Unknown"] = "actions_workflow_unknown";
     DependabotErrorType["Image"] = "actions_workflow_image";
     DependabotErrorType["UpdateRun"] = "actions_workflow_updater";
-})(DependabotErrorType = exports.DependabotErrorType || (exports.DependabotErrorType = {}));
+})(DependabotErrorType || (exports.DependabotErrorType = DependabotErrorType = {}));
 let jobId;
 function run(context) {
     return __awaiter(this, void 0, void 0, function* () {
