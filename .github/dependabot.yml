@@ -35,7 +35,6 @@ updates:
     groups:
       dev-dependencies:
         patterns:
-          - "*eslint*"
           - "@types/*"
           - "@typescript-eslint/parser"
           - "@vercel/ncc"
