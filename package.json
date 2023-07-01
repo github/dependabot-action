@@ -38,7 +38,7 @@
     "ci": "^2.2.0",
     "commander": "^10.0.1",
     "dockerode": "^3.3.5",
-    "npm": "^9.7.1",
+    "npm": "^9.7.2",
     "tar-stream": "^3.0.0"
   },
   "devDependencies": {
