@@ -39,7 +39,7 @@
     "commander": "^11.0.0",
     "dockerode": "^3.3.5",
     "npm": "^9.7.1",
-    "tar-stream": "^3.0.0"
+    "tar-stream": "^3.1.6"
   },
   "devDependencies": {
     "@types/dockerode": "^3.3.19",
