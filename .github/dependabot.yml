@@ -5,8 +5,8 @@ updates:
     open-pull-requests-limit: 20
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "16:00"
+      day: "sunday"
+      time: "22:00"
     registries:
       - ghcr
     labels:
@@ -21,8 +21,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "16:00"
+      day: "sunday"
+      time: "22:00"
     labels:
       - dependencies
       - github_actions
@@ -32,8 +32,8 @@ updates:
     open-pull-requests-limit: 20
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "16:00"
+      day: "sunday"
+      time: "22:00"
     labels:
       - dependencies
       - javascript
