@@ -59,9 +59,8 @@ export class ApiClient {
       if (axios.isAxiosError(error)) {
         const err = error
         throw new JobDetailsFetchingError(
-          `fetching job details: received code ${
-            err.response?.status
-          }: ${JSON.stringify(err.response?.data)}`
+          `fetching job details: received code ${err.response
+            ?.status}: ${JSON.stringify(err.response?.data)}`
         )
       } else {
         throw error
@@ -91,9 +90,8 @@ export class ApiClient {
       if (axios.isAxiosError(error)) {
         const err = error
         throw new CredentialFetchingError(
-          `fetching credentials: received code ${
-            err.response?.status
-          }: ${JSON.stringify(err.response?.data)}`
+          `fetching credentials: received code ${err.response
+            ?.status}: ${JSON.stringify(err.response?.data)}`
         )
       } else {
         throw error
