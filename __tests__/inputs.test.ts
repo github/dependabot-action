@@ -24,6 +24,7 @@ describe('when there is a fully configured Actions environment', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -51,6 +52,7 @@ describe('when there is no GITHUB_EVENT_NAME defined', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     delete process.env.GITHUB_EVENT_NAME
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -67,7 +69,7 @@ describe('when the GITHUB_EVENT_NAME is not "dynamic"', () => {
   beforeEach(() => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'issue_comment'
-    process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -85,6 +87,7 @@ describe('when there is no GITHUB_ACTOR defined', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     delete process.env.GITHUB_ACTOR
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -102,6 +105,43 @@ describe('when the GITHUB_ACTOR is not "dependabot[bot]"', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'classic-rando'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'classic-rando'
+    process.env.GITHUB_WORKSPACE = workspace
+
+    context = new Context()
+  })
+
+  test('it returns null', () => {
+    const params = getJobParameters(context)
+
+    expect(params).toEqual(null)
+  })
+})
+
+describe('when there is no GITHUB_TRIGGERING_ACTOR defined', () => {
+  beforeEach(() => {
+    process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    process.env.GITHUB_EVENT_NAME = 'dynamic'
+    process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    delete process.env.GITHUB_TRIGGERING_ACTOR
+    process.env.GITHUB_WORKSPACE = workspace
+
+    context = new Context()
+  })
+
+  test('it returns a result', () => {
+    expect(() => {
+      getJobParameters(context)
+    }).toBeTruthy()
+  })
+})
+
+describe('when the GITHUB_TRIGGERING_ACTOR is not "dependabot[bot]"', () => {
+  beforeEach(() => {
+    process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    process.env.GITHUB_EVENT_NAME = 'dynamic'
+    process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'classic-rando'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -119,6 +159,7 @@ describe('when there is no GITHUB_WORKSPACE defined', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     delete process.env.GITHUB_WORKSPACE
 
     context = new Context()
@@ -138,6 +179,7 @@ describe('when the GITHUB_WORKSPACE path does not exist', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = path.join(workspace, randomFolderName)
 
     context = new Context()
@@ -160,6 +202,7 @@ describe('when the GITHUB_WORKSPACE exists, but is a file', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = randomFileName
 
     fs.closeSync(fs.openSync(randomFileName, 'w'))
@@ -183,6 +226,7 @@ describe('when the workingDirectory is a blank value', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('blank_working_directory')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -207,6 +251,7 @@ describe('when the workingDirectory does not exist', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -228,6 +273,7 @@ describe('when the workingDirectory exists, but is a file', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()
@@ -254,6 +300,7 @@ describe('when the event inputs are empty', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('no_inputs')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     context = new Context()

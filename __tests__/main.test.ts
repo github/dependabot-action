@@ -33,6 +33,7 @@ describe('run', () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_WORKSPACE = workspace
 
     process.env.GITHUB_SERVER_URL = 'https://test.dev'
@@ -144,6 +145,7 @@ describe('run', () => {
   describe('when the action is triggered by a different actor', () => {
     beforeEach(() => {
       process.env.GITHUB_ACTOR = 'classic-rando'
+      process.env.GITHUB_TRIGGERING_ACTOR = 'classic-rando'
       context = new Context()
     })
 
@@ -153,6 +155,30 @@ describe('run', () => {
       expect(core.setFailed).not.toHaveBeenCalled()
       expect(core.warning).toHaveBeenCalledWith(
         'This workflow can only be triggered by Dependabot.'
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when the action is retriggered by a different actor', () => {
+    beforeEach(() => {
+      process.env.GITHUB_ACTOR = 'dependabot[bot]'
+      process.env.GITHUB_TRIGGERING_ACTOR = 'classic-rando'
+      context = new Context()
+    })
+
+    test('it skips the rest of the job', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.warning).toHaveBeenCalledWith(
+        'Dependabot workflows cannot be re-run. Retrigger this update via Dependabot instead.'
       )
     })
 
