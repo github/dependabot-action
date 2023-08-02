@@ -78392,6 +78392,11 @@ function getJobParameters(ctx) {
         core.warning('This workflow can only be triggered by Dependabot.');
         return null;
     }
+    if (process.env.GITHUB_TRIGGERING_ACTOR &&
+        process.env.GITHUB_TRIGGERING_ACTOR !== DEPENDABOT_ACTOR) {
+        core.warning('Dependabot workflows cannot be re-run. Retrigger this update via Dependabot instead.');
+        return null;
+    }
     if (ctx.eventName === DYNAMIC) {
         return fromWorkflowInputs(ctx);
     }

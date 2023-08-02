@@ -28,6 +28,16 @@ export function getJobParameters(ctx: Context): JobParameters | null {
     return null
   }
 
+  if (
+    process.env.GITHUB_TRIGGERING_ACTOR &&
+    process.env.GITHUB_TRIGGERING_ACTOR !== DEPENDABOT_ACTOR
+  ) {
+    core.warning(
+      'Dependabot workflows cannot be re-run. Retrigger this update via Dependabot instead.'
+    )
+    return null
+  }
+
   if (ctx.eventName === DYNAMIC) {
     return fromWorkflowInputs(ctx)
   } else {
