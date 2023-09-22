@@ -11,7 +11,7 @@
     "lint-check": "eslint **/*.ts",
     "package": "ncc build -o dist/main src/main.ts --source-map --license licenses.txt && ncc build -o dist/cleanup src/cleanup.ts --source-map --license licenses.txt",
     "test": "SKIP_INTEGRATION_TESTS=true jest --detectOpenHandles",
-    "test-integration": "jest --detectOpenHandles 'integration'",
+    "test-integration": "jest --detectOpenHandles --forceExit 'integration'",
     "prepare": "husky install",
     "dependabot": "ts-node src/cli.ts",
     "fetch-images": "ts-node src/fetch-images.ts",
