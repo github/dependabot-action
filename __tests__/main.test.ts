@@ -228,7 +228,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Dependabot encountered an unexpected problem\n\nError: unexpected error retrieving job params\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an unexpected problem\n\nError: unexpected error retrieving job params\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access to the repository is required to view the log)`
       )
     })
 
@@ -261,7 +261,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Dependabot encountered an unexpected problem\n\nError: fetching job details: received code 400: more details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an unexpected problem\n\nError: fetching job details: received code 400: more details\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access to the repository is required to view the log)`
       )
     })
 
@@ -417,7 +417,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Dependabot encountered an error performing the update\n\nError: the container melted\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an error performing the update\n\nError: the container melted\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access to the repository is required to view the log)`
       )
     })
 
@@ -455,7 +455,7 @@ describe('run', () => {
       await run(context)
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        `Dependabot encountered an error performing the update\n\nError: error running the update\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access required)`
+        `Dependabot encountered an error performing the update\n\nError: error running the update\n\nFor more information see: https://test.dev/foo/bar/network/updates/1 (write access to the repository is required to view the log)`
       )
     })
 
