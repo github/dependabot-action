@@ -163,7 +163,7 @@ function dependabotJobHelp(): string | null {
   if (jobId) {
     return `For more information see: ${dependabotJobUrl(
       jobId
-    )} (write access required)`
+    )} (write access to the repository is required to view the log)`
   } else {
     return null
   }

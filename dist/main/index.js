@@ -78636,7 +78636,7 @@ function setFailed(message, error) {
 }
 function dependabotJobHelp() {
     if (jobId) {
-        return `For more information see: ${dependabotJobUrl(jobId)} (write access required)`;
+        return `For more information see: ${dependabotJobUrl(jobId)} (write access to the repository is required to view the log)`;
     }
     else {
         return null;
