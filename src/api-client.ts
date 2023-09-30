@@ -60,10 +60,15 @@ export class ApiClient {
         const err = error
         throw new JobDetailsFetchingError(
           `fetching job details: received code ${err.response
-            ?.status}: ${JSON.stringify(err.response?.data)}`
+            ?.status}: ${JSON.stringify(err.response?.data)}. Error message: ${
+            err.message
+          }`
         )
       } else {
-        throw error
+        const message = (error as {message?: string}).message
+        throw new JobDetailsFetchingError(
+          `fetching job details: Error message: ${message}`
+        )
       }
     }
   }
@@ -91,10 +96,15 @@ export class ApiClient {
         const err = error
         throw new CredentialFetchingError(
           `fetching credentials: received code ${err.response
-            ?.status}: ${JSON.stringify(err.response?.data)}`
+            ?.status}: ${JSON.stringify(err.response?.data)}. Error message: ${
+            err.message
+          }`
         )
       } else {
-        throw error
+        const message = (error as {message?: string}).message
+        throw new JobDetailsFetchingError(
+          `fetching credentials: Error message: ${message}`
+        )
       }
     }
   }
