@@ -1,1 +1,1 @@
-FROM ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20230921204854@sha256:5a27e8b2ecb496421b3569b091a11d960170ab89ca10fa3cfaabd6290f546e4c
+FROM ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20231006011356@sha256:05986bbefeff67c9106bd6bd8bcc901f0f2928318671d84fce21c26b68c8f323
