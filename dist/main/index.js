@@ -80125,7 +80125,7 @@ axiosRetry.isRetryableError = isRetryableError;
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
-// Axios v1.5.0 Copyright (c) 2023 Matt Zabriskie and contributors
+// Axios v1.5.1 Copyright (c) 2023 Matt Zabriskie and contributors
 
 
 const FormData$1 = __nccwpck_require__(4334);
@@ -81510,7 +81510,7 @@ const defaults = {
 
   transitional: transitionalDefaults,
 
-  adapter: 'http' ,
+  adapter: ['xhr', 'http'],
 
   transformRequest: [function transformRequest(data, headers) {
     const contentType = headers.getContentType() || '';
@@ -82092,7 +82092,7 @@ function buildFullPath(baseURL, requestedURL) {
   return requestedURL;
 }
 
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
@@ -83021,7 +83021,7 @@ const httpAdapter = isHttpAdapterSupported && function httpAdapter(config) {
           delete res.headers['content-encoding'];
         }
 
-        switch (res.headers['content-encoding']) {
+        switch ((res.headers['content-encoding'] || '').toLowerCase()) {
         /*eslint default-case:0*/
         case 'gzip':
         case 'x-gzip':
@@ -83154,7 +83154,7 @@ const httpAdapter = isHttpAdapterSupported && function httpAdapter(config) {
       // This is forcing a int timeout to avoid problems if the `req` interface doesn't handle other types.
       const timeout = parseInt(config.timeout, 10);
 
-      if (isNaN(timeout)) {
+      if (Number.isNaN(timeout)) {
         reject(new AxiosError(
           'error trying to parse `config.timeout` to int',
           AxiosError.ERR_BAD_OPTION_VALUE,
@@ -83373,11 +83373,16 @@ const xhrAdapter = isXHRAdapterSupported && function (config) {
       }
     }
 
+    let contentType;
+
     if (utils.isFormData(requestData)) {
       if (platform.isStandardBrowserEnv || platform.isStandardBrowserWebWorkerEnv) {
         requestHeaders.setContentType(false); // Let the browser set it
-      } else {
-        requestHeaders.setContentType('multipart/form-data;', false); // mobile/desktop app frameworks
+      } else if(!requestHeaders.getContentType(/^\s*multipart\/form-data/)){
+        requestHeaders.setContentType('multipart/form-data'); // mobile/desktop app frameworks
+      } else if(utils.isString(contentType = requestHeaders.getContentType())){
+        // fix semicolon duplication issue for ReactNative FormData implementation
+        requestHeaders.setContentType(contentType.replace(/^\s*(multipart\/form-data);+/, '$1'));
       }
     }
 
@@ -83570,7 +83575,7 @@ const knownAdapters = {
 };
 
 utils.forEach(knownAdapters, (fn, value) => {
-  if(fn) {
+  if (fn) {
     try {
       Object.defineProperty(fn, 'name', {value});
     } catch (e) {
@@ -83580,6 +83585,10 @@ utils.forEach(knownAdapters, (fn, value) => {
   }
 });
 
+const renderReason = (reason) => `- ${reason}`;
+
+const isResolvedHandle = (adapter) => utils.isFunction(adapter) || adapter === null || adapter === false;
+
 const adapters = {
   getAdapter: (adapters) => {
     adapters = utils.isArray(adapters) ? adapters : [adapters];
@@ -83588,30 +83597,44 @@ const adapters = {
     let nameOrAdapter;
     let adapter;
 
+    const rejectedReasons = {};
+
     for (let i = 0; i < length; i++) {
       nameOrAdapter = adapters[i];
-      if((adapter = utils.isString(nameOrAdapter) ? knownAdapters[nameOrAdapter.toLowerCase()] : nameOrAdapter)) {
+      let id;
+
+      adapter = nameOrAdapter;
+
+      if (!isResolvedHandle(nameOrAdapter)) {
+        adapter = knownAdapters[(id = String(nameOrAdapter)).toLowerCase()];
+
+        if (adapter === undefined) {
+          throw new AxiosError(`Unknown adapter '${id}'`);
+        }
+      }
+
+      if (adapter) {
         break;
       }
+
+      rejectedReasons[id || '#' + i] = adapter;
     }
 
     if (!adapter) {
-      if (adapter === false) {
-        throw new AxiosError(
-          `Adapter ${nameOrAdapter} is not supported by the environment`,
-          'ERR_NOT_SUPPORT'
+
+      const reasons = Object.entries(rejectedReasons)
+        .map(([id, state]) => `adapter ${id} ` +
+          (state === false ? 'is not supported by the environment' : 'is not available in the build')
         );
-      }
 
-      throw new Error(
-        utils.hasOwnProp(knownAdapters, nameOrAdapter) ?
-          `Adapter '${nameOrAdapter}' is not available in the build` :
-          `Unknown adapter '${nameOrAdapter}'`
+      let s = length ?
+        (reasons.length > 1 ? 'since :\n' + reasons.map(renderReason).join('\n') : ' ' + renderReason(reasons[0])) :
+        'as no adapter specified';
+
+      throw new AxiosError(
+        `There is no suitable adapter to dispatch the request ` + s,
+        'ERR_NOT_SUPPORT'
       );
-    }
-
-    if (!utils.isFunction(adapter)) {
-      throw new TypeError('adapter is not a function');
     }
 
     return adapter;
