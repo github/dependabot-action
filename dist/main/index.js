@@ -79786,9 +79786,11 @@ var namespace = 'axios-retry';
 __webpack_unused_export__ = namespace;
 
 function isNetworkError(error) {
+  var CODE_EXCLUDE_LIST = ['ERR_CANCELED', 'ECONNABORTED'];
   return !error.response && Boolean(error.code) && // Prevents retrying cancelled requests
-  error.code !== 'ECONNABORTED' && // Prevents retrying timed out requests
-  (0, _isRetryAllowed.default)(error); // Prevents retrying unsafe errors
+  !CODE_EXCLUDE_LIST.includes(error.code) && // Prevents retrying timed out & cancelled requests
+  (0, _isRetryAllowed.default)(error) // Prevents retrying unsafe errors
+  ;
 }
 
 var SAFE_HTTP_METHODS = ['get', 'head', 'options'];
