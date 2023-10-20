@@ -58,16 +58,19 @@ export class ApiClient {
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const err = error
-        throw new JobDetailsFetchingError(
-          `fetching job details: received code ${err.response
-            ?.status}: ${JSON.stringify(err.response?.data)}. Error message: ${
-            err.message
-          }`
-        )
+        if (err.response) {
+          throw new JobDetailsFetchingError(
+            `fetching job details: received code ${err.response
+              ?.status}: ${JSON.stringify(err.response?.data)}`
+          )
+        } else {
+          throw new JobDetailsFetchingError(
+            `fetching job details: ${err.message}`
+          )
+        }
       } else {
-        const message = (error as {message?: string}).message
         throw new JobDetailsFetchingError(
-          `fetching job details: Error message: ${message}`
+          `fetching job details: ${(error as Error).message}`
         )
       }
     }
@@ -94,16 +97,19 @@ export class ApiClient {
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const err = error
-        throw new CredentialFetchingError(
-          `fetching credentials: received code ${err.response
-            ?.status}: ${JSON.stringify(err.response?.data)}. Error message: ${
-            err.message
-          }`
-        )
+        if (err.response) {
+          throw new CredentialFetchingError(
+            `fetching credentials: received code ${err.response
+              ?.status}: ${JSON.stringify(err.response?.data)}`
+          )
+        } else {
+          throw new CredentialFetchingError(
+            `fetching credentials: ${err.message}`
+          )
+        }
       } else {
-        const message = (error as {message?: string}).message
-        throw new JobDetailsFetchingError(
-          `fetching credentials: Error message: ${message}`
+        throw new CredentialFetchingError(
+          `fetching credentials: ${(error as Error).message}`
         )
       }
     }
