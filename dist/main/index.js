@@ -7174,16 +7174,6 @@ CombinedStream.prototype._emitError = function(err) {
 
 /***/ }),
 
-/***/ 4137:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const binding = __nccwpck_require__(4240);
-
-module.exports = binding.getCPUInfo;
-
-
-/***/ }),
-
 /***/ 8222:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -61139,7 +61129,7 @@ const crypto = __nccwpck_require__(6113);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(4137)();
+  cpuInfo = __nccwpck_require__(7295)();
 } catch {}
 
 const { bindingAvailable } = __nccwpck_require__(5708);
@@ -61514,7 +61504,7 @@ let AESGCMDecipher;
 let ChaChaPolyDecipher;
 let GenericDecipher;
 try {
-  binding = __nccwpck_require__(9041);
+  binding = __nccwpck_require__(9623);
   ({ AESGCMCipher, ChaChaPolyCipher, GenericCipher,
      AESGCMDecipher, ChaChaPolyDecipher, GenericDecipher } = binding);
 } catch {}
@@ -78023,10 +78013,15 @@ class ApiClient {
             catch (error) {
                 if (axios_1.default.isAxiosError(error)) {
                     const err = error;
-                    throw new JobDetailsFetchingError(`fetching job details: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    if (err.response) {
+                        throw new JobDetailsFetchingError(`fetching job details: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    }
+                    else {
+                        throw new JobDetailsFetchingError(`fetching job details: ${err.message}`);
+                    }
                 }
                 else {
-                    throw error;
+                    throw new JobDetailsFetchingError(`fetching job details: ${error.message}`);
                 }
             }
         });
@@ -78053,10 +78048,15 @@ class ApiClient {
             catch (error) {
                 if (axios_1.default.isAxiosError(error)) {
                     const err = error;
-                    throw new CredentialFetchingError(`fetching credentials: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    if (err.response) {
+                        throw new CredentialFetchingError(`fetching credentials: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    }
+                    else {
+                        throw new CredentialFetchingError(`fetching credentials: ${err.message}`);
+                    }
                 }
                 else {
-                    throw error;
+                    throw new CredentialFetchingError(`fetching credentials: ${error.message}`);
                 }
             }
         });
@@ -79094,17 +79094,19 @@ exports.errStream = errStream;
 
 /***/ }),
 
-/***/ 4240:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 9623:
+/***/ ((module) => {
 
-module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
+module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
+
 
 /***/ }),
 
-/***/ 9041:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 7295:
+/***/ ((module) => {
 
-module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
+module.exports = eval("require")("cpu-features");
+
 
 /***/ }),
 
