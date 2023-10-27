@@ -66,6 +66,24 @@ describe('ApiClient', () => {
     )
   })
 
+  test('job details with certificate error', async () => {
+    const errorObject = {
+      isAxiosError: true,
+      message: 'unable to get local issuer certificate',
+      name: 'Error',
+      stack: 'Error: unable to get local issuer certificate...',
+      status: null
+    }
+
+    mockAxios.get.mockRejectedValue(errorObject)
+
+    await expect(api.getJobDetails()).rejects.toThrowError(
+      new JobDetailsFetchingError(
+        'fetching job details: unable to get local issuer certificate'
+      )
+    )
+  })
+
   test('get job credentials', async () => {
     const apiResponse = {
       data: {

@@ -58,12 +58,20 @@ export class ApiClient {
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const err = error
-        throw new JobDetailsFetchingError(
-          `fetching job details: received code ${err.response
-            ?.status}: ${JSON.stringify(err.response?.data)}`
-        )
+        if (err.response) {
+          throw new JobDetailsFetchingError(
+            `fetching job details: received code ${err.response
+              ?.status}: ${JSON.stringify(err.response?.data)}`
+          )
+        } else {
+          throw new JobDetailsFetchingError(
+            `fetching job details: ${err.message}`
+          )
+        }
       } else {
-        throw error
+        throw new JobDetailsFetchingError(
+          `fetching job details: ${(error as Error).message}`
+        )
       }
     }
   }
@@ -89,12 +97,20 @@ export class ApiClient {
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const err = error
-        throw new CredentialFetchingError(
-          `fetching credentials: received code ${err.response
-            ?.status}: ${JSON.stringify(err.response?.data)}`
-        )
+        if (err.response) {
+          throw new CredentialFetchingError(
+            `fetching credentials: received code ${err.response
+              ?.status}: ${JSON.stringify(err.response?.data)}`
+          )
+        } else {
+          throw new CredentialFetchingError(
+            `fetching credentials: ${err.message}`
+          )
+        }
       } else {
-        throw error
+        throw new CredentialFetchingError(
+          `fetching credentials: ${(error as Error).message}`
+        )
       }
     }
   }

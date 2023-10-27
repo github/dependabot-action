@@ -79292,10 +79292,15 @@ class ApiClient {
             catch (error) {
                 if (axios_1.default.isAxiosError(error)) {
                     const err = error;
-                    throw new JobDetailsFetchingError(`fetching job details: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    if (err.response) {
+                        throw new JobDetailsFetchingError(`fetching job details: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    }
+                    else {
+                        throw new JobDetailsFetchingError(`fetching job details: ${err.message}`);
+                    }
                 }
                 else {
-                    throw error;
+                    throw new JobDetailsFetchingError(`fetching job details: ${error.message}`);
                 }
             }
         });
@@ -79322,10 +79327,15 @@ class ApiClient {
             catch (error) {
                 if (axios_1.default.isAxiosError(error)) {
                     const err = error;
-                    throw new CredentialFetchingError(`fetching credentials: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    if (err.response) {
+                        throw new CredentialFetchingError(`fetching credentials: received code ${(_a = err.response) === null || _a === void 0 ? void 0 : _a.status}: ${JSON.stringify((_b = err.response) === null || _b === void 0 ? void 0 : _b.data)}`);
+                    }
+                    else {
+                        throw new CredentialFetchingError(`fetching credentials: ${err.message}`);
+                    }
                 }
                 else {
-                    throw error;
+                    throw new CredentialFetchingError(`fetching credentials: ${error.message}`);
                 }
             }
         });
