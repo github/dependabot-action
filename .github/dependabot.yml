@@ -44,6 +44,11 @@ updates:
         update-types:
         - "patch"
         - "minor"
+      prod-dependencies:
+        dependency-type: "production"
+        update-types:
+        - "patch"
+        - "minor"        
 registries:
   ghcr:
     type: docker-registry
