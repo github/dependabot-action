@@ -81,6 +81,49 @@ describe('ApiClient', () => {
     )
   })
 
+  test('job details retries on 500', async () => {
+    mockHttpClient.getJson.mockRejectedValueOnce(
+      new HttpClientError('retryable failure', 500)
+    )
+
+    const apiResponse = {
+      data: {
+        id: '1001',
+        type: 'update-jobs',
+        attributes: {
+          'allowed-updates': [
+            {
+              'dependency-type': 'direct',
+              'update-type': 'all'
+            }
+          ],
+          dependencies: null,
+          'package-manager': 'npm_and_yarn'
+        }
+      }
+    }
+    mockHttpClient.getJson.mockResolvedValue({
+      statusCode: 200,
+      result: apiResponse
+    })
+
+    const jobDetails = await api.getJobDetails()
+    expect(jobDetails['allowed-updates'].length).toBe(1)
+    expect(jobDetails['package-manager']).toBe('npm_and_yarn')
+  })
+
+  test('job details gives up on too many 500s', async () => {
+    mockHttpClient.getJson.mockRejectedValue(
+      new HttpClientError('retryable failure', 500)
+    )
+
+    await expect(api.getJobDetails()).rejects.toThrowError(
+      new JobDetailsFetchingError(
+        'fetching job details: unexpected status code: 500: retryable failure'
+      )
+    )
+  }, 10000)
+
   test('get job credentials', async () => {
     const apiResponse = {
       data: {
