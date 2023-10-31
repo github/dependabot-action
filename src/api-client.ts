@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
-import axios from 'axios'
-import type {AxiosInstance} from 'axios'
+import * as httpClient from '@actions/http-client'
 import {JobParameters} from './inputs'
+import {TypedResponse} from '@actions/http-client/lib/interfaces'
 
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {
@@ -32,7 +32,7 @@ export class CredentialFetchingError extends Error {}
 
 export class ApiClient {
   constructor(
-    private readonly client: AxiosInstance,
+    private readonly client: httpClient.HttpClient,
     readonly params: JobParameters
   ) {}
 
@@ -43,48 +43,65 @@ export class ApiClient {
   }
 
   async getJobDetails(): Promise<JobDetails> {
-    const detailsURL = `/update_jobs/${this.params.jobId}/details`
+    const detailsURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/details`
     try {
-      const res: any = await this.client.get(detailsURL, {
-        headers: {Authorization: this.params.jobToken}
-      })
-      if (res.status !== 200) {
+      const res = await this.getJsonWithRetry<any>(
+        detailsURL,
+        this.params.jobToken
+      )
+      if (res.statusCode !== 200) {
         throw new JobDetailsFetchingError(
-          `fetching job details: unexpected status code: ${res.status}`
+          `fetching job details: unexpected status code: ${
+            res.statusCode
+          }: ${JSON.stringify(res.result)}`
+        )
+      }
+      if (res.result == null) {
+        throw new JobDetailsFetchingError(
+          `fetching job details: missing response`
         )
       }
 
-      return res.data.data.attributes
+      return res.result.data.attributes
     } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        const err = error
-        if (err.response) {
-          throw new JobDetailsFetchingError(
-            `fetching job details: received code ${err.response
-              ?.status}: ${JSON.stringify(err.response?.data)}`
-          )
-        } else {
-          throw new JobDetailsFetchingError(
-            `fetching job details: ${err.message}`
-          )
-        }
-      } else {
+      if (error instanceof JobDetailsFetchingError) {
+        throw error
+      } else if (error instanceof httpClient.HttpClientError) {
         throw new JobDetailsFetchingError(
-          `fetching job details: ${(error as Error).message}`
+          `fetching job details: unexpected status code: ${error.statusCode}: ${error.message}`
+        )
+      } else if (error instanceof Error) {
+        throw new JobDetailsFetchingError(
+          `fetching job details: ${error.name}: ${error.message}`
         )
       }
+      throw error
     }
   }
 
   async getCredentials(): Promise<Credential[]> {
-    const credentialsURL = `/update_jobs/${this.params.jobId}/credentials`
+    const credentialsURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/credentials`
     try {
-      const res: any = await this.client.get(credentialsURL, {
-        headers: {Authorization: this.params.credentialsToken}
-      })
+      const res = await this.getJsonWithRetry<any>(
+        credentialsURL,
+        this.params.credentialsToken
+      )
+
+      if (res.statusCode !== 200) {
+        throw new CredentialFetchingError(
+          `fetching credentials: unexpected status code: ${
+            res.statusCode
+          }: ${JSON.stringify(res.result)}`
+        )
+      }
+      if (res.result == null) {
+        throw new CredentialFetchingError(
+          `fetching credentials: missing response`
+        )
+      }
 
       // Mask any secrets we've just retrieved from Actions logs
-      for (const credential of res.data.data.attributes.credentials) {
+      for (const credential of res.result.data.attributes.credentials) {
         if (credential.password) {
           core.setSecret(credential.password)
         }
@@ -93,53 +110,84 @@ export class ApiClient {
         }
       }
 
-      return res.data.data.attributes.credentials
+      return res.result.data.attributes.credentials
     } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        const err = error
-        if (err.response) {
-          throw new CredentialFetchingError(
-            `fetching credentials: received code ${err.response
-              ?.status}: ${JSON.stringify(err.response?.data)}`
-          )
-        } else {
-          throw new CredentialFetchingError(
-            `fetching credentials: ${err.message}`
-          )
-        }
-      } else {
+      if (error instanceof CredentialFetchingError) {
+        throw error
+      } else if (error instanceof httpClient.HttpClientError) {
         throw new CredentialFetchingError(
-          `fetching credentials: ${(error as Error).message}`
+          `fetching credentials: unexpected status code: ${error.statusCode}: ${error.message}`
+        )
+      } else if (error instanceof Error) {
+        throw new CredentialFetchingError(
+          `fetching credentials: ${error.name}: ${error.message}`
         )
       }
+      throw error
     }
   }
 
   async reportJobError(error: JobError): Promise<void> {
-    const recordErrorURL = `/update_jobs/${this.params.jobId}/record_update_job_error`
-    const res = await this.client.post(
+    const recordErrorURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/record_update_job_error`
+    const res = await this.client.postJson(
       recordErrorURL,
       {data: error},
       {
-        headers: {Authorization: this.params.jobToken}
+        ['Authorization']: this.params.jobToken
       }
     )
-    if (res.status !== 204) {
-      throw new Error(`Unexpected status code: ${res.status}`)
+    if (res.statusCode !== 204) {
+      throw new Error(`Unexpected status code: ${res.statusCode}`)
     }
   }
 
   async markJobAsProcessed(): Promise<void> {
-    const markAsProcessedURL = `/update_jobs/${this.params.jobId}/mark_as_processed`
-    const res = await this.client.patch(
+    const markAsProcessedURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/mark_as_processed`
+    const res = await this.client.patchJson(
       markAsProcessedURL,
       {data: this.UnknownSha},
       {
-        headers: {Authorization: this.params.jobToken}
+        ['Authorization']: this.params.jobToken
       }
     )
-    if (res.status !== 204) {
-      throw new Error(`Unexpected status code: ${res.status}`)
+    if (res.statusCode !== 204) {
+      throw new Error(`Unexpected status code: ${res.statusCode}`)
     }
+  }
+
+  private async getJsonWithRetry<T>(
+    url: string,
+    token: string
+  ): Promise<TypedResponse<T>> {
+    let attempt = 1
+
+    const execute = async (): Promise<TypedResponse<T>> => {
+      try {
+        return await this.client.getJson<T>(url, {
+          ['Authorization']: token
+        })
+      } catch (error: unknown) {
+        if (error instanceof httpClient.HttpClientError) {
+          if (error.statusCode >= 500 && error.statusCode <= 599) {
+            if (attempt >= 3) {
+              throw error
+            }
+            core.warning(
+              `Retrying failed request with status code: ${error.statusCode}`
+            )
+
+            // exponential backoff
+            const delayMs = 1000 * 2 ** attempt
+            await new Promise(resolve => setTimeout(resolve, delayMs))
+
+            attempt++
+            return execute()
+          }
+        }
+        throw error
+      }
+    }
+
+    return execute()
   }
 }
