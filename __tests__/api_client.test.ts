@@ -4,12 +4,13 @@ import {
   CredentialFetchingError,
   JobDetailsFetchingError
 } from '../src/api-client'
+import {HttpClientError} from '@actions/http-client'
 
 describe('ApiClient', () => {
-  const mockAxios: any = {
-    get: jest.fn()
+  const mockHttpClient: any = {
+    getJson: jest.fn()
   }
-  const api = new ApiClient(mockAxios, {
+  const api = new ApiClient(mockHttpClient, {
     jobId: 1,
     jobToken: 'xxx',
     credentialsToken: 'yyy',
@@ -37,7 +38,10 @@ describe('ApiClient', () => {
         }
       }
     }
-    mockAxios.get.mockResolvedValue({status: 200, data: apiResponse})
+    mockHttpClient.getJson.mockResolvedValue({
+      statusCode: 200,
+      result: apiResponse
+    })
 
     const jobDetails = await api.getJobDetails()
     expect(jobDetails['allowed-updates'].length).toBe(1)
@@ -54,35 +58,71 @@ describe('ApiClient', () => {
         }
       ]
     }
-    mockAxios.get.mockRejectedValue({
-      isAxiosError: true,
-      response: {status: 400, data: apiResponse}
-    })
+    mockHttpClient.getJson.mockRejectedValue(
+      new HttpClientError(JSON.stringify(apiResponse), 400)
+    )
 
     await expect(api.getJobDetails()).rejects.toThrowError(
       new JobDetailsFetchingError(
-        'fetching job details: received code 400: {"errors":[{"status":400,"title":"Bad Request","detail":"Update job has already been processed"}]}'
+        'fetching job details: unexpected status code: 400: {"errors":[{"status":400,"title":"Bad Request","detail":"Update job has already been processed"}]}'
       )
     )
   })
 
   test('job details with certificate error', async () => {
-    const errorObject = {
-      isAxiosError: true,
-      message: 'unable to get local issuer certificate',
-      name: 'Error',
-      stack: 'Error: unable to get local issuer certificate...',
-      status: null
-    }
-
-    mockAxios.get.mockRejectedValue(errorObject)
+    mockHttpClient.getJson.mockRejectedValue(
+      new Error('unable to get local issuer certificate')
+    )
 
     await expect(api.getJobDetails()).rejects.toThrowError(
       new JobDetailsFetchingError(
-        'fetching job details: unable to get local issuer certificate'
+        'fetching job details: Error: unable to get local issuer certificate'
       )
     )
   })
+
+  test('job details retries on 500', async () => {
+    mockHttpClient.getJson.mockRejectedValueOnce(
+      new HttpClientError('retryable failure', 500)
+    )
+
+    const apiResponse = {
+      data: {
+        id: '1001',
+        type: 'update-jobs',
+        attributes: {
+          'allowed-updates': [
+            {
+              'dependency-type': 'direct',
+              'update-type': 'all'
+            }
+          ],
+          dependencies: null,
+          'package-manager': 'npm_and_yarn'
+        }
+      }
+    }
+    mockHttpClient.getJson.mockResolvedValue({
+      statusCode: 200,
+      result: apiResponse
+    })
+
+    const jobDetails = await api.getJobDetails()
+    expect(jobDetails['allowed-updates'].length).toBe(1)
+    expect(jobDetails['package-manager']).toBe('npm_and_yarn')
+  })
+
+  test('job details gives up on too many 500s', async () => {
+    mockHttpClient.getJson.mockRejectedValue(
+      new HttpClientError('retryable failure', 500)
+    )
+
+    await expect(api.getJobDetails()).rejects.toThrowError(
+      new JobDetailsFetchingError(
+        'fetching job details: unexpected status code: 500: retryable failure'
+      )
+    )
+  }, 10000)
 
   test('get job credentials', async () => {
     const apiResponse = {
@@ -121,7 +161,10 @@ describe('ApiClient', () => {
         }
       }
     }
-    mockAxios.get.mockResolvedValue({status: 200, data: apiResponse})
+    mockHttpClient.getJson.mockResolvedValue({
+      statusCode: 200,
+      result: apiResponse
+    })
     jest.spyOn(core, 'setSecret').mockImplementation(jest.fn())
 
     const jobCredentials = await api.getCredentials()
@@ -145,13 +188,12 @@ describe('ApiClient', () => {
       ]
     }
 
-    mockAxios.get.mockRejectedValue({
-      isAxiosError: true,
-      response: {status: 422, data: apiResponse}
-    })
+    mockHttpClient.getJson.mockRejectedValue(
+      new HttpClientError(JSON.stringify(apiResponse), 422)
+    )
     await expect(api.getCredentials()).rejects.toThrowError(
       new CredentialFetchingError(
-        'fetching credentials: received code 422: {"errors":[{"status":422,"title":"Secret Not Found","detail":"MISSING_SECRET_NAME"}]}'
+        'fetching credentials: unexpected status code: 422: {"errors":[{"status":422,"title":"Secret Not Found","detail":"MISSING_SECRET_NAME"}]}'
       )
     )
   })

@@ -1,7 +1,6 @@
-import axios from 'axios'
-import axiosRetry from 'axios-retry'
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import * as httpClient from '@actions/http-client'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient, CredentialFetchingError} from './api-client'
 import {getJobParameters} from './inputs'
@@ -35,13 +34,7 @@ export async function run(context: Context): Promise<void> {
     core.setSecret(params.jobToken)
     core.setSecret(params.credentialsToken)
 
-    const client = axios.create({baseURL: params.dependabotApiUrl})
-    axiosRetry(client, {
-      retryDelay: axiosRetry.exponentialDelay, // eslint-disable-line @typescript-eslint/unbound-method
-      retryCondition: e => {
-        return axiosRetry.isNetworkError(e) || axiosRetry.isRetryableError(e)
-      }
-    })
+    const client = new httpClient.HttpClient('github/dependabot-action')
     const apiClient = new ApiClient(client, params)
 
     core.info('Fetching job details')

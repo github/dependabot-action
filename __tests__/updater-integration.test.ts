@@ -1,5 +1,4 @@
-import axios from 'axios'
-import axiosRetry from 'axios-retry'
+import * as httpClient from '@actions/http-client'
 import fs from 'fs'
 import path from 'path'
 import {ApiClient} from '../src/api-client'
@@ -43,13 +42,9 @@ integration('Updater', () => {
     workingDirectory
   )
 
-  const client = axios.create({baseURL: dependabotApiUrl})
-  axiosRetry(client, {
-    retryDelay: axiosRetry.exponentialDelay, // eslint-disable-line @typescript-eslint/unbound-method
-    retryCondition: e => {
-      return axiosRetry.isNetworkError(e) || axiosRetry.isRetryableError(e)
-    }
-  })
+  const client = new httpClient.HttpClient(
+    'github/dependabot-action integration'
+  )
   const apiClient = new ApiClient(client, params)
 
   beforeAll(async () => {
@@ -86,10 +81,10 @@ integration('Updater', () => {
 
     // NOTE: This will not work when running against the actual dependabot-api
     // Checks if the pr was persisted in the fake json-server
-    const res: any = await client.get('/pull_requests/1')
+    const res = await client.getJson<any>(`${dependabotApiUrl}/pull_requests/1`)
 
-    expect(res.status).toEqual(200)
-    expect(res.data['pr-title']).toEqual(
+    expect(res.statusCode).toEqual(200)
+    expect(res.result['pr-title']).toEqual(
       'Bump fetch-factory from 0.0.1 to 0.2.1'
     )
   })
