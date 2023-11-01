@@ -56,7 +56,7 @@ export class ApiClient {
           }: ${JSON.stringify(res.result)}`
         )
       }
-      if (res.result == null) {
+      if (!res.result) {
         throw new JobDetailsFetchingError(
           `fetching job details: missing response`
         )
@@ -94,7 +94,7 @@ export class ApiClient {
           }: ${JSON.stringify(res.result)}`
         )
       }
-      if (res.result == null) {
+      if (!res.result) {
         throw new CredentialFetchingError(
           `fetching credentials: missing response`
         )
