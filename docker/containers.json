@@ -1,6 +1,6 @@
 {
   "proxy": "ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20231207221155@sha256:9aa800ab40816bb3edd3c933e098544b2413460a52f74c8149f4f4fec23d3047",
-  "bundler": "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20231208161417@sha256:3807bd5091c81535653ed804ce983acaec87cb5c53528e1f450007bfea9a3c9b",
+  "bundler": "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20231208180432@sha256:224ac50a6c6aa074231b08a62b5152874a231102b712a86a7acf6324db865f0d",
   "cargo": "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20231208161417@sha256:0658bb926b714a4d160798cc37c05c4791a2076522a156adbfbee505f6365622",
   "composer": "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20231208161417@sha256:51c82c98ebf056e5f34db5700aeb9dbc5596a4fe6360558f9b3cd90fd79c9e2d",
   "pub": "ghcr.io/dependabot/dependabot-updater-pub:v2.0.20231208161417@sha256:8363fbca432a93a18feaaa4797c9aa43379fa9647b14ea0ef954d2f28c6ba558",
@@ -12,7 +12,7 @@
   "gradle": "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20231208161417@sha256:3b203ffb3172b94b29bfb6fdc8bb4c756a72b8ec537690f136f0ddc2cfc8d730",
   "maven": "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20231208161417@sha256:58e40af6d29474b0846f8cd79aa0d7df777393c295677cedf42d6e7525f3d759",
   "hex": "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20231208161417@sha256:74cb4223a29cc79eb53f294edc1cecefda6de68d27f787d8ec7e429554af84b4",
-  "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20231208161417@sha256:be7c9b055f52b5753d7d7560b2d3351364eb3006430b3baf73500d249c00753d",
+  "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20231208180432@sha256:d58ffc5417df5eadf6b04aec92c24749ab40e6f5eaffcd7a8ece2fbb98ca4730",
   "npm_and_yarn": "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20231208161417@sha256:abb6da94889618dffb40b4bbcc789b9494859236608213262a3d776ee252e173",
   "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20231208161417@sha256:625d0b3e21cc62d5d8fc5c8d1e69a71ba05bac3f01ea0c43220f9985447679bb",
   "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20231208161417@sha256:cef48de99e47716fa9d9280536b7c5ee46f1bf83aa6fbc05e9d357b8c423fc26"
