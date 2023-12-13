@@ -25,9 +25,11 @@ export async function run(cutoff = '24h'): Promise<void> {
     await docker.pruneNetworks({filters: untilFilter})
     core.info(`Pruning containers older than ${cutoff}`)
     await docker.pruneContainers({filters: untilFilter})
-    for (const image of updaterImages()) {
-      await cleanupOldImageVersions(docker, image)
-    }
+    await Promise.all(
+      updaterImages().map(async image => {
+        return cleanupOldImageVersions(docker, image)
+      })
+    )
     await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
   } catch (error: unknown) {
     if (error instanceof Error) {
