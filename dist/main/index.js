@@ -9387,7 +9387,7 @@ Modem.prototype.buildRequest = function (options, context, data, callback) {
 
         debug('Received: %s', result);
 
-        var json = utils.parseJSON(result) || result;
+        var json = utils.parseJSON(result) || buffer;
         if (finished === false) {
           finished = true;
           self.buildPayload(null, context.isStream, context.statusCodes, false, req, res, json, callback);
@@ -9511,8 +9511,8 @@ Modem.prototype.demuxStream = function (streama, stdout, stderr) {
   }
 
   function bufferSlice(end) {
-    var out = buffer.slice(0, end);
-    buffer = Buffer.from(buffer.slice(end, buffer.length));
+    var out = buffer.subarray(0, end);
+    buffer = Buffer.from(buffer.subarray(end, buffer.length));
     return out;
   }
 
@@ -9787,7 +9787,7 @@ Config.prototype.remove = function(opts, callback) {
   var optsf = {
     path: '/configs/' + this.id,
     method: 'DELETE',
-    abortSignal: opts.abortSignal,
+    abortSignal: args.opts.abortSignal,
     statusCodes: {
       200: true,
       204: true,
@@ -55454,11 +55454,18 @@ class Protocol {
     if (typeof offer !== 'object' || offer === null) {
       offer = (this._server ? DEFAULT_KEXINIT_SERVER : DEFAULT_KEXINIT_CLIENT);
     } else if (offer.constructor !== KexInit) {
-      if (!this._server)
-        offer.kex = offer.kex.concat(['ext-info-c']);
+      if (this._server) {
+        offer.kex = offer.kex.concat(['kex-strict-s-v00@openssh.com']);
+      } else {
+        offer.kex = offer.kex.concat([
+          'ext-info-c',
+          'kex-strict-c-v00@openssh.com',
+        ]);
+      }
       offer = new KexInit(offer);
     }
     this._kex = undefined;
+    this._strictMode = undefined;
     this._kexinit = undefined;
     this._offer = offer;
     this._cipher = new NullCipher(0, this._onWrite);
@@ -65003,13 +65010,37 @@ function handleKexInit(self, payload) {
     clientList = localKex;
     remoteExtInfoEnabled = (serverList.indexOf('ext-info-s') !== -1);
   }
+  if (self._strictMode === undefined) {
+    if (self._server) {
+      self._strictMode =
+        (clientList.indexOf('kex-strict-c-v00@openssh.com') !== -1);
+    } else {
+      self._strictMode =
+        (serverList.indexOf('kex-strict-s-v00@openssh.com') !== -1);
+    }
+    // Note: We check for seqno of 1 instead of 0 since we increment before
+    //       calling the packet handler
+    if (self._strictMode) {
+      debug && debug('Handshake: strict KEX mode enabled');
+      if (self._decipher.inSeqno !== 1) {
+        if (debug)
+          debug('Handshake: KEXINIT not first packet in strict KEX mode');
+        return doFatalError(
+          self,
+          'Handshake failed: KEXINIT not first packet in strict KEX mode',
+          'handshake',
+          DISCONNECT_REASON.KEY_EXCHANGE_FAILED
+        );
+      }
+    }
+  }
   // Check for agreeable key exchange algorithm
   for (i = 0;
        i < clientList.length && serverList.indexOf(clientList[i]) === -1;
        ++i);
   if (i === clientList.length) {
     // No suitable match found!
-    debug && debug('Handshake: No matching key exchange algorithm');
+    debug && debug('Handshake: no matching key exchange algorithm');
     return doFatalError(
       self,
       'Handshake failed: no matching key exchange algorithm',
@@ -66007,6 +66038,8 @@ const createKeyExchange = (() => {
             'Inbound: NEWKEYS'
           );
           this._receivedNEWKEYS = true;
+          if (this._protocol._strictMode)
+            this._protocol._decipher.inSeqno = 0;
           ++this._step;
 
           return this.finish(!this._protocol._server && !this._hostVerified);
@@ -66527,11 +66560,20 @@ function onKEXPayload(state, payload) {
   payload = this._packetRW.read.read(payload);
 
   const type = payload[0];
+
+  if (!this._strictMode) {
+    switch (type) {
+      case MESSAGE.IGNORE:
+      case MESSAGE.UNIMPLEMENTED:
+      case MESSAGE.DEBUG:
+        if (!MESSAGE_HANDLERS)
+          MESSAGE_HANDLERS = __nccwpck_require__(172);
+        return MESSAGE_HANDLERS[type](this, payload);
+    }
+  }
+
   switch (type) {
     case MESSAGE.DISCONNECT:
-    case MESSAGE.IGNORE:
-    case MESSAGE.UNIMPLEMENTED:
-    case MESSAGE.DEBUG:
       if (!MESSAGE_HANDLERS)
         MESSAGE_HANDLERS = __nccwpck_require__(172);
       return MESSAGE_HANDLERS[type](this, payload);
@@ -66547,6 +66589,8 @@ function onKEXPayload(state, payload) {
       state.firstPacket = false;
       return handleKexInit(this, payload);
     default:
+      // Ensure packet is either an algorithm negotiation or KEX
+      // algorithm-specific packet
       if (type < 20 || type > 49) {
         return doFatalError(
           this,
@@ -66595,6 +66639,8 @@ function trySendNEWKEYS(kex) {
       kex._protocol._packetRW.write.finalize(packet, true)
     );
     kex._sentNEWKEYS = true;
+    if (kex._protocol._strictMode)
+      kex._protocol._cipher.outSeqno = 0;
   }
 }
 
@@ -66603,7 +66649,7 @@ module.exports = {
   kexinit,
   onKEXPayload,
   DEFAULT_KEXINIT_CLIENT: new KexInit({
-    kex: DEFAULT_KEX.concat(['ext-info-c']),
+    kex: DEFAULT_KEX.concat(['ext-info-c', 'kex-strict-c-v00@openssh.com']),
     serverHostKey: DEFAULT_SERVER_HOST_KEY,
     cs: {
       cipher: DEFAULT_CIPHER,
@@ -66619,7 +66665,7 @@ module.exports = {
     },
   }),
   DEFAULT_KEXINIT_SERVER: new KexInit({
-    kex: DEFAULT_KEX,
+    kex: DEFAULT_KEX.concat(['kex-strict-s-v00@openssh.com']),
     serverHostKey: DEFAULT_SERVER_HOST_KEY,
     cs: {
       cipher: DEFAULT_CIPHER,
@@ -69184,7 +69230,11 @@ class Server extends EventEmitter {
     }
 
     const algorithms = {
-      kex: generateAlgorithmList(cfgAlgos.kex, DEFAULT_KEX, SUPPORTED_KEX),
+      kex: generateAlgorithmList(
+        cfgAlgos.kex,
+        DEFAULT_KEX,
+        SUPPORTED_KEX
+      ).concat(['kex-strict-s-v00@openssh.com']),
       serverHostKey: hostKeyAlgoOrder,
       cs: {
         cipher: generateAlgorithmList(
@@ -101307,7 +101357,7 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /***/ ((module) => {
 
 "use strict";
-module.exports = {"i8":"1.14.0"};
+module.exports = {"i8":"1.15.0"};
 
 /***/ })
 
