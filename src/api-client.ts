@@ -10,6 +10,7 @@ export type JobDetails = {
   }>
   id: string
   'package-manager': string
+  experiments: object
 }
 
 export type JobError = {

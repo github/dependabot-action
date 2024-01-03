@@ -52,7 +52,8 @@ export type Proxy = {
 export class ProxyBuilder {
   constructor(
     private readonly docker: Docker,
-    private readonly proxyImage: string
+    private readonly proxyImage: string,
+    private readonly cachedMode: boolean
   ) {}
 
   async run(jobId: number, credentials: Credential[]): Promise<Proxy> {
@@ -192,7 +193,8 @@ export class ProxyBuilder {
           process.env.https_proxy || process.env.HTTPS_PROXY || ''
         }`,
         `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ''}`,
-        `JOB_ID=${jobId}`
+        `JOB_ID=${jobId}`,
+        `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`
       ],
       Entrypoint: [
         'sh',
