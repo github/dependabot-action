@@ -100643,9 +100643,10 @@ const CERT_SUBJECT = [
     }
 ];
 class ProxyBuilder {
-    constructor(docker, proxyImage) {
+    constructor(docker, proxyImage, cachedMode) {
         this.docker = docker;
         this.proxyImage = proxyImage;
+        this.cachedMode = cachedMode;
     }
     run(jobId, credentials) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -100741,7 +100742,8 @@ class ProxyBuilder {
                     `http_proxy=${process.env.http_proxy || process.env.HTTP_PROXY || ''}`,
                     `https_proxy=${process.env.https_proxy || process.env.HTTPS_PROXY || ''}`,
                     `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ''}`,
-                    `JOB_ID=${jobId}`
+                    `JOB_ID=${jobId}`,
+                    `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`
                 ],
                 Entrypoint: [
                     'sh',
@@ -100916,10 +100918,13 @@ class Updater {
      * Execute an update job and report the result to Dependabot API.
      */
     runUpdater() {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             // Create required folders in the workingDirectory
             fs_1.default.mkdirSync(this.outputHostPath);
-            const proxy = yield new proxy_1.ProxyBuilder(this.docker, this.proxyImage).run(this.apiClient.params.jobId, this.credentials);
+            const cachedMode = ((_a = this.details.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('proxy-cached')) === true;
+            const proxyBuilder = new proxy_1.ProxyBuilder(this.docker, this.proxyImage, cachedMode);
+            const proxy = yield proxyBuilder.run(this.apiClient.params.jobId, this.credentials);
             yield proxy.container.start();
             try {
                 yield this.runUpdate(proxy);
