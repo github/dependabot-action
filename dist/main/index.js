@@ -100834,8 +100834,8 @@ class UpdaterBuilder {
         return __awaiter(this, void 0, void 0, function* () {
             const cmd = `/usr/sbin/update-ca-certificates &&\
        mkdir -p ${JOB_OUTPUT_PATH} &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`;
+       bin/run fetch_files &&\
+       bin/run update_files`;
             const proxyUrl = yield this.proxy.url();
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
