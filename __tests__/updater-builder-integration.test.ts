@@ -23,7 +23,8 @@ integration('UpdaterBuilder', () => {
   const details: JobDetails = {
     'allowed-updates': [],
     id: '1',
-    'package-manager': 'npm_and_yarn'
+    'package-manager': 'npm_and_yarn',
+    experiments: {}
   }
 
   const workingDirectory = path.join(
@@ -51,10 +52,12 @@ integration('UpdaterBuilder', () => {
     fs.mkdirSync(outputPath)
     fs.mkdirSync(repoPath)
 
-    const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
-      1,
-      credentials
-    )
+    const cachedMode = true
+    const proxy = await new ProxyBuilder(
+      docker,
+      PROXY_IMAGE_NAME,
+      cachedMode
+    ).run(1, credentials)
     await proxy.container.start()
     const input = {job: details}
     const params = new JobParameters(

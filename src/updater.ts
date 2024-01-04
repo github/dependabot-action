@@ -32,7 +32,16 @@ export class Updater {
     // Create required folders in the workingDirectory
     fs.mkdirSync(this.outputHostPath)
 
-    const proxy = await new ProxyBuilder(this.docker, this.proxyImage).run(
+    const cachedMode =
+      this.details.experiments?.hasOwnProperty('proxy-cached') === true
+
+    const proxyBuilder = new ProxyBuilder(
+      this.docker,
+      this.proxyImage,
+      cachedMode
+    )
+
+    const proxy = await proxyBuilder.run(
       this.apiClient.params.jobId,
       this.credentials
     )
