@@ -100698,7 +100698,7 @@ class ProxyBuilder {
         this.proxyImage = proxyImage;
         this.cachedMode = cachedMode;
     }
-    run(jobId, credentials) {
+    run(jobId, dependabotApiUrl, credentials) {
         return __awaiter(this, void 0, void 0, function* () {
             const name = `dependabot-job-${jobId}-proxy`;
             const config = this.buildProxyConfig(credentials);
@@ -100707,7 +100707,7 @@ class ProxyBuilder {
             const externalNetwork = yield this.ensureNetwork(externalNetworkName, false);
             const internalNetworkName = `dependabot-job-${jobId}-internal-network`;
             const internalNetwork = yield this.ensureNetwork(internalNetworkName, true);
-            const container = yield this.createContainer(jobId, name, externalNetwork, internalNetwork, internalNetworkName);
+            const container = yield this.createContainer(jobId, dependabotApiUrl, name, externalNetwork, internalNetwork, internalNetworkName);
             yield container_service_1.ContainerService.storeInput(CONFIG_FILE_NAME, CONFIG_FILE_PATH, container, config);
             const customCAPath = this.customCAPath();
             if (customCAPath) {
@@ -100781,7 +100781,7 @@ class ProxyBuilder {
         const key = node_forge_1.pki.privateKeyToPem(keys.privateKey);
         return { cert: pem, key };
     }
-    createContainer(jobId, containerName, externalNetwork, internalNetwork, internalNetworkName) {
+    createContainer(jobId, dependabotApiUrl, containerName, externalNetwork, internalNetwork, internalNetworkName) {
         return __awaiter(this, void 0, void 0, function* () {
             const container = yield this.docker.createContainer({
                 Image: this.proxyImage,
@@ -100793,7 +100793,8 @@ class ProxyBuilder {
                     `https_proxy=${process.env.https_proxy || process.env.HTTPS_PROXY || ''}`,
                     `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ''}`,
                     `JOB_ID=${jobId}`,
-                    `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`
+                    `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`,
+                    `DEPENDABOT_API_URL=${dependabotApiUrl}`
                 ],
                 Entrypoint: [
                     'sh',
@@ -100974,7 +100975,7 @@ class Updater {
             fs_1.default.mkdirSync(this.outputHostPath);
             const cachedMode = ((_a = this.details.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('proxy-cached')) === true;
             const proxyBuilder = new proxy_1.ProxyBuilder(this.docker, this.proxyImage, cachedMode);
-            const proxy = yield proxyBuilder.run(this.apiClient.params.jobId, this.credentials);
+            const proxy = yield proxyBuilder.run(this.apiClient.params.jobId, this.apiClient.params.dependabotApiUrl, this.credentials);
             yield proxy.container.start();
             try {
                 yield this.runUpdate(proxy);
