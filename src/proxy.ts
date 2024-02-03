@@ -74,6 +74,7 @@ export class ProxyBuilder {
 
     const container = await this.createContainer(
       jobId,
+      jobToken,
       dependabotApiUrl,
       name,
       externalNetwork,
