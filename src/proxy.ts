@@ -58,6 +58,7 @@ export class ProxyBuilder {
 
   async run(
     jobId: number,
+    jobToken: string,
     dependabotApiUrl: string,
     credentials: Credential[]
   ): Promise<Proxy> {
@@ -182,6 +183,7 @@ export class ProxyBuilder {
 
   private async createContainer(
     jobId: number,
+    jobToken: string,
     dependabotApiUrl: string,
     containerName: string,
     externalNetwork: Network,
@@ -200,6 +202,7 @@ export class ProxyBuilder {
         }`,
         `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ''}`,
         `JOB_ID=${jobId}`,
+        `JOB_TOKEN=${jobToken}`,
         `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`,
         `DEPENDABOT_API_URL=${dependabotApiUrl}`
       ],

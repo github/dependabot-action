@@ -11,6 +11,7 @@ import path from 'path'
 integration('ProxyBuilder', () => {
   const docker = new Docker()
   const jobId = 1
+  const jobToken = 'xxxyyyzzzz'
   const dependabotApiUrl = 'http://localhost:9000'
   const credentials: Credential[] = [
     {
@@ -34,7 +35,12 @@ integration('ProxyBuilder', () => {
 
   jest.setTimeout(20000)
   it('should create a proxy container with the right details', async () => {
-    const proxy = await builder.run(jobId, dependabotApiUrl, credentials)
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
 
     const containerInfo = await proxy.container.inspect()
@@ -86,7 +92,12 @@ integration('ProxyBuilder', () => {
     fs.writeFileSync(certPath, 'ca-pem-contents')
     process.env.CUSTOM_CA_PATH = certPath
 
-    const proxy = await builder.run(jobId, dependabotApiUrl, credentials)
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
 
     const id = proxy.container.id
@@ -113,7 +124,12 @@ integration('ProxyBuilder', () => {
     fs.writeFileSync(certPath, 'ca-pem-contents')
     process.env.NODE_EXTRA_CA_CERTS = certPath
 
-    const proxy = await builder.run(jobId, dependabotApiUrl, credentials)
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
 
     const id = proxy.container.id
@@ -134,7 +150,12 @@ integration('ProxyBuilder', () => {
     const url = 'http://example.com'
     process.env.HTTP_PROXY = url
 
-    const proxy = await builder.run(jobId, dependabotApiUrl, credentials)
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
 
     const id = proxy.container.id
@@ -148,7 +169,12 @@ integration('ProxyBuilder', () => {
     const url = 'https://example.com'
     process.env.https_proxy = url
 
-    const proxy = await builder.run(jobId, dependabotApiUrl, credentials)
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
 
     const id = proxy.container.id

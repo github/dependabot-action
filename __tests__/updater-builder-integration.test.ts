@@ -12,6 +12,7 @@ import {UpdaterBuilder} from '../src/updater-builder'
 integration('UpdaterBuilder', () => {
   const docker = new Docker()
   const dependabotApiUrl = `http://localhost:9000`
+  const jobToken = 'xxxyyyzzzz'
   const credentials: Credential[] = [
     {
       type: 'git_source',
@@ -58,7 +59,7 @@ integration('UpdaterBuilder', () => {
       docker,
       PROXY_IMAGE_NAME,
       cachedMode
-    ).run(1, dependabotApiUrl, credentials)
+    ).run(1, dependabotApiUrl, jobToken, credentials)
     await proxy.container.start()
     const input = {job: details}
     const params = new JobParameters(
