@@ -645,8 +645,9 @@ describe('run', () => {
     })
   })
 
-  // The below tests are to support backward compatibility when the job token and cred token are not provided through the Action environment
-  describe('when only the job token is provided through the Action environment', () => {
+  // The below tests are to support backward compatibility when the job token and cred token
+  // are not provided through the Action environment
+  describe('when only the job token is provided through the jobParmeters', () => {
     beforeEach(() => {
       jest
         .spyOn(inputs, 'getJobParameters')
@@ -689,7 +690,7 @@ describe('run', () => {
     })
   })
 
-  describe('when only the cred token is provided through the Action environment', () => {
+  describe('when only the cred token is provided through the jobParmeters', () => {
     beforeEach(() => {
       jest
         .spyOn(inputs, 'getJobParameters')
