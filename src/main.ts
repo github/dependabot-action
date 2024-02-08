@@ -30,12 +30,26 @@ export async function run(context: Context): Promise<void> {
       return // TODO: This should be setNeutral in future
     }
 
+    // Retrieve jobToken and credentialsToken from environment variables
+    const jobToken = process.env.GITHUB_DEPENDABOT_JOB_TOKEN
+    const credentialsToken = process.env.GITHUB_DEPENDABOT_CRED_TOKEN
+
+    // Validate jobToken and credentialsToken
+    if (!jobToken) {
+      botSay('finished: GITHUB_DEPENDABOT_JOB_TOKEN is not set')
+      throw new Error('GITHUB_DEPENDABOT_JOB_TOKEN is not set')
+    }
+    if (!credentialsToken) {
+      botSay('finished: GITHUB_DEPENDABOT_CRED_TOKEN is not set')
+      throw new Error('GITHUB_DEPENDABOT_CRED_TOKEN is not set')
+    }
+
     jobId = params.jobId
-    core.setSecret(params.jobToken)
-    core.setSecret(params.credentialsToken)
+    core.setSecret(jobToken)
+    core.setSecret(credentialsToken)
 
     const client = new httpClient.HttpClient('github/dependabot-action')
-    const apiClient = new ApiClient(client, params)
+    const apiClient = new ApiClient(client, params, jobToken, credentialsToken)
 
     core.info('Fetching job details')
 
