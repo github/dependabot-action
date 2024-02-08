@@ -33,8 +33,8 @@ integration('Updater', () => {
   )
 
   // Define jobToken and credentialsToken
-  const jobToken = 'xxx';
-  const credentialsToken = 'yyy';
+  const jobToken = 'xxx'
+  const credentialsToken = 'yyy'
 
   const params = new JobParameters(
     1,

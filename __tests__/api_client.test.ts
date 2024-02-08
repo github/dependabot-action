@@ -12,21 +12,26 @@ describe('ApiClient', () => {
   }
 
   // Define jobToken and credentialsToken
-  const jobToken = 'xxx';
-  const credentialsToken = 'yyy';
+  const jobToken = 'xxx'
+  const credentialsToken = 'yyy'
 
-  const api = new ApiClient(mockHttpClient, {
-    jobId: 1,
-    dependabotApiUrl: 'https://localhost',
-    dependabotApiDockerUrl: 'https://localhost',
-    updaterImage: '', // irrelevant for this test
-    workingDirectory: './job-directory'
-  }, jobToken, credentialsToken)
+  const api = new ApiClient(
+    mockHttpClient,
+    {
+      jobId: 1,
+      dependabotApiUrl: 'https://localhost',
+      dependabotApiDockerUrl: 'https://localhost',
+      updaterImage: '', // irrelevant for this test
+      workingDirectory: './job-directory'
+    },
+    jobToken,
+    credentialsToken
+  )
   beforeEach(jest.clearAllMocks)
 
   test('getJobToken returns the correct job token', async () => {
-    const actualJobToken = api.getJobToken();
-    expect(actualJobToken).toBe(jobToken);
+    const actualJobToken = api.getJobToken()
+    expect(actualJobToken).toBe(jobToken)
   })
 
   test('get job details', async () => {
