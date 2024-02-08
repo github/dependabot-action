@@ -39,6 +39,9 @@ describe('run', () => {
     process.env.GITHUB_SERVER_URL = 'https://test.dev'
     process.env.GITHUB_REPOSITORY = 'foo/bar'
 
+    process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+    process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+
     markJobAsProcessedSpy = jest.spyOn(
       ApiClient.prototype,
       'markJobAsProcessed'
@@ -469,6 +472,66 @@ describe('run', () => {
         }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when the there is no job token', () => {
+    beforeEach(() => {
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = ''
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+      context = new Context()
+    })
+
+    test('it fails the workflow with the raw error', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        `GITHUB_DEPENDABOT_JOB_TOKEN is not set`
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+
+    test('it does not inform dependabot-api as it cannot instantiate a client without the params', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when the there is no cred token', () => {
+    beforeEach(() => {
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = ''
+      context = new Context()
+    })
+
+    test('it fails the workflow with the raw error', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        `GITHUB_DEPENDABOT_CRED_TOKEN is not set`
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+
+    test('it does not inform dependabot-api as it cannot instantiate a client without the params', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 })

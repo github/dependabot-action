@@ -36,12 +36,16 @@ export async function run(context: Context): Promise<void> {
 
     // Validate jobToken and credentialsToken
     if (!jobToken) {
-      botSay('finished: GITHUB_DEPENDABOT_JOB_TOKEN is not set')
-      throw new Error('GITHUB_DEPENDABOT_JOB_TOKEN is not set')
+      const errorMessage = 'GITHUB_DEPENDABOT_JOB_TOKEN is not set'
+      botSay(`finished: ${errorMessage}`)
+      core.setFailed(errorMessage)
+      return
     }
     if (!credentialsToken) {
-      botSay('finished: GITHUB_DEPENDABOT_CRED_TOKEN is not set')
-      throw new Error('GITHUB_DEPENDABOT_CRED_TOKEN is not set')
+      const errorMessage = 'GITHUB_DEPENDABOT_CRED_TOKEN is not set'
+      botSay(`finished: ${errorMessage}`)
+      core.setFailed(errorMessage)
+      return
     }
 
     jobId = params.jobId

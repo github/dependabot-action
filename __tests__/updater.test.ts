@@ -25,12 +25,13 @@ describe('Updater', () => {
   const mockApiClient: any = {
     getJobDetails: jest.fn(),
     getCredentials: jest.fn(),
+    getJobToken: jest.fn(),
     params: {
       jobId: 1,
-      jobToken: 'job-token',
-      credentialsToken: 'job-credentials-token',
       dependabotApiUrl: 'http://localhost:3001'
-    }
+    },
+    jobToken: 'job-token',
+    credentialsToken: 'job-credentials-token'
   }
 
   const mockJobDetails: any = {
