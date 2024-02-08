@@ -99927,20 +99927,26 @@ class CredentialFetchingError extends Error {
 }
 exports.CredentialFetchingError = CredentialFetchingError;
 class ApiClient {
-    constructor(client, params) {
+    constructor(client, params, jobToken, credentialsToken) {
         this.client = client;
         this.params = params;
+        this.credentialsToken = credentialsToken;
         // We use a static unknown SHA when marking a job as complete from the action
         // to remain in parity with the existing runner.
         this.UnknownSha = {
             'base-commit-sha': 'unknown'
         };
+        this.jobToken = jobToken;
+    }
+    // Getter for jobToken
+    getJobToken() {
+        return this.jobToken;
     }
     getJobDetails() {
         return __awaiter(this, void 0, void 0, function* () {
             const detailsURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/details`;
             try {
-                const res = yield this.getJsonWithRetry(detailsURL, this.params.jobToken);
+                const res = yield this.getJsonWithRetry(detailsURL, this.jobToken);
                 if (res.statusCode !== 200) {
                     throw new JobDetailsFetchingError(`fetching job details: unexpected status code: ${res.statusCode}: ${JSON.stringify(res.result)}`);
                 }
@@ -99967,7 +99973,7 @@ class ApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             const credentialsURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/credentials`;
             try {
-                const res = yield this.getJsonWithRetry(credentialsURL, this.params.credentialsToken);
+                const res = yield this.getJsonWithRetry(credentialsURL, this.credentialsToken);
                 if (res.statusCode !== 200) {
                     throw new CredentialFetchingError(`fetching credentials: unexpected status code: ${res.statusCode}: ${JSON.stringify(res.result)}`);
                 }
@@ -100003,7 +100009,7 @@ class ApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             const recordErrorURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/record_update_job_error`;
             const res = yield this.client.postJson(recordErrorURL, { data: error }, {
-                ['Authorization']: this.params.jobToken
+                ['Authorization']: this.jobToken
             });
             if (res.statusCode !== 204) {
                 throw new Error(`Unexpected status code: ${res.statusCode}`);
@@ -100014,7 +100020,7 @@ class ApiClient {
         return __awaiter(this, void 0, void 0, function* () {
             const markAsProcessedURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/mark_as_processed`;
             const res = yield this.client.patchJson(markAsProcessedURL, { data: this.UnknownSha }, {
-                ['Authorization']: this.params.jobToken
+                ['Authorization']: this.jobToken
             });
             if (res.statusCode !== 204) {
                 throw new Error(`Unexpected status code: ${res.statusCode}`);
@@ -100342,10 +100348,8 @@ const DYNAMIC = 'dynamic';
 const DEPENDABOT_ACTOR = 'dependabot[bot]';
 // JobParameters are the Action inputs required to execute the job
 class JobParameters {
-    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl, updaterImage, workingDirectory) {
+    constructor(jobId, dependabotApiUrl, dependabotApiDockerUrl, updaterImage, workingDirectory) {
         this.jobId = jobId;
-        this.jobToken = jobToken;
-        this.credentialsToken = credentialsToken;
         this.dependabotApiUrl = dependabotApiUrl;
         this.dependabotApiDockerUrl = dependabotApiDockerUrl;
         this.updaterImage = updaterImage;
@@ -100401,7 +100405,7 @@ function fromWorkflowInputs(ctx) {
     }
     const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
     const workingDirectory = absoluteWorkingDirectory(evt.inputs.workingDirectory);
-    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, evt.inputs.updaterImage, workingDirectory);
+    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, evt.inputs.updaterImage, workingDirectory);
 }
 function absoluteWorkingDirectory(workingDirectory) {
     const workspace = process.env.GITHUB_WORKSPACE;
@@ -100506,11 +100510,27 @@ function run(context) {
                 botSay('finished: nothing to do');
                 return; // TODO: This should be setNeutral in future
             }
+            // Retrieve jobToken and credentialsToken from environment variables
+            const jobToken = process.env.GITHUB_DEPENDABOT_JOB_TOKEN;
+            const credentialsToken = process.env.GITHUB_DEPENDABOT_CRED_TOKEN;
+            // Validate jobToken and credentialsToken
+            if (!jobToken) {
+                const errorMessage = 'GITHUB_DEPENDABOT_JOB_TOKEN is not set';
+                botSay(`finished: ${errorMessage}`);
+                core.setFailed(errorMessage);
+                return;
+            }
+            if (!credentialsToken) {
+                const errorMessage = 'GITHUB_DEPENDABOT_CRED_TOKEN is not set';
+                botSay(`finished: ${errorMessage}`);
+                core.setFailed(errorMessage);
+                return;
+            }
             jobId = params.jobId;
-            core.setSecret(params.jobToken);
-            core.setSecret(params.credentialsToken);
+            core.setSecret(jobToken);
+            core.setSecret(credentialsToken);
             const client = new httpClient.HttpClient('github/dependabot-action');
-            const apiClient = new api_client_1.ApiClient(client, params);
+            const apiClient = new api_client_1.ApiClient(client, params, jobToken, credentialsToken);
             core.info('Fetching job details');
             // If we fail to succeed in fetching the job details, we cannot be sure the job has entered a 'processing' state,
             // so we do not try attempt to report back an exception if this fails and instead rely on the workflow run
@@ -100897,7 +100917,7 @@ class UpdaterBuilder {
                 Env: [
                     `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
                     `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
-                    `DEPENDABOT_JOB_TOKEN=${this.jobParams.jobToken}`,
+                    `DEPENDABOT_JOB_TOKEN=${process.env.GITHUB_DEPENDABOT_JOB_TOKEN}`,
                     `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
                     `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=15`,
                     `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
@@ -100976,7 +100996,7 @@ class Updater {
             fs_1.default.mkdirSync(this.outputHostPath);
             const cachedMode = ((_a = this.details.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('proxy-cached')) === true;
             const proxyBuilder = new proxy_1.ProxyBuilder(this.docker, this.proxyImage, cachedMode);
-            const proxy = yield proxyBuilder.run(this.apiClient.params.jobId, this.apiClient.params.jobToken, this.apiClient.params.dependabotApiUrl, this.credentials);
+            const proxy = yield proxyBuilder.run(this.apiClient.params.jobId, this.apiClient.getJobToken(), this.apiClient.params.dependabotApiUrl, this.credentials);
             yield proxy.container.start();
             try {
                 yield this.runUpdate(proxy);
