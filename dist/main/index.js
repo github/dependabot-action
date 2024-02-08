@@ -100348,8 +100348,10 @@ const DYNAMIC = 'dynamic';
 const DEPENDABOT_ACTOR = 'dependabot[bot]';
 // JobParameters are the Action inputs required to execute the job
 class JobParameters {
-    constructor(jobId, dependabotApiUrl, dependabotApiDockerUrl, updaterImage, workingDirectory) {
+    constructor(jobId, jobToken, credentialsToken, dependabotApiUrl, dependabotApiDockerUrl, updaterImage, workingDirectory) {
         this.jobId = jobId;
+        this.jobToken = jobToken;
+        this.credentialsToken = credentialsToken;
         this.dependabotApiUrl = dependabotApiUrl;
         this.dependabotApiDockerUrl = dependabotApiDockerUrl;
         this.updaterImage = updaterImage;
@@ -100405,7 +100407,7 @@ function fromWorkflowInputs(ctx) {
     }
     const dependabotApiDockerUrl = evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl;
     const workingDirectory = absoluteWorkingDirectory(evt.inputs.workingDirectory);
-    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, evt.inputs.updaterImage, workingDirectory);
+    return new JobParameters(parseInt(evt.inputs.jobId, 10), evt.inputs.jobToken, evt.inputs.credentialsToken, evt.inputs.dependabotApiUrl, dependabotApiDockerUrl, evt.inputs.updaterImage, workingDirectory);
 }
 function absoluteWorkingDirectory(workingDirectory) {
     const workspace = process.env.GITHUB_WORKSPACE;
@@ -100510,18 +100512,19 @@ function run(context) {
                 botSay('finished: nothing to do');
                 return; // TODO: This should be setNeutral in future
             }
-            // Retrieve jobToken and credentialsToken from environment variables
-            const jobToken = process.env.GITHUB_DEPENDABOT_JOB_TOKEN;
-            const credentialsToken = process.env.GITHUB_DEPENDABOT_CRED_TOKEN;
+            // Use environment variables if set and not empty, otherwise use parameters.
+            // The param values of job token and credentials token are kept to support backwards compatibility.
+            const jobToken = process.env.GITHUB_DEPENDABOT_JOB_TOKEN || params.jobToken;
+            const credentialsToken = process.env.GITHUB_DEPENDABOT_CRED_TOKEN || params.credentialsToken;
             // Validate jobToken and credentialsToken
             if (!jobToken) {
-                const errorMessage = 'GITHUB_DEPENDABOT_JOB_TOKEN is not set';
+                const errorMessage = 'Github Dependabot job token is not set';
                 botSay(`finished: ${errorMessage}`);
                 core.setFailed(errorMessage);
                 return;
             }
             if (!credentialsToken) {
-                const errorMessage = 'GITHUB_DEPENDABOT_CRED_TOKEN is not set';
+                const errorMessage = 'Github Dependabot credentials token is not set';
                 botSay(`finished: ${errorMessage}`);
                 core.setFailed(errorMessage);
                 return;
@@ -100902,12 +100905,17 @@ class UpdaterBuilder {
         this.proxy = proxy;
         this.updaterImage = updaterImage;
     }
+    setDependabotJobToken() {
+        const jobToken = this.jobParams.jobToken || process.env.GITHUB_DEPENDABOT_JOB_TOKEN || '';
+        return jobToken;
+    }
     run(containerName) {
         return __awaiter(this, void 0, void 0, function* () {
             const cmd = `/usr/sbin/update-ca-certificates &&\
        mkdir -p ${JOB_OUTPUT_PATH} &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`;
+            const dependabotJobToken = this.setDependabotJobToken();
             const proxyUrl = yield this.proxy.url();
             const container = yield this.docker.createContainer({
                 Image: this.updaterImage,
@@ -100917,7 +100925,7 @@ class UpdaterBuilder {
                 Env: [
                     `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
                     `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
-                    `DEPENDABOT_JOB_TOKEN=${process.env.GITHUB_DEPENDABOT_JOB_TOKEN}`,
+                    `DEPENDABOT_JOB_TOKEN=${dependabotJobToken}`,
                     `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
                     `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=15`,
                     `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
