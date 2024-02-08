@@ -11,8 +11,6 @@ const DEPENDABOT_ACTOR = 'dependabot[bot]'
 export class JobParameters {
   constructor(
     readonly jobId: number,
-    readonly jobToken: string,
-    readonly credentialsToken: string,
     readonly dependabotApiUrl: string,
     readonly dependabotApiDockerUrl: string,
     readonly updaterImage: string,
@@ -89,8 +87,6 @@ function fromWorkflowInputs(ctx: Context): JobParameters {
 
   return new JobParameters(
     parseInt(evt.inputs.jobId as string, 10),
-    evt.inputs.jobToken as string,
-    evt.inputs.credentialsToken as string,
     evt.inputs.dependabotApiUrl as string,
     dependabotApiDockerUrl as string,
     evt.inputs.updaterImage as string,
