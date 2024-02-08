@@ -19,6 +19,8 @@ describe('ApiClient', () => {
     mockHttpClient,
     {
       jobId: 1,
+      jobToken,
+      credentialsToken,
       dependabotApiUrl: 'https://localhost',
       dependabotApiDockerUrl: 'https://localhost',
       updaterImage: '', // irrelevant for this test

@@ -34,6 +34,8 @@ describe('when there is a fully configured Actions environment', () => {
     const params = getJobParameters(context)
 
     expect(params?.jobId).toEqual(1)
+    expect(params?.jobToken).toEqual('xxx')
+    expect(params?.credentialsToken).toEqual('yyy')
     expect(params?.dependabotApiUrl).toEqual('http://localhost:9000')
     expect(params?.dependabotApiDockerUrl).toEqual('http://localhost:9000')
   })

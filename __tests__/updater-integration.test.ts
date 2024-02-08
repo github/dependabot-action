@@ -38,6 +38,8 @@ integration('Updater', () => {
 
   const params = new JobParameters(
     1,
+    jobToken,
+    credentialsToken,
     dependabotApiUrl,
     dependabotApiDockerUrl,
     updaterImage,

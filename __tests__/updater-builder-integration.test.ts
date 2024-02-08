@@ -64,6 +64,8 @@ integration('UpdaterBuilder', () => {
     const input = {job: details}
     const params = new JobParameters(
       1,
+      'job-token',
+      'cred-token',
       'https://example.com',
       '172.17.0.1',
       updaterImageName('bundler'),
