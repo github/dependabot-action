@@ -40,7 +40,7 @@ export class UpdaterBuilder {
       Env: [
         `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
         `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
-        `DEPENDABOT_JOB_TOKEN=${this.jobParams.jobToken}`,
+        `DEPENDABOT_JOB_TOKEN=${process.env.GITHUB_DEPENDABOT_JOB_TOKEN}`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=15`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
