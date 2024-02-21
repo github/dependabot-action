@@ -32,10 +32,15 @@ export class JobDetailsFetchingError extends Error {}
 export class CredentialFetchingError extends Error {}
 
 export class ApiClient {
+  private jobToken: string
   constructor(
     private readonly client: httpClient.HttpClient,
-    readonly params: JobParameters
-  ) {}
+    readonly params: JobParameters,
+    jobToken: string,
+    private readonly credentialsToken: string
+  ) {
+    this.jobToken = jobToken
+  }
 
   // We use a static unknown SHA when marking a job as complete from the action
   // to remain in parity with the existing runner.
@@ -43,13 +48,15 @@ export class ApiClient {
     'base-commit-sha': 'unknown'
   }
 
+  // Getter for jobToken
+  getJobToken(): string {
+    return this.jobToken
+  }
+
   async getJobDetails(): Promise<JobDetails> {
     const detailsURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/details`
     try {
-      const res = await this.getJsonWithRetry<any>(
-        detailsURL,
-        this.params.jobToken
-      )
+      const res = await this.getJsonWithRetry<any>(detailsURL, this.jobToken)
       if (res.statusCode !== 200) {
         throw new JobDetailsFetchingError(
           `fetching job details: unexpected status code: ${
@@ -85,7 +92,7 @@ export class ApiClient {
     try {
       const res = await this.getJsonWithRetry<any>(
         credentialsURL,
-        this.params.credentialsToken
+        this.credentialsToken
       )
 
       if (res.statusCode !== 200) {
@@ -134,7 +141,7 @@ export class ApiClient {
       recordErrorURL,
       {data: error},
       {
-        ['Authorization']: this.params.jobToken
+        ['Authorization']: this.jobToken
       }
     )
     if (res.statusCode !== 204) {
@@ -148,7 +155,7 @@ export class ApiClient {
       markAsProcessedURL,
       {data: this.UnknownSha},
       {
-        ['Authorization']: this.params.jobToken
+        ['Authorization']: this.jobToken
       }
     )
     if (res.statusCode !== 204) {

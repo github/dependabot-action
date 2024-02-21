@@ -39,6 +39,9 @@ describe('run', () => {
     process.env.GITHUB_SERVER_URL = 'https://test.dev'
     process.env.GITHUB_REPOSITORY = 'foo/bar'
 
+    process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+    process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+
     markJobAsProcessedSpy = jest.spyOn(
       ApiClient.prototype,
       'markJobAsProcessed'
@@ -469,6 +472,264 @@ describe('run', () => {
         }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when the there is no job token', () => {
+    beforeEach(() => {
+      jest.spyOn(inputs, 'getJobParameters').mockReturnValueOnce(
+        new inputs.JobParameters(
+          1,
+          '', // jobToken set as empty
+          'cred-token',
+          'https://example.com',
+          '172.17.0.1',
+          'image/name:tag',
+          './'
+        )
+      )
+
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = ''
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+      context = new Context()
+    })
+
+    test('it fails the workflow with the specific error message for missing job token', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        `Github Dependabot job token is not set`
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+
+    test('it does not inform dependabot-api as it cannot instantiate a client without the params', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when the there is no cred token', () => {
+    beforeEach(() => {
+      jest.spyOn(inputs, 'getJobParameters').mockReturnValueOnce(
+        new inputs.JobParameters(
+          1,
+          'job-token',
+          '', // credToken set as empty
+          'https://example.com',
+          '172.17.0.1',
+          'image/name:tag',
+          './'
+        )
+      )
+
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = ''
+      context = new Context()
+    })
+
+    test('it fails the workflow with the specific error message for missing credentials token', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        `Github Dependabot credentials token is not set`
+      )
+    })
+
+    test('it does not report this failed run to dependabot-api', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+
+    test('it does not inform dependabot-api as it cannot instantiate a client without the params', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when only the job token is provided through the Action environment', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(inputs, 'getJobParameters')
+        .mockReturnValueOnce(
+          new inputs.JobParameters(
+            1,
+            '',
+            '',
+            'https://example.com',
+            '172.17.0.1',
+            'image/name:tag',
+            './'
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+      context = new Context()
+    })
+
+    test('it signs off at completion without any errors', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        expect.stringContaining('🤖 ~ finished ~')
+      )
+    })
+
+    test('it defers reporting back to dependabot-api to the updater itself', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when only the cred token is provided through the Action environment', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(inputs, 'getJobParameters')
+        .mockReturnValueOnce(
+          new inputs.JobParameters(
+            1,
+            '',
+            '',
+            'https://example.com',
+            '172.17.0.1',
+            'image/name:tag',
+            './'
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+      context = new Context()
+    })
+
+    test('it signs off at completion without any errors', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        expect.stringContaining('🤖 ~ finished ~')
+      )
+    })
+
+    test('it defers reporting back to dependabot-api to the updater itself', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  // The below tests are to support backward compatibility when the job token and cred token
+  // are not provided through the Action environment
+  describe('when only the job token is provided through the jobParmeters', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(inputs, 'getJobParameters')
+        .mockReturnValueOnce(
+          new inputs.JobParameters(
+            1,
+            'xxx',
+            'yyy',
+            'https://example.com',
+            '172.17.0.1',
+            'image/name:tag',
+            './'
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = ''
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = ''
+      context = new Context()
+    })
+
+    test('it signs off at completion without any errors', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        expect.stringContaining('🤖 ~ finished ~')
+      )
+    })
+
+    test('it defers reporting back to dependabot-api to the updater itself', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when only the cred token is provided through the jobParmeters', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(inputs, 'getJobParameters')
+        .mockReturnValueOnce(
+          new inputs.JobParameters(
+            1,
+            'xxx',
+            'yyy',
+            'https://example.com',
+            '172.17.0.1',
+            'image/name:tag',
+            './'
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+
+      process.env.GITHUB_DEPENDABOT_JOB_TOKEN = ''
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN = ''
+      context = new Context()
+    })
+
+    test('it signs off at completion without any errors', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        expect.stringContaining('🤖 ~ finished ~')
+      )
+    })
+
+    test('it defers reporting back to dependabot-api to the updater itself', async () => {
+      await run(context)
+
+      expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
+      expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
   })
 })
