@@ -30,12 +30,32 @@ export async function run(context: Context): Promise<void> {
       return // TODO: This should be setNeutral in future
     }
 
+    // Use environment variables if set and not empty, otherwise use parameters.
+    // The param values of job token and credentials token are kept to support backwards compatibility.
+    const jobToken = process.env.GITHUB_DEPENDABOT_JOB_TOKEN || params.jobToken
+    const credentialsToken =
+      process.env.GITHUB_DEPENDABOT_CRED_TOKEN || params.credentialsToken
+
+    // Validate jobToken and credentialsToken
+    if (!jobToken) {
+      const errorMessage = 'Github Dependabot job token is not set'
+      botSay(`finished: ${errorMessage}`)
+      core.setFailed(errorMessage)
+      return
+    }
+    if (!credentialsToken) {
+      const errorMessage = 'Github Dependabot credentials token is not set'
+      botSay(`finished: ${errorMessage}`)
+      core.setFailed(errorMessage)
+      return
+    }
+
     jobId = params.jobId
-    core.setSecret(params.jobToken)
-    core.setSecret(params.credentialsToken)
+    core.setSecret(jobToken)
+    core.setSecret(credentialsToken)
 
     const client = new httpClient.HttpClient('github/dependabot-action')
-    const apiClient = new ApiClient(client, params)
+    const apiClient = new ApiClient(client, params, jobToken, credentialsToken)
 
     core.info('Fetching job details')
 

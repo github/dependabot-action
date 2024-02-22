@@ -43,7 +43,7 @@ export class Updater {
 
     const proxy = await proxyBuilder.run(
       this.apiClient.params.jobId,
-      this.apiClient.params.jobToken,
+      this.apiClient.getJobToken(),
       this.apiClient.params.dependabotApiUrl,
       this.credentials
     )

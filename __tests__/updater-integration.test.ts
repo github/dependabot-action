@@ -32,10 +32,14 @@ integration('Updater', () => {
     './integration_working_directory'
   )
 
+  // Define jobToken and credentialsToken
+  const jobToken = 'xxx'
+  const credentialsToken = 'yyy'
+
   const params = new JobParameters(
     1,
-    'job-token',
-    'cred-token',
+    jobToken,
+    credentialsToken,
     dependabotApiUrl,
     dependabotApiDockerUrl,
     updaterImage,
@@ -45,7 +49,7 @@ integration('Updater', () => {
   const client = new httpClient.HttpClient(
     'github/dependabot-action integration'
   )
-  const apiClient = new ApiClient(client, params)
+  const apiClient = new ApiClient(client, params, jobToken, credentialsToken)
 
   beforeAll(async () => {
     await ImageService.pull(updaterImageName('npm_and_yarn'))
