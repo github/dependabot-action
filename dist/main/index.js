@@ -100758,8 +100758,8 @@ const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, functi
 });
 /** Fetch the configured updater image, if it isn't already available. */
 exports.ImageService = {
-    pull(imageName, force = false) {
-        return __awaiter(this, void 0, void 0, function* () {
+    pull(imageName_1) {
+        return __awaiter(this, arguments, void 0, function* (imageName, force = false) {
             /*
               This method fetches images hosts on GitHub infrastructure.
         
@@ -100787,8 +100787,8 @@ exports.ImageService = {
         });
     },
     /* Retrieve the imageName using the auth details provided, if any */
-    fetchImage(imageName, auth = {}, docker = new dockerode_1.default()) {
-        return __awaiter(this, void 0, void 0, function* () {
+    fetchImage(imageName_1) {
+        return __awaiter(this, arguments, void 0, function* (imageName, auth = {}, docker = new dockerode_1.default()) {
             core.info(`Pulling image ${imageName}...`);
             const stream = yield docker.pull(imageName, { authconfig: auth });
             yield endOfStream(docker, stream);
@@ -101084,8 +101084,8 @@ function run(context) {
     });
 }
 exports.run = run;
-function failJob(apiClient, message, error, errorType = DependabotErrorType.Unknown) {
-    return __awaiter(this, void 0, void 0, function* () {
+function failJob(apiClient_1, message_1, error_1) {
+    return __awaiter(this, arguments, void 0, function* (apiClient, message, error, errorType = DependabotErrorType.Unknown) {
         yield apiClient.reportJobError({
             'error-type': errorType,
             'error-details': {
@@ -101262,8 +101262,8 @@ class ProxyBuilder {
             };
         });
     }
-    ensureNetwork(name, internal = true) {
-        return __awaiter(this, void 0, void 0, function* () {
+    ensureNetwork(name_1) {
+        return __awaiter(this, arguments, void 0, function* (name, internal = true) {
             const networks = yield this.docker.listNetworks({
                 filters: JSON.stringify({ name: [name] })
             });
@@ -101490,8 +101490,8 @@ class Updater {
      * Execute an update job and report the result to Dependabot API.
      */
     runUpdater() {
-        var _a;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             // Create required folders in the workingDirectory
             fs_1.default.mkdirSync(this.outputHostPath);
             const cachedMode = ((_a = this.details.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('proxy-cached')) === true;
