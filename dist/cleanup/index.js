@@ -62863,8 +62863,8 @@ const docker_tags_1 = __nccwpck_require__(4665);
 // which may have crashed before deleting their own containers or networks
 //
 // cutoff - a Go duration string to pass to the Docker API's 'until' argument, default '24h'
-function run(cutoff = '24h') {
-    return __awaiter(this, void 0, void 0, function* () {
+function run() {
+    return __awaiter(this, arguments, void 0, function* (cutoff = '24h') {
         if (process.env.DEPENDABOT_DISABLE_CLEANUP === '1') {
             return;
         }
