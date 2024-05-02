@@ -54,7 +54,7 @@ export const ImageService = {
   ): Promise<void> {
     core.info(`Pulling image ${imageName}...`)
     const stream = await docker.pull(imageName, {authconfig: auth})
-    await endOfStream(docker, stream)
+    await endOfStream(docker, Readable.from(stream))
     core.info(`Pulled image ${imageName}`)
   }
 }
