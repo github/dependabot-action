@@ -135,8 +135,10 @@ export class ProxyBuilder {
       shutdown: async () => {
         await container.stop()
         await container.remove()
-        await externalNetwork.remove()
-        await internalNetwork.remove()
+        await Promise.all([
+          externalNetwork.remove(),
+          internalNetwork.remove(),
+        ])
       }
     }
   }
