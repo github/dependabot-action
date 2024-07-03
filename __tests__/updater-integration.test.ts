@@ -64,7 +64,7 @@ integration('Updater', () => {
   afterEach(async () => {
     server && server() // teardown server process
     await removeDanglingUpdaterContainers()
-    fs.rmdirSync(workingDirectory, {recursive: true})
+    fs.rmSync(workingDirectory, {recursive: true})
   })
 
   jest.setTimeout(120000)

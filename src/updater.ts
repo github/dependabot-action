@@ -85,11 +85,11 @@ export class Updater {
     await proxy.shutdown()
 
     if (fs.existsSync(this.outputHostPath)) {
-      fs.rmdirSync(this.outputHostPath, {recursive: true})
+      fs.rmSync(this.outputHostPath, {recursive: true})
     }
 
     if (fs.existsSync(this.repoHostPath)) {
-      fs.rmdirSync(this.repoHostPath, {recursive: true})
+      fs.rmSync(this.repoHostPath, {recursive: true})
     }
   }
 }

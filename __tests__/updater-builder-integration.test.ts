@@ -45,7 +45,7 @@ integration('UpdaterBuilder', () => {
 
   afterEach(async () => {
     await removeDanglingUpdaterContainers()
-    fs.rmdirSync(workingDirectory, {recursive: true})
+    fs.rmSync(workingDirectory, {recursive: true})
   })
 
   it('createUpdaterContainer returns a container only connected to the internal network', async () => {
