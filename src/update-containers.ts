@@ -36,6 +36,7 @@ const manifest = {
   nuget: getImageName('Dockerfile.nuget'),
   npm_and_yarn: getImageName('Dockerfile.npm'),
   pip: getImageName('Dockerfile.pip'),
+  swift: getImageName('Dockerfile.swift'),
   terraform: getImageName('Dockerfile.terraform')
 }
 
