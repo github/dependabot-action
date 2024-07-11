@@ -99189,10 +99189,10 @@ class Updater {
         return __awaiter(this, void 0, void 0, function* () {
             yield proxy.shutdown();
             if (fs_1.default.existsSync(this.outputHostPath)) {
-                fs_1.default.rmdirSync(this.outputHostPath, { recursive: true });
+                fs_1.default.rmSync(this.outputHostPath, { recursive: true });
             }
             if (fs_1.default.existsSync(this.repoHostPath)) {
-                fs_1.default.rmdirSync(this.repoHostPath, { recursive: true });
+                fs_1.default.rmSync(this.repoHostPath, { recursive: true });
             }
         });
     }
