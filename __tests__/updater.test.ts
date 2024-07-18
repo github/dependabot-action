@@ -76,7 +76,7 @@ describe('Updater', () => {
 
   afterEach(async () => {
     jest.clearAllMocks() // Reset any mocked classes
-    fs.rmdirSync(workingDirectory, {recursive: true})
+    fs.rmSync(workingDirectory, {recursive: true})
   })
 
   describe('when there is a happy path update', () => {
