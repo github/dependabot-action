@@ -98920,8 +98920,7 @@ class ProxyBuilder {
                 shutdown: () => __awaiter(this, void 0, void 0, function* () {
                     yield container.stop();
                     yield container.remove();
-                    yield externalNetwork.remove();
-                    yield internalNetwork.remove();
+                    yield Promise.all([externalNetwork.remove(), internalNetwork.remove()]);
                 })
             };
         });

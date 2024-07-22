@@ -63086,9 +63086,9 @@ function run() {
             yield docker.pruneNetworks({ filters: untilFilter });
             core.info(`Pruning containers older than ${cutoff}`);
             yield docker.pruneContainers({ filters: untilFilter });
-            for (const image of (0, docker_tags_1.updaterImages)()) {
-                yield cleanupOldImageVersions(docker, image);
-            }
+            yield Promise.all((0, docker_tags_1.updaterImages)().map((image) => __awaiter(this, void 0, void 0, function* () {
+                return cleanupOldImageVersions(docker, image);
+            })));
             yield cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
         }
         catch (error) {
