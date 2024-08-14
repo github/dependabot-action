@@ -99061,7 +99061,12 @@ class UpdaterBuilder {
         this.updaterImage = updaterImage;
     }
     setDependabotJobToken() {
+        var _a;
         const jobToken = this.jobParams.jobToken || process.env.GITHUB_DEPENDABOT_JOB_TOKEN || '';
+        // The job token has been moved to the proxy container.
+        if (((_a = this.input.job.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('move-job-token')) === true) {
+            return '';
+        }
         return jobToken;
     }
     run(containerName) {
