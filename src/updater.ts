@@ -34,11 +34,14 @@ export class Updater {
 
     const cachedMode =
       this.details.experiments?.hasOwnProperty('proxy-cached') === true
+    const moveJobToken =
+      this.details.experiments?.hasOwnProperty('move-job-token') === true
 
     const proxyBuilder = new ProxyBuilder(
       this.docker,
       this.proxyImage,
-      cachedMode
+      cachedMode,
+      moveJobToken
     )
 
     const proxy = await proxyBuilder.run(
