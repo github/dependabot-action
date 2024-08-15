@@ -55,10 +55,12 @@ integration('UpdaterBuilder', () => {
     fs.mkdirSync(repoPath)
 
     const cachedMode = true
+    const moveJobToken = true
     const proxy = await new ProxyBuilder(
       docker,
       PROXY_IMAGE_NAME,
-      cachedMode
+      cachedMode,
+      moveJobToken
     ).run(1, dependabotApiUrl, jobToken, credentials)
     await proxy.container.start()
     const input = {job: details}
