@@ -53,7 +53,8 @@ export class ProxyBuilder {
   constructor(
     private readonly docker: Docker,
     private readonly proxyImage: string,
-    private readonly cachedMode: boolean
+    private readonly cachedMode: boolean,
+    private readonly moveJobToken: boolean
   ) {}
 
   async run(
@@ -204,6 +205,7 @@ export class ProxyBuilder {
         `JOB_ID=${jobId}`,
         `JOB_TOKEN=${jobToken}`,
         `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`,
+        `MOVE_JOB_TOKEN=${this.moveJobToken ? 'true' : 'false'}`,
         `DEPENDABOT_API_URL=${dependabotApiUrl}`
       ],
       Entrypoint: [

@@ -98872,10 +98872,11 @@ const CERT_SUBJECT = [
     }
 ];
 class ProxyBuilder {
-    constructor(docker, proxyImage, cachedMode) {
+    constructor(docker, proxyImage, cachedMode, moveJobToken) {
         this.docker = docker;
         this.proxyImage = proxyImage;
         this.cachedMode = cachedMode;
+        this.moveJobToken = moveJobToken;
     }
     run(jobId, jobToken, dependabotApiUrl, credentials) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -98973,6 +98974,7 @@ class ProxyBuilder {
                     `JOB_ID=${jobId}`,
                     `JOB_TOKEN=${jobToken}`,
                     `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`,
+                    `MOVE_JOB_TOKEN=${this.moveJobToken ? 'true' : 'false'}`,
                     `DEPENDABOT_API_URL=${dependabotApiUrl}`
                 ],
                 Entrypoint: [
@@ -99061,7 +99063,12 @@ class UpdaterBuilder {
         this.updaterImage = updaterImage;
     }
     setDependabotJobToken() {
+        var _a;
         const jobToken = this.jobParams.jobToken || process.env.GITHUB_DEPENDABOT_JOB_TOKEN || '';
+        // The job token has been moved to the proxy container.
+        if (((_a = this.input.job.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('move-job-token')) === true) {
+            return '';
+        }
         return jobToken;
     }
     run(containerName) {
@@ -99154,11 +99161,12 @@ class Updater {
      */
     runUpdater() {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b;
             // Create required folders in the workingDirectory
             fs_1.default.mkdirSync(this.outputHostPath);
             const cachedMode = ((_a = this.details.experiments) === null || _a === void 0 ? void 0 : _a.hasOwnProperty('proxy-cached')) === true;
-            const proxyBuilder = new proxy_1.ProxyBuilder(this.docker, this.proxyImage, cachedMode);
+            const moveJobToken = ((_b = this.details.experiments) === null || _b === void 0 ? void 0 : _b.hasOwnProperty('move-job-token')) === true;
+            const proxyBuilder = new proxy_1.ProxyBuilder(this.docker, this.proxyImage, cachedMode, moveJobToken);
             const proxy = yield proxyBuilder.run(this.apiClient.params.jobId, this.apiClient.getJobToken(), this.apiClient.params.dependabotApiUrl, this.credentials);
             yield proxy.container.start();
             try {
@@ -99515,7 +99523,7 @@ module.exports = require("zlib");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20240717195146@sha256:74ba0acc575dae2f0fc9985639eba83c74373c6ba93f40529aa81532c14eb983","bundler":"ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20240628234530@sha256:2e094e732d5b7fd71695aaa3bbfd9e0cefe1cd22d40e228d3071e46b65995efe","cargo":"ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20240628234530@sha256:824fdd484435cc9625c86f184512aea69aed0d369450c3a1a734d70f79f86837","composer":"ghcr.io/dependabot/dependabot-updater-composer:v2.0.20240628234530@sha256:0a8500614da4d0ea31128224037a80490754ae9d30b0cf6c682c969d658a1558","pub":"ghcr.io/dependabot/dependabot-updater-pub:v2.0.20240628234530@sha256:3a23e67f153936962c44f32861944c44a2c291597b9dd00749279265e0e2ecb1","docker":"ghcr.io/dependabot/dependabot-updater-docker:v2.0.20240628234530@sha256:30d3bfd90ad3e995135ea8c4fc1db99c771dedf8fbe8f4378212ce530bd3e0d1","elm":"ghcr.io/dependabot/dependabot-updater-elm:v2.0.20240628234530@sha256:8282fb1253c543b9b1a4698d7f0de8bc8673e92eb68fa27357ca7d1f17690ed1","github_actions":"ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20240628234530@sha256:f2473365c5cd32d6257cc2d50e361732a6c5b208385a9a1747f306e197b502ac","submodules":"ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20240628234530@sha256:69ce7da7ddcd04cb3eb651022b34c7f83d17e33f9507503bd7e56f05ed93cde2","go_modules":"ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20240628234530@sha256:4c49d54ad01142856fa58233c0ab35814197ec5df177fa79542e7bfec17a1510","gradle":"ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20240628234530@sha256:9427e7b17e6d56ec0fdb19c8703122c3f52728348d9de9e72e88c2706f5ba3b0","maven":"ghcr.io/dependabot/dependabot-updater-maven:v2.0.20240628234530@sha256:9d714ff72d7e9216073f6130e44c3f6aeb61a8a82df43997b36169c20f8de4cb","hex":"ghcr.io/dependabot/dependabot-updater-mix:v2.0.20240628234530@sha256:46a82b23b268b80bd5b0d1940a581a86bc14ea67a2e29909e0e7394d19366c75","nuget":"ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20240628234530@sha256:ecabd3e9ce72b8c61b3d8e9b4b7197a621d1a20772ad972b922225d6c22bd6e5","npm_and_yarn":"ghcr.io/dependabot/dependabot-updater-npm:v2.0.20240628234530@sha256:46d57fa998fb3e80a1d9faec8fee72ee5723b6a27334c45a27cdb5b5abce187f","pip":"ghcr.io/dependabot/dependabot-updater-pip:v2.0.20240628234530@sha256:35933a960d16b0d59e2a8a1fdc104085e2f93e166ffaeb6044dcf82422639a55","swift":"ghcr.io/dependabot/dependabot-updater-swift:v2.0.20240709134805@sha256:4a255b94550d2fc8735b36fbcc7c8a7961be5080892d84e22cf82039bf0889a0","terraform":"ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20240628234530@sha256:ecf89152a44ffd6835f3b36473abcffa8725c3f853f583a6ca9c5c1152f2d0b2"}');
+module.exports = JSON.parse('{"proxy":"ghcr.io/github/dependabot-update-job-proxy/dependabot-update-job-proxy:v2.0.20240815124847@sha256:44e6e58b0f8c0867853fc5a287133d1041d39bb14bd2855322959062cdfc5fb0","bundler":"ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20240628234530@sha256:2e094e732d5b7fd71695aaa3bbfd9e0cefe1cd22d40e228d3071e46b65995efe","cargo":"ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20240628234530@sha256:824fdd484435cc9625c86f184512aea69aed0d369450c3a1a734d70f79f86837","composer":"ghcr.io/dependabot/dependabot-updater-composer:v2.0.20240628234530@sha256:0a8500614da4d0ea31128224037a80490754ae9d30b0cf6c682c969d658a1558","pub":"ghcr.io/dependabot/dependabot-updater-pub:v2.0.20240628234530@sha256:3a23e67f153936962c44f32861944c44a2c291597b9dd00749279265e0e2ecb1","docker":"ghcr.io/dependabot/dependabot-updater-docker:v2.0.20240628234530@sha256:30d3bfd90ad3e995135ea8c4fc1db99c771dedf8fbe8f4378212ce530bd3e0d1","elm":"ghcr.io/dependabot/dependabot-updater-elm:v2.0.20240628234530@sha256:8282fb1253c543b9b1a4698d7f0de8bc8673e92eb68fa27357ca7d1f17690ed1","github_actions":"ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20240628234530@sha256:f2473365c5cd32d6257cc2d50e361732a6c5b208385a9a1747f306e197b502ac","submodules":"ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20240628234530@sha256:69ce7da7ddcd04cb3eb651022b34c7f83d17e33f9507503bd7e56f05ed93cde2","go_modules":"ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20240628234530@sha256:4c49d54ad01142856fa58233c0ab35814197ec5df177fa79542e7bfec17a1510","gradle":"ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20240628234530@sha256:9427e7b17e6d56ec0fdb19c8703122c3f52728348d9de9e72e88c2706f5ba3b0","maven":"ghcr.io/dependabot/dependabot-updater-maven:v2.0.20240628234530@sha256:9d714ff72d7e9216073f6130e44c3f6aeb61a8a82df43997b36169c20f8de4cb","hex":"ghcr.io/dependabot/dependabot-updater-mix:v2.0.20240628234530@sha256:46a82b23b268b80bd5b0d1940a581a86bc14ea67a2e29909e0e7394d19366c75","nuget":"ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20240628234530@sha256:ecabd3e9ce72b8c61b3d8e9b4b7197a621d1a20772ad972b922225d6c22bd6e5","npm_and_yarn":"ghcr.io/dependabot/dependabot-updater-npm:v2.0.20240628234530@sha256:46d57fa998fb3e80a1d9faec8fee72ee5723b6a27334c45a27cdb5b5abce187f","pip":"ghcr.io/dependabot/dependabot-updater-pip:v2.0.20240628234530@sha256:35933a960d16b0d59e2a8a1fdc104085e2f93e166ffaeb6044dcf82422639a55","swift":"ghcr.io/dependabot/dependabot-updater-swift:v2.0.20240709134805@sha256:4a255b94550d2fc8735b36fbcc7c8a7961be5080892d84e22cf82039bf0889a0","terraform":"ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20240628234530@sha256:ecf89152a44ffd6835f3b36473abcffa8725c3f853f583a6ca9c5c1152f2d0b2"}');
 
 /***/ }),
 

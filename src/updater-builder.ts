@@ -29,6 +29,11 @@ export class UpdaterBuilder {
     const jobToken =
       this.jobParams.jobToken || process.env.GITHUB_DEPENDABOT_JOB_TOKEN || ''
 
+    // The job token has been moved to the proxy container.
+    if (this.input.job.experiments?.hasOwnProperty('move-job-token') === true) {
+      return ''
+    }
+
     return jobToken
   }
 
