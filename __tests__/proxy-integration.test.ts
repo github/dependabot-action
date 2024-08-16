@@ -23,11 +23,7 @@ integration('ProxyBuilder', () => {
   ]
 
   const cachedMode = true
-  const builder = new ProxyBuilder(
-    docker,
-    PROXY_IMAGE_NAME,
-    cachedMode
-  )
+  const builder = new ProxyBuilder(docker, PROXY_IMAGE_NAME, cachedMode)
 
   beforeAll(async () => {
     await ImageService.pull(PROXY_IMAGE_NAME)
