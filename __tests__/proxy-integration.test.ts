@@ -23,12 +23,10 @@ integration('ProxyBuilder', () => {
   ]
 
   const cachedMode = true
-  const moveJobToken = true
   const builder = new ProxyBuilder(
     docker,
     PROXY_IMAGE_NAME,
-    cachedMode,
-    moveJobToken
+    cachedMode
   )
 
   beforeAll(async () => {
