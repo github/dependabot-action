@@ -25,25 +25,12 @@ export class UpdaterBuilder {
     private readonly updaterImage: string
   ) {}
 
-  private setDependabotJobToken(): string {
-    const jobToken =
-      this.jobParams.jobToken || process.env.GITHUB_DEPENDABOT_JOB_TOKEN || ''
-
-    // The job token has been moved to the proxy container.
-    if (this.input.job.experiments?.hasOwnProperty('move-job-token') === true) {
-      return ''
-    }
-
-    return jobToken
-  }
-
   async run(containerName: string): Promise<Container> {
     const cmd = `/usr/sbin/update-ca-certificates &&\
        mkdir -p ${JOB_OUTPUT_PATH} &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 
-    const dependabotJobToken = this.setDependabotJobToken()
     const proxyUrl = await this.proxy.url()
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
@@ -53,7 +40,7 @@ export class UpdaterBuilder {
       Env: [
         `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
         `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
-        `DEPENDABOT_JOB_TOKEN=${dependabotJobToken}`,
+        `DEPENDABOT_JOB_TOKEN=`,
         `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
         `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=15`,
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
