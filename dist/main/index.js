@@ -98518,7 +98518,7 @@ exports.JobParameters = JobParameters;
 function getJobParameters(ctx) {
     checkEnvironmentAndContext(ctx);
     if (ctx.actor !== DEPENDABOT_ACTOR) {
-        core.warning('This workflow can only be triggered by Dependabot.');
+        core.warning(`This workflow can only be triggered by Dependabot. Actor was '${ctx.actor}'.`);
         return null;
     }
     if (process.env.GITHUB_TRIGGERING_ACTOR &&
