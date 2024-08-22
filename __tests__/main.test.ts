@@ -157,7 +157,7 @@ describe('run', () => {
 
       expect(core.setFailed).not.toHaveBeenCalled()
       expect(core.warning).toHaveBeenCalledWith(
-        'This workflow can only be triggered by Dependabot.'
+        "This workflow can only be triggered by Dependabot. Actor was 'classic-rando'."
       )
     })
 
