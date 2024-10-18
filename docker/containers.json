@@ -17,5 +17,5 @@
   "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20241001115348@sha256:c3946a2856e3db5aa9b9330ad0ae1e0062413bd4e444fa05717bf0deab71666c",
   "swift": "ghcr.io/dependabot/dependabot-updater-swift:v2.0.20241001115348@sha256:f268d58934a918ec75dcd10597fe0af62442d33b3ca4e378c62d398ee59777ed",
   "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20241001115348@sha256:dc71828e8198d42bd9641b1c254ab3168b8d3aff27b7e8f6b0133d5efb6777b9",
-  "devcontainers": "ghcr.io/dependabot/dependabot-updater-devcontainers:v2.0.20241017235241@sha256:22dc8cb1f12492cef4ea74fcd0835f3d30c37f4b"
+  "devcontainers": "ghcr.io/dependabot/dependabot-updater-devcontainers:v2.0.20241017235241@sha256:5b854616a508dc1f3e759e0b3ba7abb7ee920797250bbdb2bbb8a1b47a4d43fc"
 }
