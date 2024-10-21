@@ -37,7 +37,8 @@ const manifest = {
   npm_and_yarn: getImageName('Dockerfile.npm'),
   pip: getImageName('Dockerfile.pip'),
   swift: getImageName('Dockerfile.swift'),
-  terraform: getImageName('Dockerfile.terraform')
+  terraform: getImageName('Dockerfile.terraform'),
+  devcontainers: getImageName('Dockerfile.devcontainers'),
 }
 
 fs.writeFile(
