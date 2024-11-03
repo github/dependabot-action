@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20241025202437@sha256:f5d2ec630accf8f1241d3adb4e70c53ffff7818719b4adf90ec664cdd92e3cfb
+FROM ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20241101173954@sha256:f189a3c04089f26818105cc021cffa8b4fe4b2bf2802e08dc8aa3f6d4f9fcff0
