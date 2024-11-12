@@ -38,7 +38,8 @@ const manifest = {
   pip: getImageName('Dockerfile.pip'),
   swift: getImageName('Dockerfile.swift'),
   terraform: getImageName('Dockerfile.terraform'),
-  devcontainers: getImageName('Dockerfile.devcontainers')
+  devcontainers: getImageName('Dockerfile.devcontainers'),
+  dotnet_sdk: getImageName('Dockerfile.dotnet-sdk')
 }
 
 fs.writeFile(
