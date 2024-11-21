@@ -63120,16 +63120,16 @@ function cleanupOldImageVersions(docker, imageName) {
                         // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
                         // this was the active version.
                         if (imageMatches(imageInfo, imageName)) {
-                            core.info(`Skipping current image ${imageInfo.Id}`);
+                            core.info(`Skipping current image ${imageInfo.Id} for ${repo}`);
                             continue;
                         }
-                        core.info(`Removing image ${imageInfo.Id}`);
+                        core.info(`Removing image ${imageInfo.Id} for ${repo}`);
                         try {
                             yield docker.getImage(imageInfo.Id).remove();
                         }
                         catch (error) {
                             if (error instanceof Error) {
-                                core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
+                                core.info(`Unable to remove image ${imageInfo.Id} for ${repo} -- ${error.message}`);
                             }
                         }
                     }
