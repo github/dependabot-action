@@ -16,7 +16,7 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
       try {
         await docker.getContainer(container.Id).remove({v: true, force: true})
       } catch (e) {
-        // ignore
+        console.log(e) // eslint-disable-line no-console
       }
     }
   }
