@@ -62,7 +62,7 @@ integration('Updater', () => {
   })
 
   afterEach(async () => {
-    server && server() // teardown server process
+    server && server() // eslint-disable-line @typescript-eslint/no-unused-expressions
     await removeDanglingUpdaterContainers()
     fs.rmSync(workingDirectory, {recursive: true})
   })
