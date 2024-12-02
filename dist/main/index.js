@@ -99134,6 +99134,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ImageService = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const dockerode_1 = __importDefault(__nccwpck_require__(4571));
+const stream_1 = __nccwpck_require__(2781);
 const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
@@ -99174,7 +99175,7 @@ exports.ImageService = {
         return __awaiter(this, arguments, void 0, function* (imageName, auth = {}, docker = new dockerode_1.default()) {
             core.info(`Pulling image ${imageName}...`);
             const stream = yield docker.pull(imageName, { authconfig: auth });
-            yield endOfStream(docker, stream);
+            yield endOfStream(docker, new stream_1.Readable().wrap(stream));
             core.info(`Pulled image ${imageName}`);
         });
     }
