@@ -1,0 +1,22 @@
+{
+  "name": "npm-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "repository": {
+      "type": "git",
+      "url": "git+https://github.com/dsp-testing/dependabot-all-updates-test.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+      "url": "https://github.com/dsp-testing/dependabot-all-updates-test/issues"
+  },
+  "homepage": "https://github.com/dsp-testing/dependabot-all-updates-test",
+  "dependencies": {
+    "fetch-factory": "^0.0.1"
+  },
+  "devDependencies": {
+    "etag" : "^1.0.0"
+  }
+}
