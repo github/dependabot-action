@@ -91,5 +91,5 @@ integration('UpdaterBuilder', () => {
 
     await proxy.shutdown()
     await container.remove()
-  })
+  }, 30000)
 })
