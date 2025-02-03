@@ -13,6 +13,12 @@ Runs Dependabot workloads via GitHub Actions.
 
 This action is used by the Dependabot [version][docs-version-updates] and [security][docs-security-updates] features in GitHub.com. It does not support being used in workflow files directly.
 
+## Manually upgrading `dependabot-action` on GitHub Enterprise Server (GHES)
+
+To manually upgrade `dependabot-action` on your [GitHub Enteprise Server (GHES)](https://github.com/enterprise), follow [these instructions](https://docs.github.com/en/enterprise-server/admin/managing-github-actions-for-your-enterprise/managing-access-to-actions-from-githubcom/manually-syncing-actions-from-githubcom). 
+
+**Warning:** The current release of `dependabot-action` only guarantees backwards compatibility with the [currently supported GHES versions](https://docs.github.com/en/enterprise-server/admin/all-releases). Once a GHES version is deprecated, future versions of `dependabot-action` may introduce incompatible changes.
+
 ## Issues
 
 If you have any problems with Dependabot, please [open an issue][code-dependabot-core-new-issue] on [dependabot/dependabot-core][code-dependabot-core] or contact GitHub Support.
