@@ -15,8 +15,7 @@ This action is used by the Dependabot [version][docs-version-updates] and [secur
 
 ## Manually upgrading `dependabot-action` on GitHub Enterprise Server (GHES)
 
-To manually upgrade `dependabot-action` on your [GitHub Enteprise Server (GHES)](https://github.com/enterprise), follow [these instructions](https://docs.github.com/en/enterprise-server/admin/managing-github-actions-for-your-enterprise/managing-access-to-actions-from-githubcom/manually-syncing-actions-from-githubcom). 
-
+To manually upgrade `dependabot-action` on your [GitHub Enterprise Server (GHES)](https://github.com/enterprise), follow [these instructions](https://docs.github.com/en/enterprise-server/admin/managing-github-actions-for-your-enterprise/managing-access-to-actions-from-githubcom/manually-syncing-actions-from-githubcom).
 **Warning:** The current release of `dependabot-action` only guarantees backwards compatibility with the [currently supported GHES versions](https://docs.github.com/en/enterprise-server/admin/all-releases). Once a GHES version is deprecated, future versions of `dependabot-action` may introduce incompatible changes.
 
 ## Issues
