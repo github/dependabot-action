@@ -39,7 +39,8 @@ const manifest = {
   swift: getImageName('Dockerfile.swift'),
   terraform: getImageName('Dockerfile.terraform'),
   devcontainers: getImageName('Dockerfile.devcontainers'),
-  dotnet_sdk: getImageName('Dockerfile.dotnet-sdk')
+  dotnet_sdk: getImageName('Dockerfile.dotnet-sdk'),
+  bun: getImageName('Dockerfile.bun')
 }
 
 fs.writeFile(
