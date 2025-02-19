@@ -40,8 +40,8 @@ integration('cleanupOldImageVersions', () => {
   }, 10000)
 
   beforeEach(async () => {
-    await ImageService.fetchImage(currentImage)
-    await ImageService.fetchImage(oldImage)
+    await ImageService.fetchImageWithRetry(currentImage)
+    await ImageService.fetchImageWithRetry(oldImage)
   }, 20000)
 
   afterEach(async () => {

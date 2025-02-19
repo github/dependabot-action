@@ -9,7 +9,7 @@ describe('ContainerService', () => {
 
   beforeAll(async () => {
     /* We use alpine as a small, easy-to-script-for test stand-in for the updater */
-    await ImageService.fetchImage('alpine')
+    await ImageService.fetchImageWithRetry('alpine')
   })
 
   describe('when a container runs successfully', () => {
