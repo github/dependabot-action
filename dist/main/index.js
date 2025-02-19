@@ -99220,7 +99220,8 @@ exports.ImageService = {
                 catch (error) {
                     attempt++;
                     if (error instanceof Error &&
-                        (error.message.includes('429') || error.message.toLowerCase().includes('too many requests'))) {
+                        (error.message.includes('429') ||
+                            error.message.toLowerCase().includes('too many requests'))) {
                         const delay = INITIAL_DELAY_MS * Math.pow(2, attempt); // Exponential backoff
                         core.warning(`Received Too Many Requests error. Retrying in ${delay / 1000} seconds...`);
                         yield sleep(delay);
