@@ -99218,26 +99218,27 @@ exports.ImageService = {
                     return; // Exit on success
                 }
                 catch (error) {
-                    attempt++;
-                    if (error instanceof Error &&
-                        (error.message.includes('429') ||
-                            error.message.toLowerCase().includes('too many requests'))) {
-                        const baseDelay = INITIAL_DELAY_MS * Math.pow(2, attempt); // Exponential backoff
-                        const jitter = Math.random() * baseDelay; // Full jitter (0 to baseDelay)
-                        const delay = baseDelay / 2 + jitter; // Ensures randomness with a minimum threshold
-                        core.warning(`Received Too Many Requests error. Retrying in ${(delay / 1000).toFixed(2)} seconds...`);
-                        yield sleep(delay);
-                    }
-                    else if (attempt >= MAX_RETRIES) {
-                        core.error(`Failed to pull image ${imageName} after ${MAX_RETRIES} attempts.`);
-                        throw error;
-                    }
-                    else {
+                    if (!(error instanceof Error))
+                        throw error; // Ensure error is an instance of Error
+                    // Handle 429 Too Many Requests separately
+                    if (error.message.includes('429 Too Many Requests') ||
+                        error.message.toLowerCase().includes('too many requests')) {
+                        attempt++; // Only increment attempt on 429
+                        if (attempt >= MAX_RETRIES) {
+                            core.error(`Failed to pull image ${imageName} after ${MAX_RETRIES} attempts.`);
+                            throw error;
+                        }
+                        // Add jitter to avoid synchronization issues
                         const baseDelay = INITIAL_DELAY_MS * Math.pow(2, attempt);
                         const jitter = Math.random() * baseDelay;
                         const delay = baseDelay / 2 + jitter;
-                        core.warning(`Error pulling image ${imageName}: ${error}. Retrying in ${(delay / 1000).toFixed(2)} seconds...`);
+                        core.warning(`Received Too Many Requests error. Retrying in ${(delay / 1000).toFixed(2)} seconds...`);
                         yield sleep(delay);
+                    }
+                    else {
+                        // Non-429 errors should NOT be retried
+                        core.error(`Fatal error pulling image ${imageName}: ${error.message}`);
+                        throw error; // Exit immediately
                     }
                 }
             }
