@@ -75,9 +75,12 @@ export const ImageService = {
           (error.message.includes('429') ||
             error.message.toLowerCase().includes('too many requests'))
         ) {
-          const delay = INITIAL_DELAY_MS * Math.pow(2, attempt) // Exponential backoff
+          const baseDelay = INITIAL_DELAY_MS * Math.pow(2, attempt) // Exponential backoff
+          const jitter = Math.random() * baseDelay // Full jitter (0 to baseDelay)
+          const delay = baseDelay / 2 + jitter // Ensures randomness with a minimum threshold
+
           core.warning(
-            `Received Too Many Requests error. Retrying in ${delay / 1000} seconds...`
+            `Received Too Many Requests error. Retrying in ${(delay / 1000).toFixed(2)} seconds...`
           )
           await sleep(delay)
         } else if (attempt >= MAX_RETRIES) {
@@ -86,10 +89,14 @@ export const ImageService = {
           )
           throw error
         } else {
+          const baseDelay = INITIAL_DELAY_MS * Math.pow(2, attempt)
+          const jitter = Math.random() * baseDelay
+          const delay = baseDelay / 2 + jitter
+
           core.warning(
-            `Error pulling image ${imageName}: ${error}. Retrying...`
+            `Error pulling image ${imageName}: ${error}. Retrying in ${(delay / 1000).toFixed(2)} seconds...`
           )
-          await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt))
+          await sleep(delay)
         }
       }
     }
