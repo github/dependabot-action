@@ -24,7 +24,6 @@ describe('ImageService.fetchImageWithRetry', () => {
   let getImageMock: jest.Mock
 
   const MAX_RETRIES = 5
-  const INITIAL_DELAY_MS = 100
 
   beforeEach(() => {
     pullMock = jest.fn().mockResolvedValue(
@@ -54,7 +53,7 @@ describe('ImageService.fetchImageWithRetry', () => {
     // Mock modem property to avoid `followProgress` errors
     Object.defineProperty(docker, 'modem', {value: modemMock})
 
-    jest.spyOn(global, 'setTimeout').mockImplementation((fn, ms) => {
+    jest.spyOn(global, 'setTimeout').mockImplementation(fn => {
       fn()
       return {} as NodeJS.Timeout
     })
