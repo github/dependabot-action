@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import Docker from 'dockerode'
-import { Readable } from 'stream'
-import { ImageService } from '../src/image-service'
+import {Readable} from 'stream'
+import {ImageService} from '../src/image-service'
 
 jest.mock('@actions/core')
 
@@ -52,7 +52,7 @@ describe('ImageService.fetchImageWithRetry', () => {
     jest.spyOn(docker, 'getImage').mockImplementation(getImageMock)
 
     // Mock modem property to avoid `followProgress` errors
-    Object.defineProperty(docker, 'modem', { value: modemMock })
+    Object.defineProperty(docker, 'modem', {value: modemMock})
 
     jest.spyOn(global, 'setTimeout').mockImplementation((fn, ms) => {
       fn()
@@ -79,18 +79,28 @@ describe('ImageService.fetchImageWithRetry', () => {
       ) // Succeeds on the third attempt
 
     await expect(
-      ImageService.fetchImageWithRetry('ghcr.io/dependabot/dependabot-updater-npm', {}, docker)
+      ImageService.fetchImageWithRetry(
+        'ghcr.io/dependabot/dependabot-updater-npm',
+        {},
+        docker
+      )
     ).resolves.not.toThrow()
 
     expect(pullMock).toHaveBeenCalledTimes(3)
-    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('Retrying in'))
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Retrying in')
+    )
   })
 
   test('it fails after MAX_RETRIES on persistent 429 errors', async () => {
     pullMock.mockRejectedValue(new Error('429 Too Many Requests')) // Always fails
 
     await expect(
-      ImageService.fetchImageWithRetry('ghcr.io/dependabot/dependabot-updater-npm', {}, docker)
+      ImageService.fetchImageWithRetry(
+        'ghcr.io/dependabot/dependabot-updater-npm',
+        {},
+        docker
+      )
     ).rejects.toThrow('429 Too Many Requests')
 
     expect(pullMock).toHaveBeenCalledTimes(MAX_RETRIES)
@@ -98,11 +108,15 @@ describe('ImageService.fetchImageWithRetry', () => {
 
   test('it does not retry on fatal errors', async () => {
     pullMock.mockRejectedValue(new Error('500 Internal Server Error')) // Fatal error
-  
+
     await expect(
-      ImageService.fetchImageWithRetry('ghcr.io/dependabot/dependabot-updater-npm', {}, docker)
+      ImageService.fetchImageWithRetry(
+        'ghcr.io/dependabot/dependabot-updater-npm',
+        {},
+        docker
+      )
     ).rejects.toThrow('500 Internal Server Error')
-  
+
     expect(pullMock).toHaveBeenCalledTimes(1) // No retries should occur
   })
 })
