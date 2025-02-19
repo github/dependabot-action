@@ -2,6 +2,12 @@ import * as core from '@actions/core'
 import Docker from 'dockerode'
 import {Readable} from 'stream'
 
+const MAX_RETRIES = 5 // Maximum number of retries
+const INITIAL_DELAY_MS = 2000 // Initial delay in milliseconds for backoff
+
+const sleep = async (ms: number): Promise<void> =>
+  new Promise(resolve => setTimeout(resolve, ms))
+
 const endOfStream = async (docker: Docker, stream: Readable): Promise<void> => {
   return new Promise((resolve, reject) => {
     docker.modem.followProgress(stream, (err: Error | null) =>
@@ -43,18 +49,55 @@ export const ImageService = {
     }
 
     const auth = {} // Images are public so not authentication info is required
-    await this.fetchImage(imageName, auth, docker)
+    await this.fetchImageWithRetry(imageName, auth, docker)
   },
 
-  /* Retrieve the imageName using the auth details provided, if any */
-  async fetchImage(
+  /* Retrieve the image using the auth details provided, if any with retry and backoff */
+  async fetchImageWithRetry(
     imageName: string,
     auth = {},
     docker = new Docker()
   ): Promise<void> {
-    core.info(`Pulling image ${imageName}...`)
-    const stream = await docker.pull(imageName, {authconfig: auth})
-    await endOfStream(docker, new Readable().wrap(stream))
-    core.info(`Pulled image ${imageName}`)
+    let attempt = 0
+
+    while (attempt < MAX_RETRIES) {
+      try {
+        core.info(`Pulling image ${imageName} (attempt ${attempt + 1})...`)
+        const stream = await docker.pull(imageName, {authconfig: auth})
+        await endOfStream(docker, new Readable().wrap(stream))
+        core.info(`Pulled image ${imageName}`)
+        return // Exit on success
+      } catch (error) {
+        if (!(error instanceof Error)) throw error // Ensure error is an instance of Error
+
+        // Handle 429 Too Many Requests separately
+        if (
+          error.message.includes('429 Too Many Requests') ||
+          error.message.toLowerCase().includes('too many requests')
+        ) {
+          attempt++ // Only increment attempt on 429
+          if (attempt >= MAX_RETRIES) {
+            core.error(
+              `Failed to pull image ${imageName} after ${MAX_RETRIES} attempts.`
+            )
+            throw error
+          }
+
+          // Add jitter to avoid synchronization issues
+          const baseDelay = INITIAL_DELAY_MS * Math.pow(2, attempt)
+          const jitter = Math.random() * baseDelay
+          const delay = baseDelay / 2 + jitter
+
+          core.warning(
+            `Received Too Many Requests error. Retrying in ${(delay / 1000).toFixed(2)} seconds...`
+          )
+          await sleep(delay)
+        } else {
+          // Non-429 errors should NOT be retried
+          core.error(`Fatal error pulling image ${imageName}: ${error.message}`)
+          throw error // Exit immediately
+        }
+      }
+    }
   }
 }

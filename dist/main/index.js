@@ -99167,6 +99167,9 @@ exports.ImageService = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const dockerode_1 = __importDefault(__nccwpck_require__(9040));
 const stream_1 = __nccwpck_require__(2203);
+const MAX_RETRIES = 5; // Maximum number of retries
+const INITIAL_DELAY_MS = 2000; // Initial delay in milliseconds for backoff
+const sleep = (ms) => __awaiter(void 0, void 0, void 0, function* () { return new Promise(resolve => setTimeout(resolve, ms)); });
 const endOfStream = (docker, stream) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
         docker.modem.followProgress(stream, (err) => err ? reject(err) : resolve(undefined));
@@ -99199,16 +99202,46 @@ exports.ImageService = {
                 } // else fallthrough to pull
             }
             const auth = {}; // Images are public so not authentication info is required
-            yield this.fetchImage(imageName, auth, docker);
+            yield this.fetchImageWithRetry(imageName, auth, docker);
         });
     },
-    /* Retrieve the imageName using the auth details provided, if any */
-    fetchImage(imageName_1) {
+    /* Retrieve the image using the auth details provided, if any with retry and backoff */
+    fetchImageWithRetry(imageName_1) {
         return __awaiter(this, arguments, void 0, function* (imageName, auth = {}, docker = new dockerode_1.default()) {
-            core.info(`Pulling image ${imageName}...`);
-            const stream = yield docker.pull(imageName, { authconfig: auth });
-            yield endOfStream(docker, new stream_1.Readable().wrap(stream));
-            core.info(`Pulled image ${imageName}`);
+            let attempt = 0;
+            while (attempt < MAX_RETRIES) {
+                try {
+                    core.info(`Pulling image ${imageName} (attempt ${attempt + 1})...`);
+                    const stream = yield docker.pull(imageName, { authconfig: auth });
+                    yield endOfStream(docker, new stream_1.Readable().wrap(stream));
+                    core.info(`Pulled image ${imageName}`);
+                    return; // Exit on success
+                }
+                catch (error) {
+                    if (!(error instanceof Error))
+                        throw error; // Ensure error is an instance of Error
+                    // Handle 429 Too Many Requests separately
+                    if (error.message.includes('429 Too Many Requests') ||
+                        error.message.toLowerCase().includes('too many requests')) {
+                        attempt++; // Only increment attempt on 429
+                        if (attempt >= MAX_RETRIES) {
+                            core.error(`Failed to pull image ${imageName} after ${MAX_RETRIES} attempts.`);
+                            throw error;
+                        }
+                        // Add jitter to avoid synchronization issues
+                        const baseDelay = INITIAL_DELAY_MS * Math.pow(2, attempt);
+                        const jitter = Math.random() * baseDelay;
+                        const delay = baseDelay / 2 + jitter;
+                        core.warning(`Received Too Many Requests error. Retrying in ${(delay / 1000).toFixed(2)} seconds...`);
+                        yield sleep(delay);
+                    }
+                    else {
+                        // Non-429 errors should NOT be retried
+                        core.error(`Fatal error pulling image ${imageName}: ${error.message}`);
+                        throw error; // Exit immediately
+                    }
+                }
+            }
         });
     }
 };
