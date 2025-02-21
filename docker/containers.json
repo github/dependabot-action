@@ -19,5 +19,6 @@
   "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20250128173411@sha256:c54e74c8a20c9f0300c6bd3f5ddb87bb03fd79fec307e53f84fb9f968a096860",
   "devcontainers": "ghcr.io/dependabot/dependabot-updater-devcontainers:v2.0.20250128173411@sha256:70ac754673228e77dcc72d8da8b4ea724227531cbe691810c9028fb8648631e5",
   "dotnet_sdk": "ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20250128173411@sha256:59b525cb0ec7474e2bf15da5ab967c39b7ff2c53767a3f0a463879179d61b548",
+  "bun": "ghcr.io/dependabot/dependabot-updater-bun:v2.0.20250221131917@sha256:8fe50563fe5d6e1bfdd7862978c20bf19b48c63e2da59e6708e6271971b44d83",
   "docker_compose": "ghcr.io/dependabot/dependabot-updater-docker-compose:v2.0.20250219174944@sha256:089e8dce386c2ea7184740fe9e7c66fd37bf4245eaf64de8b5f143f39203028f"
 }
