@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20250305190450@sha256:db11025b4508e0ee6dad1a12d959d679dc94d4f75d6e73e21ae6262c77d7aa1e
+FROM ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20250310191744@sha256:1d20a9eabde68fc86ff614f40eef709674bf8997075a5c76b9782a4527996a04
