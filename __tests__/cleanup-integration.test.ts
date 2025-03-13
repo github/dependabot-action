@@ -40,8 +40,20 @@ integration('cleanupOldImageVersions', () => {
   }, 10000)
 
   beforeEach(async () => {
-    await ImageService.fetchImageWithRetry(currentImage)
-    await ImageService.fetchImageWithRetry(oldImage)
+    await ImageService.fetchImageWithRetry(
+      currentImage,
+      {},
+      docker,
+      undefined,
+      'dependabot'
+    )
+    await ImageService.fetchImageWithRetry(
+      oldImage,
+      {},
+      docker,
+      undefined,
+      'dependabot'
+    )
   }, 20000)
 
   afterEach(async () => {
