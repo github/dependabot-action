@@ -18,7 +18,7 @@ This action is used by the Dependabot [version][docs-version-updates] and [secur
 To manually upgrade `dependabot-action` on your [GitHub Enterprise Server (GHES)](https://github.com/enterprise), follow [these instructions](https://docs.github.com/en/enterprise-server/admin/managing-github-actions-for-your-enterprise/managing-access-to-actions-from-githubcom/manually-syncing-actions-from-githubcom).
 **Warning:** The current release of `dependabot-action` only guarantees backwards compatibility with the [currently supported GHES versions](https://docs.github.com/en/enterprise-server/admin/all-releases). Once a GHES version is deprecated, future versions of `dependabot-action` may introduce incompatible changes.
 
-##  Steps to Update Your PR and Deploy Changes
+## Steps required to merge/deploy a PR
 1. Make changes to the PR
 2. Run the following command in your terminal on the same branch used to create the PR whenever you make changes to the PR
 ```bash
