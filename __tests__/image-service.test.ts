@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import Docker from 'dockerode'
 import {Readable} from 'stream'
-import {ImageService} from '../src/image-service'
+import {ImageService, MetricReporter} from '../src/image-service'
 
 jest.mock('@actions/core')
 
@@ -24,6 +24,7 @@ describe('ImageService.fetchImageWithRetry', () => {
   let getImageMock: jest.Mock
 
   const MAX_RETRIES = 5
+  const sendMetricsMock: MetricReporter = jest.fn(async () => Promise.resolve())
 
   beforeEach(() => {
     pullMock = jest.fn().mockResolvedValue(
@@ -81,7 +82,9 @@ describe('ImageService.fetchImageWithRetry', () => {
       ImageService.fetchImageWithRetry(
         'ghcr.io/dependabot/dependabot-updater-npm',
         {},
-        docker
+        docker,
+        sendMetricsMock,
+        'dependabot'
       )
     ).resolves.not.toThrow()
 
@@ -98,7 +101,9 @@ describe('ImageService.fetchImageWithRetry', () => {
       ImageService.fetchImageWithRetry(
         'ghcr.io/dependabot/dependabot-updater-npm',
         {},
-        docker
+        docker,
+        sendMetricsMock,
+        'dependabot'
       )
     ).rejects.toThrow('429 Too Many Requests')
 
@@ -112,7 +117,9 @@ describe('ImageService.fetchImageWithRetry', () => {
       ImageService.fetchImageWithRetry(
         'ghcr.io/dependabot/dependabot-updater-npm',
         {},
-        docker
+        docker,
+        sendMetricsMock,
+        'dependabot'
       )
     ).rejects.toThrow('500 Internal Server Error')
 
