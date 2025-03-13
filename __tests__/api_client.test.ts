@@ -8,7 +8,8 @@ import {HttpClientError} from '@actions/http-client'
 
 describe('ApiClient', () => {
   const mockHttpClient: any = {
-    getJson: jest.fn()
+    getJson: jest.fn(),
+    postJson: jest.fn()
   }
 
   // Define jobToken and credentialsToken
@@ -211,5 +212,63 @@ describe('ApiClient', () => {
         'fetching credentials: unexpected status code: 422: {"errors":[{"status":422,"title":"Secret Not Found","detail":"MISSING_SECRET_NAME"}]}'
       )
     )
+  })
+
+  test('sendMetrics sends metrics successfully', async () => {
+    mockHttpClient.postJson.mockResolvedValue({statusCode: 204})
+
+    await expect(
+      api.sendMetrics('gitub_image_pull', 'increment', 1, {
+        package_manager: 'npm_and_yarn'
+      })
+    ).resolves.not.toThrow()
+
+    expect(mockHttpClient.postJson).toHaveBeenCalledWith(
+      'https://localhost/update_jobs/1/record_metrics',
+      {
+        data: [
+          {
+            metric: 'dependabot.action.gitub_image_pull',
+            metricType: 'increment',
+            value: 1,
+            additionalTags: {package_manager: 'npm_and_yarn'}
+          }
+        ]
+      },
+      {Authorization: jobToken}
+    )
+  })
+
+  test('sendMetrics logs warning but does not throw on failure', async () => {
+    mockHttpClient.postJson.mockResolvedValue({statusCode: 500})
+    jest.spyOn(core, 'warning').mockImplementation(jest.fn())
+
+    await expect(
+      api.sendMetrics('image_pull', 'increment', 1, {
+        package_manager: 'npm_and_yarn'
+      })
+    ).resolves.not.toThrow()
+
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Metrics reporting failed: Unexpected status code: 500'
+      )
+    )
+  })
+
+  test('reportMetrics throws on non-204 status', async () => {
+    mockHttpClient.postJson.mockResolvedValue({statusCode: 400})
+
+    await expect(
+      api.reportMetrics({
+        data: [
+          {
+            metric: 'dependabot.action.test_metric',
+            metricType: 'increment',
+            value: 1
+          }
+        ]
+      })
+    ).rejects.toThrow('Unexpected status code: 400')
   })
 })
