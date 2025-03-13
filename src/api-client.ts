@@ -28,6 +28,17 @@ export type Credential = {
   token?: string
 }
 
+export type Metric = {
+  metric: string
+  metricType: 'increment' | 'gauge'
+  value: number
+  additionalTags?: Record<string, string>
+}
+
+export type MetricsData = {
+  data: Metric[]
+}
+
 export class JobDetailsFetchingError extends Error {}
 export class CredentialFetchingError extends Error {}
 
@@ -158,6 +169,42 @@ export class ApiClient {
         ['Authorization']: this.jobToken
       }
     )
+    if (res.statusCode !== 204) {
+      throw new Error(`Unexpected status code: ${res.statusCode}`)
+    }
+  }
+
+  async sendMetrics(
+    name: string,
+    metricType: 'increment' | 'gauge',
+    value: number,
+    additionalTags: Record<string, string> = {}
+  ): Promise<void> {
+    try {
+      await this.reportMetrics({
+        data: [
+          {
+            metric: `dependabot.action.${name}`,
+            metricType,
+            value,
+            additionalTags
+          }
+        ]
+      })
+      core.debug(`Metric sent successfully: dependabot.action.${name}`)
+    } catch (error) {
+      // metrics should typically not cause critical path failure so we log the
+      // failure and continue with the job
+      core.warning(`Metrics reporting failed: ${(error as Error).message}`)
+    }
+  }
+
+  async reportMetrics(metricsData: MetricsData): Promise<void> {
+    const metricsURL = `${this.params.dependabotApiUrl}/update_jobs/${this.params.jobId}/record_metrics`
+    const res = await this.client.postJson(metricsURL, metricsData, {
+      ['Authorization']: this.jobToken
+    })
+
     if (res.statusCode !== 204) {
       throw new Error(`Unexpected status code: ${res.statusCode}`)
     }

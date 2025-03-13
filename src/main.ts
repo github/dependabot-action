@@ -4,7 +4,7 @@ import * as httpClient from '@actions/http-client'
 import {Context} from '@actions/github/lib/context'
 import {ApiClient, CredentialFetchingError} from './api-client'
 import {getJobParameters} from './inputs'
-import {ImageService} from './image-service'
+import {ImageService, MetricReporter} from './image-service'
 import {updaterImageName, PROXY_IMAGE_NAME} from './docker-tags'
 import {Updater} from './updater'
 
@@ -68,6 +68,26 @@ export async function run(context: Context): Promise<void> {
     const updaterImage =
       params.updaterImage || updaterImageName(details['package-manager'])
 
+    // The sendMetrics function is used to send metrics to the API client.
+    // It uses the package manager as a tag to identify the metric.
+    const sendMetricsWithPackageManager: MetricReporter = async (
+      name,
+      metricType,
+      value,
+      additionalTags = {}
+    ) => {
+      try {
+        await apiClient.sendMetrics(name, metricType, value, {
+          package_manager: details['package-manager'],
+          ...additionalTags
+        })
+      } catch (error) {
+        core.warning(
+          `Metric sending failed for ${name}: ${(error as Error).message}`
+        )
+      }
+    }
+
     try {
       const credentials = await apiClient.getCredentials()
       const updater = new Updater(
@@ -81,8 +101,10 @@ export async function run(context: Context): Promise<void> {
 
       core.startGroup('Pulling updater images')
       try {
-        await ImageService.pull(updaterImage)
-        await ImageService.pull(PROXY_IMAGE_NAME)
+        // Using .bind(apiClient) ensures it retains access to apiClient.params
+        // and reportMetrics() to avoid passing additional parameters to ImageService.pull.
+        await ImageService.pull(updaterImage, sendMetricsWithPackageManager)
+        await ImageService.pull(PROXY_IMAGE_NAME, sendMetricsWithPackageManager)
       } catch (error: unknown) {
         if (error instanceof Error) {
           await failJob(
