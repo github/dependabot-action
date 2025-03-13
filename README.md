@@ -30,7 +30,7 @@ npm run test
 ```
 nvm install;nvm use;npm clean-install;npm ci;npm run package
 ```
-Note: If you do execute the above step ☝️ and commit the code then CI will fail with the below error:
+Note: If you do not execute the above step ☝️ and commit the code then CI will fail with the below error:
 ```bash
 Run script/check-diff
 Detected uncommitted changes after build:
