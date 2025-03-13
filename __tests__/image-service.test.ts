@@ -125,4 +125,24 @@ describe('ImageService.fetchImageWithRetry', () => {
 
     expect(pullMock).toHaveBeenCalledTimes(1) // No retries should occur
   })
+
+  test('does not call sendMetrics if it is undefined', async () => {
+    pullMock.mockResolvedValue(
+      new Readable({
+        read() {}
+      })
+    )
+
+    await expect(
+      ImageService.fetchImageWithRetry(
+        'ghcr.io/dependabot/dependabot-updater-npm',
+        {},
+        docker,
+        undefined, // explicitly pass undefined for sendMetrics
+        'dependabot'
+      )
+    ).resolves.not.toThrow()
+
+    expect(sendMetricsMock).not.toHaveBeenCalled()
+  })
 })
