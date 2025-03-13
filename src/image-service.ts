@@ -88,7 +88,6 @@ export const ImageService = {
         /* To avoid sending metrics during unit tests (fetch_image) */
         if (sendMetric) {
           await sendMetric('ghcr_image_pull', 'increment', 1, {
-            image: imageName,
             org
           })
         }
