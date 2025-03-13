@@ -28,10 +28,7 @@ describe('run', () => {
 
   let markJobAsProcessedSpy: any
   let reportJobErrorSpy: any
-
-  const sendMetricsSpy = jest
-    .spyOn(ApiClient.prototype, 'sendMetrics')
-    .mockResolvedValue()
+  let sendMetricsSpy: jest.SpyInstance
 
   beforeEach(async () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
@@ -63,6 +60,9 @@ describe('run', () => {
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
     jest.spyOn(core, 'warning').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
+    sendMetricsSpy = jest
+      .spyOn(ApiClient.prototype, 'sendMetrics')
+      .mockResolvedValue()
 
     fs.mkdirSync(workingDirectory)
   })
@@ -119,9 +119,6 @@ describe('run', () => {
     })
 
     test('it runs with the pinned image and sends metrics correctly', async () => {
-      const sendMetricsSpy = jest
-        .spyOn(ApiClient.prototype, 'sendMetrics')
-        .mockResolvedValue()
       await run(context)
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -144,11 +141,6 @@ describe('run', () => {
     })
 
     test('it correctly passes metric reporter with package manager tag', async () => {
-      // explicitly spy sendMetrics
-      const sendMetricsSpy = jest
-        .spyOn(ApiClient.prototype, 'sendMetrics')
-        .mockResolvedValue()
-
       context = new Context()
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockResolvedValue({
         'package-manager': 'npm_and_yarn',
@@ -157,9 +149,12 @@ describe('run', () => {
         experiments: {}
       })
 
+      const pullSpy = jest
+        .spyOn(ImageService, 'pull')
+        .mockImplementation(jest.fn())
       await run(context)
 
-      expect(ImageService.pull).toHaveBeenCalledWith(
+      expect(pullSpy).toHaveBeenCalledWith(
         updaterImageName('npm_and_yarn'),
         expect.any(Function)
       )
