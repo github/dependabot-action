@@ -35,7 +35,7 @@ export function getOrgFromImage(imageName: string): string {
 export const ImageService = {
   async pull(
     imageName: string,
-    sendMetric: MetricReporter,
+    sendMetric?: MetricReporter,
     force = false
   ): Promise<void> {
     /*
@@ -77,7 +77,7 @@ export const ImageService = {
     imageName: string,
     auth = {},
     docker = new Docker(),
-    sendMetric: MetricReporter,
+    sendMetric: MetricReporter | undefined,
     org: string
   ): Promise<void> {
     let attempt = 0
@@ -85,6 +85,7 @@ export const ImageService = {
     while (attempt < MAX_RETRIES) {
       try {
         core.info(`Pulling image ${imageName} (attempt ${attempt + 1})...`)
+        /* To avoid sending metrics during unit tests (fetch_image) */
         if (sendMetric) {
           await sendMetric('ghcr_image_pull', 'increment', 1, {
             image: imageName,
