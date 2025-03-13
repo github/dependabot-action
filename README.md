@@ -43,7 +43,7 @@ Binary files a/dist/main/index.js.map and b/dist/main/index.js.map differ
 ```
 
 3. Commit and push the code changes
-4. Once PR is approved simply merge the PR. This will make the PR deploy in the production
+4. Once PR is approved simply merge the PR. This will cause the PR to be deployed to production
 
 ## Issues
 
