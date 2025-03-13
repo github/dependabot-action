@@ -101,8 +101,8 @@ export async function run(context: Context): Promise<void> {
 
       core.startGroup('Pulling updater images')
       try {
-        // Using .bind(apiClient) ensures it retains access to apiClient.params
-        // and reportMetrics() to avoid passing additional parameters to ImageService.pull.
+        // Using sendMetricsWithPackageManager wrapper to inject package manager tag ti
+        // avoid passing additional parameters to ImageService.pull method
         await ImageService.pull(updaterImage, sendMetricsWithPackageManager)
         await ImageService.pull(PROXY_IMAGE_NAME, sendMetricsWithPackageManager)
       } catch (error: unknown) {
