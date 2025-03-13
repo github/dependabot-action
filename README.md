@@ -20,7 +20,7 @@ To manually upgrade `dependabot-action` on your [GitHub Enterprise Server (GHES)
 
 ## Steps required to merge/deploy a PR
 1. Make changes to the PR
-2. Run the following command in your terminal on the same branch used to create the PR whenever you make changes to the PR
+2. Run the following commands:
 ```bash
 npm run lint-check
 npm run format-check -- --write
