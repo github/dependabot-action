@@ -42,7 +42,8 @@ const manifest = {
   dotnet_sdk: getImageName('Dockerfile.dotnet-sdk'),
   bun: getImageName('Dockerfile.bun'),
   docker_compose: getImageName('Dockerfile.docker-compose'),
-  uv: getImageName('Dockerfile.uv')
+  uv: getImageName('Dockerfile.uv'),
+  helm: getImageName('Dockerfile.helm')
 }
 
 fs.writeFile(
