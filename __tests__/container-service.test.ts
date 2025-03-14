@@ -9,7 +9,13 @@ describe('ContainerService', () => {
 
   beforeAll(async () => {
     /* We use alpine as a small, easy-to-script-for test stand-in for the updater */
-    await ImageService.fetchImageWithRetry('alpine')
+    await ImageService.fetchImageWithRetry(
+      'alpine',
+      {},
+      docker,
+      undefined,
+      'dependabot'
+    )
   })
 
   describe('when a container runs successfully', () => {

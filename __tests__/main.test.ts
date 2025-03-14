@@ -10,7 +10,7 @@ import {
 } from '../src/api-client'
 import {ContainerRuntimeError} from '../src/container-service'
 import {Updater} from '../src/updater'
-import {ImageService} from '../src/image-service'
+import {ImageService, MetricReporter} from '../src/image-service'
 import {updaterImageName} from '../src/docker-tags'
 import * as inputs from '../src/inputs'
 import {run} from '../src/main'
@@ -28,6 +28,7 @@ describe('run', () => {
 
   let markJobAsProcessedSpy: any
   let reportJobErrorSpy: any
+  let sendMetricsSpy: jest.SpyInstance
 
   beforeEach(async () => {
     process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
@@ -59,6 +60,9 @@ describe('run', () => {
     jest.spyOn(core, 'info').mockImplementation(jest.fn())
     jest.spyOn(core, 'warning').mockImplementation(jest.fn())
     jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
+    sendMetricsSpy = jest
+      .spyOn(ApiClient.prototype, 'sendMetrics')
+      .mockResolvedValue()
 
     fs.mkdirSync(workingDirectory)
   })
@@ -114,12 +118,58 @@ describe('run', () => {
       )
     })
 
-    test('it runs with the pinned image', async () => {
+    test('it runs with the pinned image and sends metrics correctly', async () => {
       await run(context)
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(ImageService.pull).toHaveBeenCalledWith(
-        updaterImageName('npm_and_yarn')
+        updaterImageName('npm_and_yarn'),
+        expect.any(Function)
+      )
+
+      const metricFn = (ImageService.pull as jest.Mock).mock.calls[0][1]
+
+      // Invoke the captured function to ensure it behaves correctly
+      await metricFn('test_metric', 'increment', 5)
+
+      expect(sendMetricsSpy).toHaveBeenCalledWith(
+        'test_metric',
+        'increment',
+        5,
+        {package_manager: 'npm_and_yarn'}
+      )
+    })
+
+    test('it correctly passes metric reporter with package manager tag', async () => {
+      context = new Context()
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockResolvedValue({
+        'package-manager': 'npm_and_yarn',
+        'allowed-updates': [],
+        id: '1',
+        experiments: {}
+      })
+
+      const pullSpy = jest
+        .spyOn(ImageService, 'pull')
+        .mockImplementation(jest.fn())
+      await run(context)
+
+      expect(pullSpy).toHaveBeenCalledWith(
+        updaterImageName('npm_and_yarn'),
+        expect.any(Function)
+      )
+
+      const metricReporter = (ImageService.pull as jest.Mock).mock
+        .calls[0][1] as MetricReporter
+
+      // explicitly call this metric reporter to ensure correctness
+      await metricReporter('test_metric', 'increment', 3, {custom_tag: 'foo'})
+
+      expect(sendMetricsSpy).toHaveBeenCalledWith(
+        'test_metric',
+        'increment',
+        3,
+        {package_manager: 'npm_and_yarn', custom_tag: 'foo'}
       )
     })
   })
@@ -141,7 +191,10 @@ describe('run', () => {
       await run(context)
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(ImageService.pull).toHaveBeenCalledWith('alpine')
+      expect(ImageService.pull).toHaveBeenCalledWith(
+        'alpine',
+        expect.any(Function)
+      )
     })
   })
 

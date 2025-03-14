@@ -16,9 +16,28 @@ const endOfStream = async (docker: Docker, stream: Readable): Promise<void> => {
   })
 }
 
+export type MetricReporter = (
+  metricName: string,
+  metricType: 'increment' | 'gauge',
+  value: number,
+  additionalTags?: Record<string, string>
+) => Promise<void>
+
+export function getOrgFromImage(imageName: string): string {
+  const parts = imageName.split('/')
+  if (parts.length >= 3 && parts[0] === 'ghcr.io') {
+    return parts[1] // The domain is always the second part
+  }
+  return 'unknown' // Fallback case if structure is unexpected
+}
+
 /** Fetch the configured updater image, if it isn't already available. */
 export const ImageService = {
-  async pull(imageName: string, force = false): Promise<void> {
+  async pull(
+    imageName: string,
+    sendMetric?: MetricReporter,
+    force = false
+  ): Promise<void> {
     /*
       This method fetches images hosts on GitHub infrastructure.
 
@@ -36,6 +55,7 @@ export const ImageService = {
     }
 
     const docker = new Docker()
+    const org = getOrgFromImage(imageName)
     try {
       const image = await docker.getImage(imageName).inspect()
       if (!force) {
@@ -49,20 +69,28 @@ export const ImageService = {
     }
 
     const auth = {} // Images are public so not authentication info is required
-    await this.fetchImageWithRetry(imageName, auth, docker)
+    await this.fetchImageWithRetry(imageName, auth, docker, sendMetric, org)
   },
 
   /* Retrieve the image using the auth details provided, if any with retry and backoff */
   async fetchImageWithRetry(
     imageName: string,
     auth = {},
-    docker = new Docker()
+    docker = new Docker(),
+    sendMetric: MetricReporter | undefined,
+    org: string
   ): Promise<void> {
     let attempt = 0
 
     while (attempt < MAX_RETRIES) {
       try {
         core.info(`Pulling image ${imageName} (attempt ${attempt + 1})...`)
+        /* To avoid sending metrics during unit tests (fetch_image) */
+        if (sendMetric) {
+          await sendMetric('ghcr_image_pull', 'increment', 1, {
+            org
+          })
+        }
         const stream = await docker.pull(imageName, {authconfig: auth})
         await endOfStream(docker, new Readable().wrap(stream))
         core.info(`Pulled image ${imageName}`)
