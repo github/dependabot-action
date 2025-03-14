@@ -191,7 +191,9 @@ export class ApiClient {
           }
         ]
       })
-      core.debug(`Metric sent successfully: dependabot.action.${name}`)
+      core.info(
+        `Successfully sent metric (dependabot.action.${name}) to remote API endpoint`
+      )
     } catch (error) {
       // metrics should typically not cause critical path failure so we log the
       // failure and continue with the job
