@@ -30,9 +30,9 @@ export type Credential = {
 
 export type Metric = {
   metric: string
-  metricType: 'increment' | 'gauge'
+  type: 'increment' | 'gauge'
   value: number
-  additionalTags?: Record<string, string>
+  tags: Record<string, string>
 }
 
 export type MetricsData = {
@@ -185,9 +185,9 @@ export class ApiClient {
         data: [
           {
             metric: `dependabot.action.${name}`,
-            metricType,
+            type: metricType,
             value,
-            additionalTags
+            tags: additionalTags
           }
         ]
       })

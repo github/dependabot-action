@@ -229,9 +229,9 @@ describe('ApiClient', () => {
         data: [
           {
             metric: 'dependabot.action.gitub_image_pull',
-            metricType: 'increment',
+            type: 'increment',
             value: 1,
-            additionalTags: {package_manager: 'npm_and_yarn'}
+            tags: {package_manager: 'npm_and_yarn'}
           }
         ]
       },
@@ -264,8 +264,9 @@ describe('ApiClient', () => {
         data: [
           {
             metric: 'dependabot.action.test_metric',
-            metricType: 'increment',
-            value: 1
+            type: 'increment',
+            value: 1,
+            tags: {package_manager: 'npm_and_yarn'}
           }
         ]
       })
