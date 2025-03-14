@@ -21,5 +21,6 @@
   "dotnet_sdk": "ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20250310191744@sha256:4bbbc0578d2c3d754626b42d438c3ebfe9cde0b3dbaf0f88b76cc58203108bf2",
   "bun": "ghcr.io/dependabot/dependabot-updater-bun:v2.0.20250310191744@sha256:741cf59132a1d176c4320081239a26b11358e9171a6555e38efaae14749e7dfd",
   "docker_compose": "ghcr.io/dependabot/dependabot-updater-docker-compose:v2.0.20250310191744@sha256:054f70fd367d541c7cc8df0663052715159b1149a9f35ce24c3f27713b06a55c",
-  "uv": "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20250310191744@sha256:7018e54134fbe1b2116de35799f87984188466a695b8f24a5a186068d98e7863"
+  "uv": "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20250310191744@sha256:7018e54134fbe1b2116de35799f87984188466a695b8f24a5a186068d98e7863",
+  "helm": "FROM ghcr.io/dependabot/dependabot-updater-helm:v2.0.20250314181347@sha256:c46465db3972356cdb0205af5ebcd0a5cf0d605a0217bb0ab9bffaf06729d743"
 }
