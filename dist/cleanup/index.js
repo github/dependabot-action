@@ -91747,15 +91747,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -91770,67 +91761,61 @@ const docker_tags_1 = __nccwpck_require__(6669);
 // which may have crashed before deleting their own containers or networks
 //
 // cutoff - a Go duration string to pass to the Docker API's 'until' argument, default '24h'
-function run() {
-    return __awaiter(this, arguments, void 0, function* (cutoff = '24h') {
-        if (process.env.DEPENDABOT_DISABLE_CLEANUP === '1') {
-            return;
+async function run(cutoff = '24h') {
+    if (process.env.DEPENDABOT_DISABLE_CLEANUP === '1') {
+        return;
+    }
+    try {
+        const docker = new dockerode_1.default();
+        const untilFilter = { until: [cutoff] };
+        core.info(`Pruning networks older than ${cutoff}`);
+        await docker.pruneNetworks({ filters: untilFilter });
+        core.info(`Pruning containers older than ${cutoff}`);
+        await docker.pruneContainers({ filters: untilFilter });
+        await Promise.all((0, docker_tags_1.updaterImages)().map(async (image) => {
+            return cleanupOldImageVersions(docker, image);
+        }));
+        await cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            core.error(`Error cleaning up: ${error.message}`);
         }
-        try {
-            const docker = new dockerode_1.default();
-            const untilFilter = { until: [cutoff] };
-            core.info(`Pruning networks older than ${cutoff}`);
-            yield docker.pruneNetworks({ filters: untilFilter });
-            core.info(`Pruning containers older than ${cutoff}`);
-            yield docker.pruneContainers({ filters: untilFilter });
-            yield Promise.all((0, docker_tags_1.updaterImages)().map((image) => __awaiter(this, void 0, void 0, function* () {
-                return cleanupOldImageVersions(docker, image);
-            })));
-            yield cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
-        }
-        catch (error) {
-            if (error instanceof Error) {
-                core.error(`Error cleaning up: ${error.message}`);
-            }
-        }
-    });
+    }
 }
-function cleanupOldImageVersions(docker, imageName) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const repo = (0, docker_tags_1.repositoryName)(imageName);
-        const options = {
-            filters: `{"reference":["${repo}"]}`
-        };
-        core.info(`Cleaning up images for ${repo}`);
-        docker.listImages(options, function (err, imageInfoList) {
-            return __awaiter(this, void 0, void 0, function* () {
-                if (imageInfoList && imageInfoList.length > 0) {
-                    for (const imageInfo of imageInfoList) {
-                        // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
-                        // we fail over to check for a match on just tags as well.
-                        //
-                        // This means we won't remove any image which matches an imageName of either of these notations:
-                        // - dependabot/image:$TAG@sha256:$REF (current implementation)
-                        // - dependabot/image:v1
-                        //
-                        // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
-                        // this was the active version.
-                        if (imageMatches(imageInfo, imageName)) {
-                            core.info(`Skipping current image ${imageInfo.Id}`);
-                            continue;
-                        }
-                        core.info(`Removing image ${imageInfo.Id}`);
-                        try {
-                            yield docker.getImage(imageInfo.Id).remove();
-                        }
-                        catch (error) {
-                            if (error instanceof Error) {
-                                core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
-                            }
-                        }
+async function cleanupOldImageVersions(docker, imageName) {
+    const repo = (0, docker_tags_1.repositoryName)(imageName);
+    const options = {
+        filters: `{"reference":["${repo}"]}`
+    };
+    core.info(`Cleaning up images for ${repo}`);
+    docker.listImages(options, async function (err, imageInfoList) {
+        if (imageInfoList && imageInfoList.length > 0) {
+            for (const imageInfo of imageInfoList) {
+                // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
+                // we fail over to check for a match on just tags as well.
+                //
+                // This means we won't remove any image which matches an imageName of either of these notations:
+                // - dependabot/image:$TAG@sha256:$REF (current implementation)
+                // - dependabot/image:v1
+                //
+                // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
+                // this was the active version.
+                if (imageMatches(imageInfo, imageName)) {
+                    core.info(`Skipping current image ${imageInfo.Id}`);
+                    continue;
+                }
+                core.info(`Removing image ${imageInfo.Id}`);
+                try {
+                    await docker.getImage(imageInfo.Id).remove();
+                }
+                catch (error) {
+                    if (error instanceof Error) {
+                        core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
                     }
                 }
-            });
-        });
+            }
+        }
     });
 }
 function imageMatches(imageInfo, imageName) {
@@ -91874,7 +91859,7 @@ function updaterImages() {
 const imageNamePattern = '^(?<repository>(([a-zA-Z0-9._-]+([:[0-9]+[^/]))?([a-zA-Z0-9._/-]+)?))(:[a-zA-Z0-9._/-]+)?(?<digest>@sha256:[a-zA-Z0-9]{64})?$';
 function repositoryName(imageName) {
     const match = imageName.match(imageNamePattern);
-    if (match === null || match === void 0 ? void 0 : match.groups) {
+    if (match?.groups) {
         return match.groups['repository'];
     }
     else {
@@ -91883,8 +91868,8 @@ function repositoryName(imageName) {
 }
 function hasDigest(imageName) {
     const match = imageName.match(imageNamePattern);
-    if (match === null || match === void 0 ? void 0 : match.groups) {
-        if (match === null || match === void 0 ? void 0 : match.groups['digest']) {
+    if (match?.groups) {
+        if (match?.groups['digest']) {
             return true;
         }
         return false;
@@ -91895,7 +91880,7 @@ function hasDigest(imageName) {
 }
 function digestName(imageName) {
     const match = imageName.match(imageNamePattern);
-    if (match === null || match === void 0 ? void 0 : match.groups) {
+    if (match?.groups) {
         return match.groups['repository'] + match.groups['digest'];
     }
     else {
