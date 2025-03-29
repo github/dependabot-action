@@ -12,15 +12,15 @@
   "gradle": "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20250320231819@sha256:91f93f833d957331e1f610d3bd7d176542728b3790321d2b2d44be5f98e106fe",
   "maven": "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20250320231819@sha256:2c4dd87bdd17f8cb5642e2900cf434b029429af6b4e283cac823dab464e5c281",
   "hex": "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20250320231819@sha256:4afef4ac29070e2eb3e7005966e2fb01455a723c35c80229719d85c8f1a6704e",
-  "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20250320231819@sha256:0872a5d109f9bbfcac1aef6c7b70626de876f9927250bd6ebbec361e4d8966dc",
+  "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20250321215839@sha256:675261dd41e6d501e9ee0a420782800e3cab12fc60faf53fcd3e819156ecb06e",
   "npm_and_yarn": "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20250320231819@sha256:b8184541533ab0676b521cffee47fb6fb35076e477956c41983ef5d9ddb0c63a",
-  "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20250320231819@sha256:b77bf3de9712f36c81d0e623afdf3656e6120751acc252c091fc749755e883b0",
+  "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20250321215839@sha256:4644bea284798f55e92bd162ef828c16d61d31ea63a12ead34e17e96f488c92d",
   "swift": "ghcr.io/dependabot/dependabot-updater-swift:v2.0.20250320231819@sha256:bca12e4a7d87cb65fcde48d7b570bf6c59f386547603044fe7edac7e851b97d0",
   "terraform": "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20250320231819@sha256:ed75b2c3f91a45fb35989951f1d624d09b39210120715793c34c87c5c01f97ca",
   "devcontainers": "ghcr.io/dependabot/dependabot-updater-devcontainers:v2.0.20250320231819@sha256:477dffc3778aa4d8ff13d179440382bf955ce528dbb27860d8b343dfac1c2dad",
   "dotnet_sdk": "ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20250320231819@sha256:38dbfb3cbb8466efd8a437d3a77f64519a92c6af6515b262e8cc47cb3956730f",
   "bun": "ghcr.io/dependabot/dependabot-updater-bun:v2.0.20250320231819@sha256:05a90d2e91b20acfb8529c6e0998ca84bf5db404e8636e109bfe6805f630e488",
   "docker_compose": "ghcr.io/dependabot/dependabot-updater-docker-compose:v2.0.20250320231819@sha256:cfa97bd0976a6d3f68ef852eac5fd989452e49cfb4ea4da3ea398a1e2559c136",
-  "uv": "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20250320231819@sha256:6e1c1c96fe2cdd26ab5cf428db11a4e3a4efc0bea6a92be3c2d9823942fc0d4b",
+  "uv": "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20250321215839@sha256:c80d0291a98557c25b7cbc436039163dd081a4e4e59201ac623f57ff05310d05",
   "helm": "ghcr.io/dependabot/dependabot-updater-helm:v2.0.20250320231819@sha256:24efb142fd2a00b912b373dad7dc18b577164b6a9b6fc51e40f8b8ff4b680168"
 }
