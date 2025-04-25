@@ -12,16 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: 'npm'
 
-      - run: npm clean-install
+      - name: Install npm dependencies
+        run: npm clean-install
 
-      - run: npm run format-check
+      - name: Check formatting
+        run: npm run format-check
 
-      - run: npm run lint-check
+      - name: Run linter
+        run: npm run lint-check
 
-      - run: npm run test
+      - name: Run tests
+        run: npm run test
