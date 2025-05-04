@@ -28916,15 +28916,18 @@ Image.prototype[(__nccwpck_require__(9023).inspect).custom] = function() { retur
 
 /**
  * Inspect
+ * @param  {Object} opts       Inspect options, only 'manifests' (optional)
  * @param  {Function} callback Callback, if specified Docker will be queried.
  * @return {Object}            Name only if callback isn't specified.
  */
-Image.prototype.inspect = function(callback) {
+Image.prototype.inspect = function(opts, callback) {
+  var args = util.processArgs(opts, callback);
   var self = this;
 
   var opts = {
     path: '/images/' + this.name + '/json',
     method: 'GET',
+    options: args.opts,
     statusCodes: {
       200: true,
       404: 'no such image',
@@ -28932,7 +28935,7 @@ Image.prototype.inspect = function(callback) {
     }
   };
 
-  if(callback === undefined) {
+  if(args.callback === undefined) {
     return new this.modem.Promise(function(resolve, reject) {
       self.modem.dial(opts, function(err, data) {
         if (err) {
@@ -28943,8 +28946,8 @@ Image.prototype.inspect = function(callback) {
     });
   } else {
     this.modem.dial(opts, function(err, data) {
-      if (err) return callback(err, data);
-      callback(err, data);
+      if (err) return args.callback(err, data);
+      args.callback(err, data);
     });
   }
 };
