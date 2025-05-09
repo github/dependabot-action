@@ -4,7 +4,7 @@ import Docker, {Container, Network} from 'dockerode'
 import {CertificateAuthority, ProxyConfig} from './config-types'
 import {ContainerService} from './container-service'
 import {Credential} from './api-client'
-import {pki} from 'node-forge'
+import {pki, md} from 'node-forge'
 import {outStream, errStream} from './utils'
 
 const KEY_SIZE = 2048
@@ -178,21 +178,18 @@ export class ProxyBuilder {
       {
         name: 'keyUsage',
         keyCertSign: true,
+        cRLSign: true,
         digitalSignature: true,
-        nonRepudiation: true,
-        keyEncipherment: true,
-        dataEncipherment: true
+        keyEncipherment: true
       },
       {
         name: 'extKeyUsage',
         serverAuth: true,
         clientAuth: true,
-        codeSigning: true,
-        emailProtection: true,
-        timeStamping: true
+        any: true
       }
     ])
-    cert.sign(keys.privateKey)
+    cert.sign(keys.privateKey, md.sha256.create())
 
     const pem = pki.certificateToPem(cert)
     const key = pki.privateKeyToPem(keys.privateKey)
