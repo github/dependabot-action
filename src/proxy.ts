@@ -178,11 +178,19 @@ export class ProxyBuilder {
       {
         name: 'keyUsage',
         keyCertSign: true,
-        cRLSign: true,
         digitalSignature: true,
-        keyEncipherment: true
+        nonRepudiation: true,
+        keyEncipherment: true,
+        dataEncipherment: true
       },
-      {name: 'extKeyUsage', serverAuth: true, clientAuth: true, any: true}
+      {
+        name: 'extKeyUsage',
+        serverAuth: true,
+        clientAuth: true,
+        codeSigning: true,
+        emailProtection: true,
+        timeStamping: true
+      }
     ])
     cert.sign(keys.privateKey)
 
