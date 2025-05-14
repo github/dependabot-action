@@ -159,6 +159,28 @@ export class ProxyBuilder {
     return config
   }
 
+  // private generateCertificateAuthority(): CertificateAuthority {
+  //   const keys = pki.rsa.generateKeyPair(KEY_SIZE)
+  //   const cert = pki.createCertificate()
+
+  //   cert.publicKey = keys.publicKey
+  //   cert.serialNumber = '01'
+  //   cert.validity.notBefore = new Date()
+  //   cert.validity.notAfter = new Date()
+  //   cert.validity.notAfter.setFullYear(
+  //     cert.validity.notBefore.getFullYear() + KEY_EXPIRY_YEARS
+  //   )
+
+  //   cert.setSubject(CERT_SUBJECT)
+  //   cert.setIssuer(CERT_SUBJECT)
+  //   cert.setExtensions([{name: 'basicConstraints', cA: true}])
+  //   cert.sign(keys.privateKey)
+
+  //   const pem = pki.certificateToPem(cert)
+  //   const key = pki.privateKeyToPem(keys.privateKey)
+  //   return {cert: pem, key}
+  // }
+
   private generateCertificateAuthority(): CertificateAuthority {
     const keys = pki.rsa.generateKeyPair(KEY_SIZE)
     const cert = pki.createCertificate()
@@ -173,7 +195,24 @@ export class ProxyBuilder {
 
     cert.setSubject(CERT_SUBJECT)
     cert.setIssuer(CERT_SUBJECT)
-    cert.setExtensions([{name: 'basicConstraints', cA: true}])
+
+    cert.setExtensions([
+      {name: 'basicConstraints', cA: true},
+      {
+        name: 'keyUsage',
+        keyCertSign: true,
+        cRLSign: true,
+        digitalSignature: true,
+        keyEncipherment: true
+      },
+      {
+        name: 'extKeyUsage',
+        serverAuth: true,
+        clientAuth: true
+        // node-forge does not have `any` explicitly, but including serverAuth + clientAuth is typical
+      }
+    ])
+
     cert.sign(keys.privateKey)
 
     const pem = pki.certificateToPem(cert)
