@@ -47,6 +47,8 @@ export class UpdaterBuilder {
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
+        `REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`,
+        `CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`,
         `http_proxy=${proxyUrl}`,
         `HTTP_PROXY=${proxyUrl}`,
         `https_proxy=${proxyUrl}`,
