@@ -174,7 +174,11 @@ export class ProxyBuilder {
     cert.setSubject(CERT_SUBJECT)
     cert.setIssuer(CERT_SUBJECT)
     cert.setExtensions([
+      // The 'basicConstraints' extension indicates that this certificate is a Certificate Authority (CA).
       {name: 'basicConstraints', cA: true},
+      // The 'keyUsage' extension defines the purpose of the public key contained in the certificate.
+      // In this case, the key can be used for signing certificates (keyCertSign), signing certificate revocation lists (cRLSign),
+      // digital signatures, and key encipherment.
       {
         name: 'keyUsage',
         keyCertSign: true,
