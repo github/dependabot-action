@@ -31,7 +31,7 @@ export class UpdaterBuilder {
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 
-    const proxyUrl = await this.proxy.url()
+    const proxyUrl = '' //await this.proxy.url()
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       name: containerName,
