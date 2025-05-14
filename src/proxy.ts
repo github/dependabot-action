@@ -234,8 +234,7 @@ export class ProxyBuilder {
         `JOB_ID=${jobId}`,
         `JOB_TOKEN=${jobToken}`,
         `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`,
-        `DEPENDABOT_API_URL=${dependabotApiUrl}`,
-        `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`
+        `DEPENDABOT_API_URL=${dependabotApiUrl}`
       ],
       Entrypoint: [
         'sh',
