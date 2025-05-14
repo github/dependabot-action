@@ -4,7 +4,7 @@ import Docker, {Container, Network} from 'dockerode'
 import {CertificateAuthority, ProxyConfig} from './config-types'
 import {ContainerService} from './container-service'
 import {Credential} from './api-client'
-import {pki} from 'node-forge'
+import {pki, md} from 'node-forge'
 import {outStream, errStream} from './utils'
 
 const KEY_SIZE = 2048
@@ -175,16 +175,17 @@ export class ProxyBuilder {
     cert.setIssuer(CERT_SUBJECT)
     cert.setExtensions([
       // The 'basicConstraints' extension indicates that this certificate is a Certificate Authority (CA).
-      {name: 'basicConstraints', cA: true},
+      {name: 'basicConstraints', cA: true, critical: true},
       // The 'keyUsage' extension defines the purpose of the public key contained in the certificate.
       // In this case, the key can be used for signing certificates (keyCertSign), signing certificate revocation lists (cRLSign),
       // digital signatures, and key encipherment.
       {
         name: 'keyUsage',
+        digitalSignature: true,
+        keyEncipherment: true,
         keyCertSign: true,
         cRLSign: true,
-        digitalSignature: true,
-        keyEncipherment: true
+        critical: true
       },
       {
         name: 'extKeyUsage',
@@ -192,7 +193,7 @@ export class ProxyBuilder {
         clientAuth: true
       }
     ])
-    cert.sign(keys.privateKey)
+    cert.sign(keys.privateKey, md.sha256.create())
 
     const pem = pki.certificateToPem(cert)
     const key = pki.privateKeyToPem(keys.privateKey)
