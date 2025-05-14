@@ -20,7 +20,7 @@ const CERT_SUBJECT = [
   },
   {
     name: 'organizationName',
-    value: 'GitHub ic.'
+    value: 'GitHub Inc.'
   },
   {
     shortName: 'OU',
@@ -173,7 +173,21 @@ export class ProxyBuilder {
 
     cert.setSubject(CERT_SUBJECT)
     cert.setIssuer(CERT_SUBJECT)
-    cert.setExtensions([{name: 'basicConstraints', cA: true}])
+    cert.setExtensions([
+      {name: 'basicConstraints', cA: true},
+      {
+        name: 'keyUsage',
+        keyCertSign: true,
+        cRLSign: true,
+        digitalSignature: true,
+        keyEncipherment: true
+      },
+      {
+        name: 'extKeyUsage',
+        serverAuth: true,
+        clientAuth: true
+      }
+    ])
     cert.sign(keys.privateKey)
 
     const pem = pki.certificateToPem(cert)
