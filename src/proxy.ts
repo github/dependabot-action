@@ -4,7 +4,7 @@ import Docker, {Container, Network} from 'dockerode'
 import {CertificateAuthority, ProxyConfig} from './config-types'
 import {ContainerService} from './container-service'
 import {Credential} from './api-client'
-import {pki} from 'node-forge'
+import {pki, md} from 'node-forge'
 import {outStream, errStream} from './utils'
 
 const KEY_SIZE = 2048
@@ -159,34 +159,12 @@ export class ProxyBuilder {
     return config
   }
 
-  // private generateCertificateAuthority(): CertificateAuthority {
-  //   const keys = pki.rsa.generateKeyPair(KEY_SIZE)
-  //   const cert = pki.createCertificate()
-
-  //   cert.publicKey = keys.publicKey
-  //   cert.serialNumber = '01'
-  //   cert.validity.notBefore = new Date()
-  //   cert.validity.notAfter = new Date()
-  //   cert.validity.notAfter.setFullYear(
-  //     cert.validity.notBefore.getFullYear() + KEY_EXPIRY_YEARS
-  //   )
-
-  //   cert.setSubject(CERT_SUBJECT)
-  //   cert.setIssuer(CERT_SUBJECT)
-  //   cert.setExtensions([{name: 'basicConstraints', cA: true}])
-  //   cert.sign(keys.privateKey)
-
-  //   const pem = pki.certificateToPem(cert)
-  //   const key = pki.privateKeyToPem(keys.privateKey)
-  //   return {cert: pem, key}
-  // }
-
   private generateCertificateAuthority(): CertificateAuthority {
     const keys = pki.rsa.generateKeyPair(KEY_SIZE)
     const cert = pki.createCertificate()
 
     cert.publicKey = keys.publicKey
-    cert.serialNumber = '01'
+    cert.serialNumber = '1' // Match big.NewInt(1)
     cert.validity.notBefore = new Date()
     cert.validity.notAfter = new Date()
     cert.validity.notAfter.setFullYear(
@@ -195,7 +173,6 @@ export class ProxyBuilder {
 
     cert.setSubject(CERT_SUBJECT)
     cert.setIssuer(CERT_SUBJECT)
-
     cert.setExtensions([
       {name: 'basicConstraints', cA: true},
       {
@@ -205,19 +182,15 @@ export class ProxyBuilder {
         digitalSignature: true,
         keyEncipherment: true
       },
-      {
-        name: 'extKeyUsage',
-        serverAuth: true,
-        clientAuth: true
-        // node-forge does not have `any` explicitly, but including serverAuth + clientAuth is typical
-      }
+      {name: 'extKeyUsage', serverAuth: true, clientAuth: true}
     ])
 
-    cert.sign(keys.privateKey)
+    cert.sign(keys.privateKey, md.sha256.create()) // Match SHA256WithRSA
 
-    const pem = pki.certificateToPem(cert)
-    const key = pki.privateKeyToPem(keys.privateKey)
-    return {cert: pem, key}
+    return {
+      cert: pki.certificateToPem(cert),
+      key: pki.privateKeyToPem(keys.privateKey)
+    }
   }
 
   private async createContainer(
