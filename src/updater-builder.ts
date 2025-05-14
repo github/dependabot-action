@@ -26,12 +26,12 @@ export class UpdaterBuilder {
   ) {}
 
   async run(containerName: string): Promise<Container> {
-    const cmd = `/usr/sbin/update-ca-certificates &&\
+    const cmd = `/usr/sbin/update-ca-certificates --fresh &&\
        mkdir -p ${JOB_OUTPUT_PATH} &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
        $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
 
-    const proxyUrl = '' //await this.proxy.url()
+    const proxyUrl = await this.proxy.url()
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       name: containerName,
@@ -46,7 +46,9 @@ export class UpdaterBuilder {
         `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
         `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
         `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
+        `CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`,
         `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
+        `REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`,
         `http_proxy=${proxyUrl}`,
         `HTTP_PROXY=${proxyUrl}`,
         `https_proxy=${proxyUrl}`,
