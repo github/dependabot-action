@@ -4,7 +4,7 @@ import Docker, {Container, Network} from 'dockerode'
 import {CertificateAuthority, ProxyConfig} from './config-types'
 import {ContainerService} from './container-service'
 import {Credential} from './api-client'
-import {pki} from 'node-forge'
+import {pki, md} from 'node-forge'
 import {outStream, errStream} from './utils'
 
 const KEY_SIZE = 2048
@@ -20,7 +20,7 @@ const CERT_SUBJECT = [
   },
   {
     name: 'organizationName',
-    value: 'GitHub ic.'
+    value: 'GitHub Inc.'
   },
   {
     shortName: 'OU',
@@ -173,8 +173,38 @@ export class ProxyBuilder {
 
     cert.setSubject(CERT_SUBJECT)
     cert.setIssuer(CERT_SUBJECT)
-    cert.setExtensions([{name: 'basicConstraints', cA: true}])
-    cert.sign(keys.privateKey)
+
+    cert.setExtensions([
+      {
+        name: 'basicConstraints',
+        cA: true,
+        critical: true
+      },
+      {
+        name: 'keyUsage',
+        digitalSignature: true,
+        keyEncipherment: true,
+        keyCertSign: true,
+        cRLSign: true,
+        critical: true
+      },
+      {
+        name: 'extKeyUsage',
+        serverAuth: true,
+        clientAuth: true
+      },
+      {
+        name: 'subjectKeyIdentifier'
+      },
+      {
+        name: 'authorityKeyIdentifier',
+        keyIdentifier: true,
+        authorityCertIssuer: true,
+        authorityCertSerialNumber: cert.serialNumber
+      }
+    ])
+
+    cert.sign(keys.privateKey, md.sha256.create())
 
     const pem = pki.certificateToPem(cert)
     const key = pki.privateKeyToPem(keys.privateKey)
