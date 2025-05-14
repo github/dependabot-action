@@ -164,7 +164,7 @@ export class ProxyBuilder {
     const cert = pki.createCertificate()
 
     cert.publicKey = keys.publicKey
-    cert.serialNumber = '1' // Match big.NewInt(1)
+    cert.serialNumber = new Date().getTime().toString() // Generate unique serial number
     cert.validity.notBefore = new Date()
     cert.validity.notAfter = new Date()
     cert.validity.notAfter.setFullYear(
@@ -185,7 +185,7 @@ export class ProxyBuilder {
       {name: 'extKeyUsage', serverAuth: true, clientAuth: true}
     ])
 
-    cert.sign(keys.privateKey, md.sha256.create()) // Match SHA256WithRSA
+    cert.sign(keys.privateKey, md.sha256.create()) // Ensure key is properly initialized
 
     return {
       cert: pki.certificateToPem(cert),
