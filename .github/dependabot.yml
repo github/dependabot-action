@@ -1,4 +1,10 @@
 version: 2
+registries:
+  ghcr:
+    type: docker-registry
+    url: ghcr.io
+    username: x
+    password: ${{ secrets.BASE_CONTAINER_IMAGE_READER_DEPENDABOT }}
 updates:
   - package-ecosystem: "docker"
     directory: "/docker"
@@ -26,7 +32,7 @@ updates:
     labels:
       - dependencies
       - github_actions
-      - Fanout      
+      - Fanout
   - package-ecosystem: "npm"
     directory: "/"
     open-pull-requests-limit: 20
@@ -42,16 +48,10 @@ updates:
       dev-dependencies:
         dependency-type: "development"
         update-types:
-        - "patch"
-        - "minor"
+          - "patch"
+          - "minor"
       prod-dependencies:
         dependency-type: "production"
         update-types:
-        - "patch"
-        - "minor"        
-registries:
-  ghcr:
-    type: docker-registry
-    url: ghcr.io
-    username: x
-    password: ${{ secrets.DEPENDABOT_GHPR_TOKEN }}
+          - "patch"
+          - "minor"
