@@ -1,0 +1,51 @@
+name: Compile dependabot updates (dispatched)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or tag to build'
+        required: true
+      update-container-manifest:
+        description: 'Whether to update the container manifest'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  build-dependabot-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Use the ref provided by the workflow_dispatch input
+          ref: ${{ github.event.inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+
+      - run: npm clean-install
+
+      - name: Rebuild docker/containers.json
+        if: github.event.inputs.update-container-manifest == 'true'
+        run: |
+          npm run update-container-manifest
+          git add docker/containers.json
+
+      - name: Rebuild the dist/ directory
+        run: npm run package
+
+      - name: Check in any change to dist/
+        run: |
+          git add dist/
+          # Specifying the full email allows the avatar to show up: https://github.com/orgs/community/discussions/26560
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "[dependabot skip] Update dist/ with build changes" || exit 0
+          git push
