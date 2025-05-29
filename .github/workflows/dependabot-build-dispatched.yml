@@ -33,7 +33,7 @@ jobs:
       - run: npm clean-install
 
       - name: Rebuild docker/containers.json
-        if: ${ github.event.inputs.update-container-manifest == 'true' }
+        if: github.event.inputs.update-container-manifest == 'true'
         run: |
           npm run update-container-manifest
           git add docker/containers.json
