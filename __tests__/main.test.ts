@@ -42,6 +42,11 @@ describe('run', () => {
 
     process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
     process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+    process.env.GITHUB_REGISTRIES_PROXY = Buffer.from(
+      JSON.stringify([
+        {type: 'npm_registry', host: 'npm.pkg.github.com', token: 'abc'}
+      ])
+    ).toString('base64')
 
     markJobAsProcessedSpy = jest.spyOn(
       ApiClient.prototype,
