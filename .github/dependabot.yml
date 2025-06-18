@@ -1,10 +1,4 @@
 version: 2
-registries:
-  ghcr:
-    type: docker-registry
-    url: ghcr.io
-    username: x
-    password: ${{ secrets.BASE_CONTAINER_IMAGE_READER_DEPENDABOT }}
 updates:
   - package-ecosystem: "docker"
     directory: "/docker"
@@ -13,8 +7,6 @@ updates:
       interval: "weekly"
       day: "sunday"
       time: "22:00"
-    registries:
-      - ghcr
     labels:
       - dependencies
       - docker
