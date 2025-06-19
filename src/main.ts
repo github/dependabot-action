@@ -246,6 +246,9 @@ function credentialsFromEnv(): Credential[] {
     if (e.token !== undefined) {
       core.setSecret(e.token)
     }
+    if (e['auth-key'] !== undefined) {
+      core.setSecret(e['auth-key'])
+    }
 
     // TODO: Filter down to only credentials relevant to this job.
   }

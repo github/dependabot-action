@@ -26,6 +26,7 @@ export type Credential = {
   username?: string
   password?: string
   token?: string
+  'auth-key'?: string
 }
 
 export type Metric = {
@@ -126,6 +127,9 @@ export class ApiClient {
         }
         if (credential.token) {
           core.setSecret(credential.token)
+        }
+        if (credential['auth-key']) {
+          core.setSecret(credential['auth-key'])
         }
       }
 
