@@ -238,16 +238,13 @@ function credentialsFromEnv(): Credential[] {
     botSay('Failed to parse GITHUB_REGISTRIES_PROXY environment variable')
   }
 
+  const nonSecrets = ['url', 'username', 'host']
   for (const e of parsed) {
     // Mask credentials to reduce chance of accidental leakage in logs.
-    if (e.password !== undefined) {
-      core.setSecret(e.password)
-    }
-    if (e.token !== undefined) {
-      core.setSecret(e.token)
-    }
-    if (e['auth-key'] !== undefined) {
-      core.setSecret(e['auth-key'])
+    for (const key of Object.keys(e)) {
+      if (!nonSecrets.includes(key)) {
+        core.setSecret((e as Record<string, string>)[key])
+      }
     }
 
     // TODO: Filter down to only credentials relevant to this job.
