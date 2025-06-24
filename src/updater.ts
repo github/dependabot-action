@@ -59,29 +59,36 @@ export class Updater {
   }
 
   private generateCredentialsMetadata(): Credential[] {
-    const allowedCredentialKeys = [
-      'host',
-      'registry',
-      'index-url',
-      'env-key',
-      'url',
-      'organization',
-      'replaces-base',
-      'public-key-fingerprint',
-      'repo'
-    ] as const satisfies ReadonlyArray<keyof Credential>
-
     return this.credentials.map(credential => {
-      const obj = {
-        type: credential.type
-      } as Credential
-      for (const key of allowedCredentialKeys) {
-        const keyTyped = key as keyof Credential
-        if (credential[keyTyped] !== undefined) {
-          ;(obj as any)[keyTyped] = credential[keyTyped]
-        }
+      const obj: any = {type: credential.type}
+      if (credential.host !== undefined) {
+        obj.host = credential.host
       }
-      return obj
+      if (credential.registry !== undefined) {
+        obj.registry = credential.registry
+      }
+      if (credential['index-url'] !== undefined) {
+        obj['index-url'] = credential['index-url']
+      }
+      if (credential['env-key'] !== undefined) {
+        obj['env-key'] = credential['env-key']
+      }
+      if (credential.url !== undefined) {
+        obj.url = credential.url
+      }
+      if (credential.organization !== undefined) {
+        obj.organization = credential.organization
+      }
+      if (credential['replaces-base'] !== undefined) {
+        obj['replaces-base'] = credential['replaces-base']
+      }
+      if (credential['public-key-fingerprint'] !== undefined) {
+        obj['public-key-fingerprint'] = credential['public-key-fingerprint']
+      }
+      if (credential.repo !== undefined) {
+        obj.repo = credential.repo
+      }
+      return obj as Credential
     })
   }
 
