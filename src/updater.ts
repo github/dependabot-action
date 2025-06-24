@@ -23,6 +23,7 @@ export class Updater {
     this.docker = new Docker()
     this.outputHostPath = path.join(workingDirectory, 'output')
     this.repoHostPath = path.join(workingDirectory, 'repo')
+    this.details['credentials-metadata'] = this.generateCredentialsMetadata()
   }
 
   /**
@@ -55,6 +56,33 @@ export class Updater {
     } finally {
       await this.cleanup(proxy)
     }
+  }
+
+  private generateCredentialsMetadata(): Credential[] {
+    const allowedCredentialKeys = [
+      'host',
+      'registry',
+      'index-url',
+      'env-key',
+      'url',
+      'organization',
+      'replaces-base',
+      'public-key-fingerprint',
+      'repo'
+    ]
+
+    return this.credentials.map(credential => {
+      const obj = {
+        type: credential.type
+      } as Credential
+      for (const key of allowedCredentialKeys) {
+        const keyTyped = key as keyof Credential
+        if (credential[keyTyped] !== undefined) {
+          ;(obj as any)[keyTyped] = credential[keyTyped]
+        }
+      }
+      return obj
+    })
   }
 
   private async runUpdate(proxy: Proxy): Promise<void> {

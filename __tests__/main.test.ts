@@ -145,6 +145,7 @@ describe('run', () => {
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockResolvedValue({
         'package-manager': 'npm_and_yarn',
         'allowed-updates': [],
+        'credentials-metadata': [],
         id: '1',
         experiments: {}
       })

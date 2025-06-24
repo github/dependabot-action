@@ -142,4 +142,43 @@ describe('Updater', () => {
       )
     })
   })
+
+  describe('when given credentials', () => {
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      mockJobDetails,
+      [
+        {
+          type: 'git_source',
+          host: 'github.com',
+          username: 'user',
+          password: 'pass'
+        },
+        {
+          type: 'npm_registry',
+          host: 'registry.npmjs.org',
+          username: 'npm_user',
+          token: 'npm_token',
+          'replaces-base': true
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata on the job definition', () => {
+      expect(mockJobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'git_source',
+          host: 'github.com'
+        },
+        {
+          type: 'npm_registry',
+          host: 'registry.npmjs.org',
+          'replaces-base': true
+        }
+      ])
+    })
+  })
 })

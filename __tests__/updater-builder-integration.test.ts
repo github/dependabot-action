@@ -24,6 +24,7 @@ integration('UpdaterBuilder', () => {
 
   const details: JobDetails = {
     'allowed-updates': [],
+    'credentials-metadata': [],
     id: '1',
     'package-manager': 'npm_and_yarn',
     experiments: {}

@@ -10,6 +10,8 @@ export type JobDetails = {
   }>
   id: string
   'package-manager': string
+  // Reuse Credential here, but the job details contains no secrets
+  'credentials-metadata': Credential[]
   experiments: object
 }
 
@@ -22,10 +24,15 @@ export type JobError = {
 
 export type Credential = {
   type: string
-  host: string
+  host?: string
+  url?: string
   username?: string
   password?: string
   token?: string
+  repo?: string
+  registry?: string
+  'replaces-base'?: boolean
+  'public-key-fingerprint'?: string
 }
 
 export type Metric = {
