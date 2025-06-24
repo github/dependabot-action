@@ -69,7 +69,7 @@ export class Updater {
       'replaces-base',
       'public-key-fingerprint',
       'repo'
-    ]
+    ] as const satisfies ReadonlyArray<keyof Credential>
 
     return this.credentials.map(credential => {
       const obj = {

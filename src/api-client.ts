@@ -31,6 +31,9 @@ export type Credential = {
   token?: string
   repo?: string
   registry?: string
+  organization?: string
+  'index-url'?: string
+  'env-key'?: string
   'replaces-base'?: boolean
   'public-key-fingerprint'?: string
 }
