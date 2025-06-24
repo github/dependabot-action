@@ -22,5 +22,6 @@
   "bun": "ghcr.io/dependabot/dependabot-updater-bun:v2.0.20250606230616@sha256:3f397ff4c064dc241a4cd17c66aa2d143fcf5a6d0a7954f34516082a6f87629b",
   "docker_compose": "ghcr.io/dependabot/dependabot-updater-docker-compose:v2.0.20250606230616@sha256:6ae0447f216f00b673510fd2d11f79f8a36ed3c7e160f5525b3efc1304bc6217",
   "uv": "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20250606230616@sha256:6edb61a20817fa6e1bdfda51173f8ad7323a91ab0ac72345384af2c23c6b5aff",
-  "helm": "ghcr.io/dependabot/dependabot-updater-helm:v2.0.20250606230616@sha256:a6eadb370b009a3e74c3dd08fb57b46c9f0d0de39ea032dcc49973d8bbd80436"
+  "helm": "ghcr.io/dependabot/dependabot-updater-helm:v2.0.20250606230616@sha256:a6eadb370b009a3e74c3dd08fb57b46c9f0d0de39ea032dcc49973d8bbd80436",
+  "vcpkg": "ghcr.io/dependabot/dependabot-updater-vcpkg:TODO"
 }
