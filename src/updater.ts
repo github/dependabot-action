@@ -23,6 +23,7 @@ export class Updater {
     this.docker = new Docker()
     this.outputHostPath = path.join(workingDirectory, 'output')
     this.repoHostPath = path.join(workingDirectory, 'repo')
+    this.details['credentials-metadata'] = this.generateCredentialsMetadata()
   }
 
   /**
@@ -55,6 +56,51 @@ export class Updater {
     } finally {
       await this.cleanup(proxy)
     }
+  }
+
+  private generateCredentialsMetadata(): Credential[] {
+    const unique: Set<string> = new Set()
+    const result: Credential[] = []
+    for (const credential of this.credentials) {
+      if (credential.type === 'jit_access') {
+        continue
+      }
+
+      const obj: any = {type: credential.type}
+      if (credential.host !== undefined) {
+        obj.host = credential.host
+      }
+      if (credential.registry !== undefined) {
+        obj.registry = credential.registry
+      }
+      if (credential['index-url'] !== undefined) {
+        obj['index-url'] = credential['index-url']
+      }
+      if (credential['env-key'] !== undefined) {
+        obj['env-key'] = credential['env-key']
+      }
+      if (credential.url !== undefined) {
+        obj.url = credential.url
+      }
+      if (credential.organization !== undefined) {
+        obj.organization = credential.organization
+      }
+      if (credential['replaces-base'] !== undefined) {
+        obj['replaces-base'] = credential['replaces-base']
+      }
+      if (credential['public-key-fingerprint'] !== undefined) {
+        obj['public-key-fingerprint'] = credential['public-key-fingerprint']
+      }
+      if (credential.repo !== undefined) {
+        obj.repo = credential.repo
+      }
+      const key = JSON.stringify(obj)
+      if (!unique.has(key)) {
+        unique.add(key)
+        result.push(obj as Credential)
+      }
+    }
+    return result
   }
 
   private async runUpdate(proxy: Proxy): Promise<void> {
