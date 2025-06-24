@@ -43,7 +43,8 @@ const manifest = {
   bun: getImageName('Dockerfile.bun'),
   docker_compose: getImageName('Dockerfile.docker-compose'),
   uv: getImageName('Dockerfile.uv'),
-  helm: getImageName('Dockerfile.helm')
+  helm: getImageName('Dockerfile.helm'),
+  vcpkg: getImageName('Dockerfile.vcpkg')
 }
 
 fs.writeFile(
