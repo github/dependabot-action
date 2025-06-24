@@ -10,7 +10,8 @@ export type JobDetails = {
   }>
   id: string
   'package-manager': string
-  // Reuse Credential here, but the job details contains no secrets
+  // Reuse Credential here since it shares many of the same fields,
+  // but the job details contains no secrets
   'credentials-metadata': Credential[]
   experiments: object
 }
