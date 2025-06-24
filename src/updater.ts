@@ -59,7 +59,13 @@ export class Updater {
   }
 
   private generateCredentialsMetadata(): Credential[] {
-    return this.credentials.map(credential => {
+    const unique: Set<string> = new Set()
+    const result: Credential[] = []
+    for (const credential of this.credentials) {
+      if (credential.type === 'jit_access') {
+        continue
+      }
+
       const obj: any = {type: credential.type}
       if (credential.host !== undefined) {
         obj.host = credential.host
@@ -88,8 +94,13 @@ export class Updater {
       if (credential.repo !== undefined) {
         obj.repo = credential.repo
       }
-      return obj as Credential
-    })
+      const key = JSON.stringify(obj)
+      if (!unique.has(key)) {
+        unique.add(key)
+        result.push(obj as Credential)
+      }
+    }
+    return result
   }
 
   private async runUpdate(proxy: Proxy): Promise<void> {
