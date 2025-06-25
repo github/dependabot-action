@@ -13,7 +13,7 @@ import {Updater} from '../src/updater'
 import {ImageService, MetricReporter} from '../src/image-service'
 import {updaterImageName} from '../src/docker-tags'
 import * as inputs from '../src/inputs'
-import {run} from '../src/main'
+import {run, credentialsFromEnv} from '../src/main'
 
 import {eventFixturePath} from './helpers'
 
@@ -790,5 +790,52 @@ describe('run', () => {
       expect(markJobAsProcessedSpy).not.toHaveBeenCalled()
       expect(reportJobErrorSpy).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('credentialsFromEnv', () => {
+  const originalEnv = process.env.GITHUB_REGISTRIES_PROXY
+  afterEach(() => {
+    process.env.GITHUB_REGISTRIES_PROXY = originalEnv
+    jest.clearAllMocks()
+  })
+
+  it('returns an empty array if GITHUB_REGISTRIES_PROXY is not set', () => {
+    delete process.env.GITHUB_REGISTRIES_PROXY
+    expect(credentialsFromEnv()).toEqual([])
+  })
+
+  it('returns an empty array if GITHUB_REGISTRIES_PROXY is not valid base64', () => {
+    process.env.GITHUB_REGISTRIES_PROXY = 'not-base64!'
+    expect(credentialsFromEnv()).toEqual([])
+  })
+
+  it('returns an empty array if GITHUB_REGISTRIES_PROXY is not valid JSON', () => {
+    process.env.GITHUB_REGISTRIES_PROXY =
+      Buffer.from('not-json').toString('base64')
+    expect(credentialsFromEnv()).toEqual([])
+  })
+
+  it('returns parsed credentials and masks secrets', () => {
+    const creds = [
+      {
+        url: 'https://foo',
+        username: 'bar',
+        password: 'baz',
+        token: 'tok',
+        host: 'h',
+        'replaces-base': false
+      }
+    ]
+    process.env.GITHUB_REGISTRIES_PROXY = Buffer.from(
+      JSON.stringify(creds)
+    ).toString('base64')
+    const setSecretSpy = jest.spyOn(core, 'setSecret')
+    const result = credentialsFromEnv()
+    expect(result).toEqual(creds)
+    expect(setSecretSpy).toHaveBeenCalledWith('baz')
+    expect(setSecretSpy).toHaveBeenCalledWith('tok')
+    expect(setSecretSpy).not.toHaveBeenCalledWith('bar')
+    expect(setSecretSpy).not.toHaveBeenCalledWith('https://foo')
   })
 })

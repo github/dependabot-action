@@ -219,7 +219,7 @@ function dependabotJobUrl(id: number): string {
   return url_parts.filter(Boolean).join('/')
 }
 
-function credentialsFromEnv(): Credential[] {
+export function credentialsFromEnv(): Credential[] {
   const registriesProxyStr = process.env.GITHUB_REGISTRIES_PROXY
   let credentialsStr: string
   if (registriesProxyStr !== undefined) {
