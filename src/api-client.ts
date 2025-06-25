@@ -37,6 +37,7 @@ export type Credential = {
   'env-key'?: string
   'replaces-base'?: boolean
   'public-key-fingerprint'?: string
+  'auth-key'?: string
 }
 
 export type Metric = {
@@ -137,6 +138,9 @@ export class ApiClient {
         }
         if (credential.token) {
           core.setSecret(credential.token)
+        }
+        if (credential['auth-key']) {
+          core.setSecret(credential['auth-key'])
         }
       }
 

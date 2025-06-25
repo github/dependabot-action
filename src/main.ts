@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as httpClient from '@actions/http-client'
 import {Context} from '@actions/github/lib/context'
-import {ApiClient, CredentialFetchingError} from './api-client'
+import {ApiClient, Credential, CredentialFetchingError} from './api-client'
 import {getJobParameters} from './inputs'
 import {ImageService, MetricReporter} from './image-service'
 import {updaterImageName, PROXY_IMAGE_NAME} from './docker-tags'
@@ -89,7 +89,11 @@ export async function run(context: Context): Promise<void> {
     }
 
     try {
-      const credentials = await apiClient.getCredentials()
+      const credentials = (await apiClient.getCredentials()) || []
+      const registryCredentials = credentialsFromEnv()
+
+      credentials.push(...registryCredentials)
+
       const updater = new Updater(
         updaterImage,
         PROXY_IMAGE_NAME,
@@ -213,6 +217,40 @@ function dependabotJobUrl(id: number): string {
   ]
 
   return url_parts.filter(Boolean).join('/')
+}
+
+export function credentialsFromEnv(): Credential[] {
+  const registriesProxyStr = process.env.GITHUB_REGISTRIES_PROXY
+  let credentialsStr: string
+  if (registriesProxyStr !== undefined) {
+    credentialsStr = Buffer.from(registriesProxyStr, 'base64').toString()
+  } else {
+    return []
+  }
+
+  let parsed: Credential[]
+
+  try {
+    parsed = JSON.parse(credentialsStr) as Credential[]
+  } catch {
+    // Don't log the error as it may contain sensitive information
+    parsed = []
+    botSay('Failed to parse GITHUB_REGISTRIES_PROXY environment variable')
+  }
+
+  const nonSecrets = ['url', 'username', 'host', 'replaces-base']
+  for (const e of parsed) {
+    // Mask credentials to reduce chance of accidental leakage in logs.
+    for (const key of Object.keys(e)) {
+      if (!nonSecrets.includes(key)) {
+        core.setSecret((e as Record<string, unknown>)[key] as string)
+      }
+    }
+
+    // TODO: Filter down to only credentials relevant to this job.
+  }
+
+  return parsed
 }
 
 run(github.context)
