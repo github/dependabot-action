@@ -41,7 +41,7 @@ integration('UpdaterBuilder', () => {
     await ImageService.pull(PROXY_IMAGE_NAME)
     await ImageService.pull(updaterImageName('bundler'))
 
-    fs.mkdirSync(workingDirectory)
+    fs.mkdirSync(workingDirectory, {recursive: true})
   })
 
   afterEach(async () => {

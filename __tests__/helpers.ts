@@ -21,6 +21,9 @@ export const removeDanglingUpdaterContainers = async (): Promise<void> => {
     }
   }
 
+  // Wait a bit for network endpoints to be properly disconnected
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
   await docker.pruneNetworks()
   await docker.pruneContainers()
 }

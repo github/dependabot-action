@@ -26,17 +26,13 @@ export class UpdaterBuilder {
   ) {}
 
   async run(containerName: string): Promise<Container> {
-    const cmd = `/usr/sbin/update-ca-certificates &&\
-       mkdir -p ${JOB_OUTPUT_PATH} &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files &&\
-       $DEPENDABOT_HOME/dependabot-updater/bin/run update_files`
-
     const proxyUrl = await this.proxy.url()
     const container = await this.docker.createContainer({
       Image: this.updaterImage,
       name: containerName,
       AttachStdout: true,
       AttachStderr: true,
+      User: 'dependabot',
       Env: [
         `GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`,
         `DEPENDABOT_JOB_ID=${this.jobParams.jobId}`,
@@ -56,7 +52,8 @@ export class UpdaterBuilder {
           process.env.DEPENDABOT_ENABLE_CONNECTIVITY_CHECK || '1'
         }`
       ],
-      Cmd: ['sh', '-c', cmd],
+      Cmd: ['/bin/sh'],
+      Tty: true,
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
         NetworkMode: this.proxy.networkName
