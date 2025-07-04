@@ -36,6 +36,7 @@ const manifest = {
   nuget: getImageName('Dockerfile.nuget'),
   npm_and_yarn: getImageName('Dockerfile.npm'),
   pip: getImageName('Dockerfile.pip'),
+  rust_toolchain: getImageName('Dockerfile.rust-toolchain'),
   swift: getImageName('Dockerfile.swift'),
   terraform: getImageName('Dockerfile.terraform'),
   devcontainers: getImageName('Dockerfile.devcontainers'),
@@ -43,6 +44,7 @@ const manifest = {
   bun: getImageName('Dockerfile.bun'),
   docker_compose: getImageName('Dockerfile.docker-compose'),
   uv: getImageName('Dockerfile.uv'),
+  vcpkg: getImageName('Dockerfile.vcpkg'),
   helm: getImageName('Dockerfile.helm')
 }
 
