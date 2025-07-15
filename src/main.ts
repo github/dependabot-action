@@ -238,7 +238,7 @@ export function credentialsFromEnv(): Credential[] {
     botSay('Failed to parse GITHUB_REGISTRIES_PROXY environment variable')
   }
 
-  const nonSecrets = ['url', 'username', 'host', 'replaces-base']
+  const nonSecrets = ['type', 'url', 'username', 'host', 'replaces-base']
   for (const e of parsed) {
     // Mask credentials to reduce chance of accidental leakage in logs.
     for (const key of Object.keys(e)) {
