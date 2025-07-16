@@ -184,6 +184,65 @@ describe('Updater', () => {
     })
   })
 
+  describe('when given npm_registry credentials with a URL and not a registry', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'npm_registry',
+          url: 'https://registry.npmjs.org/some/path',
+          username: 'npm_user',
+          token: 'npm_token'
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata with the registry from the URL', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'npm_registry',
+          registry: 'registry.npmjs.org',
+          url: 'https://registry.npmjs.org/some/path'
+        }
+      ])
+    })
+  })
+
+  describe('when given npm_registry credentials with a URL and not a registry, but the URL is malformed', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'npm_registry',
+          url: 'not-a-url',
+          username: 'npm_user',
+          token: 'npm_token'
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata with the registry from the URL', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'npm_registry',
+          url: 'not-a-url'
+        }
+      ])
+    })
+  })
+
   describe('when given duplicate credentials', () => {
     const jobDetails = {...mockJobDetails}
 

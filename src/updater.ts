@@ -73,14 +73,26 @@ export class Updater {
       if (credential.registry !== undefined) {
         obj.registry = credential.registry
       }
+      if (credential.url !== undefined) {
+        obj.url = credential.url
+      }
+      if (
+        credential.type === 'npm_registry' &&
+        !credential.registry &&
+        credential.url
+      ) {
+        try {
+          obj.registry = new URL(credential.url).hostname
+        } catch {
+          // If the URL is invalid, we skip setting the registry
+          // as it will be set to the default npm registry.
+        }
+      }
       if (credential['index-url'] !== undefined) {
         obj['index-url'] = credential['index-url']
       }
       if (credential['env-key'] !== undefined) {
         obj['env-key'] = credential['env-key']
-      }
-      if (credential.url !== undefined) {
-        obj.url = credential.url
       }
       if (credential.organization !== undefined) {
         obj.organization = credential.organization
