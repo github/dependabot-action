@@ -214,6 +214,66 @@ describe('Updater', () => {
     })
   })
 
+  describe('when given docker credentials with a URL and not a registry', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'docker_registry',
+          url: 'https://ghcr.io/some/path',
+          username: 'user',
+          token: 'token'
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata with the registry from the URL', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'docker_registry',
+          registry: 'ghcr.io',
+          url: 'https://ghcr.io/some/path',
+        }
+      ])
+    })
+  })
+
+  describe('when given composer credentials with a URL and not a registry', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'composer_repository',
+          url: 'https://example.com/some/path',
+          username: 'user',
+          token: 'token'
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata with the registry from the URL', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'composer_repository',
+          registry: 'example.com',
+          url: 'https://example.com/some/path'
+        }
+      ])
+    })
+  })
+
   describe('when given npm_registry credentials with a URL and not a registry, but the URL is malformed', () => {
     const jobDetails = {...mockJobDetails}
 

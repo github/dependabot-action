@@ -76,18 +76,7 @@ export class Updater {
       if (credential.url !== undefined) {
         obj.url = credential.url
       }
-      if (
-        credential.type === 'npm_registry' &&
-        !credential.registry &&
-        credential.url
-      ) {
-        try {
-          obj.registry = new URL(credential.url).hostname
-        } catch {
-          // If the URL is invalid, we skip setting the registry
-          // as it will be set to the default npm registry.
-        }
-      }
+      this.setRegistryFromUrl(obj, credential)
       if (credential['index-url'] !== undefined) {
         obj['index-url'] = credential['index-url']
       }
@@ -113,6 +102,27 @@ export class Updater {
       }
     }
     return result
+  }
+
+  private setRegistryFromUrl(obj: Credential, credential: Credential): void {
+    const typesThatUseRegistryAsHost = [
+      'npm_registry',
+      'composer_repository',
+      'docker_registry'
+    ]
+
+    if (!typesThatUseRegistryAsHost.includes(credential.type)) {
+      return
+    }
+
+    if (!credential.registry && credential.url) {
+      try {
+        obj.registry = new URL(credential.url).hostname
+      } catch {
+        // If the URL is invalid, we skip setting the registry
+        // as it will be set to the default npm registry.
+      }
+    }
   }
 
   private async runUpdate(proxy: Proxy): Promise<void> {
