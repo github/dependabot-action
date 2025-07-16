@@ -238,7 +238,7 @@ describe('Updater', () => {
         {
           type: 'docker_registry',
           registry: 'ghcr.io',
-          url: 'https://ghcr.io/some/path',
+          url: 'https://ghcr.io/some/path'
         }
       ])
     })
