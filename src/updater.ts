@@ -135,7 +135,7 @@ export class Updater {
     }
     if (credential.url) {
       try {
-        obj['index-url'] = new URL(credential.url).toString()
+        obj['index-url'] = credential.url
       } catch {
         // If the URL is invalid, we skip setting the index-url
         // as it will fall back to the default index URL for pip.
