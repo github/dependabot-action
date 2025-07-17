@@ -244,6 +244,36 @@ describe('Updater', () => {
     })
   })
 
+  describe('when given python credentials with a URL and not an index-url', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'python_index',
+          url: 'https://example.com/some/path',
+          username: 'user',
+          token: 'token'
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata with the index from the URL', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          'index-url': 'https://example.com/some/path',
+          type: 'python_index',
+          url: 'https://example.com/some/path'
+        }
+      ])
+    })
+  })
+
   describe('when given composer credentials with a URL and not a registry', () => {
     const jobDetails = {...mockJobDetails}
 
