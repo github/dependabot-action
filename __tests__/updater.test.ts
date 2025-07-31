@@ -401,4 +401,189 @@ describe('Updater', () => {
       ])
     })
   })
+
+  describe('Go module configuration', () => {
+    describe('when package manager is go_modules and git_source credentials are present', () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        'package-manager': 'go_modules'
+      }
+
+      new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        [
+          {
+            type: 'git_source',
+            host: 'github.com',
+            username: 'user',
+            password: 'pass'
+          },
+          {
+            type: 'npm_registry',
+            host: 'registry.npmjs.org',
+            username: 'npm_user',
+            token: 'npm_token'
+          }
+        ],
+        workingDirectory
+      )
+
+      it('sets the goprivate experiment to *', () => {
+        expect(jobDetails.experiments).toEqual({
+          goprivate: '*'
+        })
+      })
+    })
+
+    describe('when package manager is go_modules but no git_source credentials are present', () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        'package-manager': 'go_modules'
+      }
+
+      new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        [
+          {
+            type: 'npm_registry',
+            host: 'registry.npmjs.org',
+            username: 'npm_user',
+            token: 'npm_token'
+          }
+        ],
+        workingDirectory
+      )
+
+      it('does not set the goprivate experiment', () => {
+        expect(jobDetails.experiments).toBeUndefined()
+      })
+    })
+
+    describe('when package manager is go_modules with existing experiments and git_source credentials are present', () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        'package-manager': 'go_modules',
+        experiments: {
+          'existing-experiment': 'value'
+        }
+      }
+
+      new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        [
+          {
+            type: 'git_source',
+            host: 'private-git.com',
+            username: 'user',
+            password: 'pass'
+          }
+        ],
+        workingDirectory
+      )
+
+      it('preserves existing experiments and adds goprivate', () => {
+        expect(jobDetails.experiments).toEqual({
+          'existing-experiment': 'value',
+          goprivate: '*'
+        })
+      })
+    })
+
+    describe('when package manager is not go_modules but git_source credentials are present', () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        'package-manager': 'npm-and-yarn'
+      }
+
+      new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        [
+          {
+            type: 'git_source',
+            host: 'github.com',
+            username: 'user',
+            password: 'pass'
+          }
+        ],
+        workingDirectory
+      )
+
+      it('does not set the goprivate experiment', () => {
+        expect(jobDetails.experiments).toBeUndefined()
+      })
+    })
+
+    describe('when package manager is go_modules and multiple git_source credentials are present', () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        'package-manager': 'go_modules'
+      }
+
+      new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        [
+          {
+            type: 'git_source',
+            host: 'github.com',
+            username: 'user1',
+            password: 'pass1'
+          },
+          {
+            type: 'git_source',
+            host: 'gitlab.com',
+            username: 'user2',
+            password: 'pass2'
+          }
+        ],
+        workingDirectory
+      )
+
+      it('sets the goprivate experiment to *', () => {
+        expect(jobDetails.experiments).toEqual({
+          goprivate: '*'
+        })
+      })
+    })
+
+    describe('when package manager is go_modules and jit_access credentials are present without git_source', () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        'package-manager': 'go_modules'
+      }
+
+      new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        [
+          {
+            type: 'jit_access',
+            host: 'github.com',
+            token: 'token'
+          }
+        ],
+        workingDirectory
+      )
+
+      it('does not set the goprivate experiment', () => {
+        expect(jobDetails.experiments).toBeUndefined()
+      })
+    })
+  })
 })
