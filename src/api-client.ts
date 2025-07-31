@@ -13,7 +13,7 @@ export type JobDetails = {
   // Reuse Credential here since it shares many of the same fields,
   // but the job details contains no secrets
   'credentials-metadata': Credential[]
-  experiments: object
+  experiments: Record<string, any>
 }
 
 export type JobError = {
