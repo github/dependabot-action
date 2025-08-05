@@ -24,6 +24,7 @@ export class Updater {
     this.outputHostPath = path.join(workingDirectory, 'output')
     this.repoHostPath = path.join(workingDirectory, 'repo')
     this.details['credentials-metadata'] = this.generateCredentialsMetadata()
+    this.setGoModuleConfiguration()
   }
 
   /**
@@ -103,6 +104,21 @@ export class Updater {
       }
     }
     return result
+  }
+
+  private setGoModuleConfiguration(): void {
+    // if any git sources are present for Go modules,
+    // set the goprivate experiment to '*', which will cause us to configure the
+    //  Go toolchain with the `GOPRIVATE=*` environment variable.
+    if (this.details['package-manager'] === 'go_modules') {
+      const gitSources = this.credentials.filter(
+        credential => credential.type === 'git_source'
+      )
+      if (gitSources.length > 0) {
+        this.details.experiments = this.details.experiments || {}
+        this.details.experiments['goprivate'] = '*'
+      }
+    }
   }
 
   private setRegistryFromUrl(obj: Credential, credential: Credential): void {
