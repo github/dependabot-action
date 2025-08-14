@@ -118,7 +118,11 @@ export class Updater {
 
     if (!credential.registry && credential.url) {
       try {
-        obj.registry = new URL(credential.url).hostname
+        const parsedURL = new URL(credential.url)
+        obj.registry = parsedURL.hostname
+        if (credential.type === 'npm_registry') {
+          obj.registry += parsedURL.pathname
+        }
       } catch {
         // If the URL is invalid, we skip setting the registry
         // as it will fall back to the default registry for the given type (e.g., npm, Docker, or Composer).
