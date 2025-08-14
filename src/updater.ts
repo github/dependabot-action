@@ -120,7 +120,7 @@ export class Updater {
       try {
         obj.registry = new URL(credential.url).hostname
         if (credential.type === 'npm_registry') {
-          obj.registry += `/${new URL(credential.url).pathname}`
+          obj.registry += new URL(credential.url).pathname
         }
       } catch {
         // If the URL is invalid, we skip setting the registry
