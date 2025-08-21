@@ -207,8 +207,38 @@ describe('Updater', () => {
       expect(jobDetails['credentials-metadata']).toEqual([
         {
           type: 'npm_registry',
-          registry: 'registry.npmjs.org',
+          registry: 'registry.npmjs.org/some/path',
           url: 'https://registry.npmjs.org/some/path'
+        }
+      ])
+    })
+  })
+
+  describe('when given npm_registry credentials with a URL and not a registry with no path', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'npm_registry',
+          url: 'https://registry.npmjs.org',
+          username: 'npm_user',
+          token: 'npm_token'
+        }
+      ],
+      workingDirectory
+    )
+
+    it('generates credentials metadata with the registry from the URL', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'npm_registry',
+          registry: 'registry.npmjs.org/',
+          url: 'https://registry.npmjs.org'
         }
       ])
     })
