@@ -25,7 +25,7 @@ jobs:
           # Use the ref provided by the workflow_dispatch input
           ref: ${{ github.event.inputs.ref }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: 'npm'
