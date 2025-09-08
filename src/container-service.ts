@@ -55,7 +55,6 @@ export const ContainerService = {
 
         // Then run the dependabot commands as dependabot user
         const dependabotCommands = [
-          'mkdir -p /home/dependabot/dependabot-updater/output',
           '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files',
           '$DEPENDABOT_HOME/dependabot-updater/bin/run update_files'
         ]

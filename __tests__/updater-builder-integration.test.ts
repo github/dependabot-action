@@ -4,8 +4,6 @@ import {removeDanglingUpdaterContainers, integration} from './helpers'
 import Docker from 'dockerode'
 import {Credential, JobDetails} from '../src/api-client'
 import {ProxyBuilder} from '../src/proxy'
-import path from 'path'
-import fs from 'fs'
 import {JobParameters} from '../src/inputs'
 import {UpdaterBuilder} from '../src/updater-builder'
 
@@ -30,31 +28,16 @@ integration('UpdaterBuilder', () => {
     experiments: {}
   }
 
-  const workingDirectory = path.join(
-    __dirname,
-    '..',
-    'tmp',
-    './integration_working_directory'
-  )
-
   beforeAll(async () => {
     await ImageService.pull(PROXY_IMAGE_NAME)
     await ImageService.pull(updaterImageName('bundler'))
-
-    fs.mkdirSync(workingDirectory, {recursive: true})
   })
 
   afterEach(async () => {
     await removeDanglingUpdaterContainers()
-    fs.rmSync(workingDirectory, {recursive: true})
   })
 
   it('createUpdaterContainer returns a container only connected to the internal network', async () => {
-    const outputPath = path.join(workingDirectory, 'output')
-    const repoPath = path.join(workingDirectory, 'repo')
-    fs.mkdirSync(outputPath)
-    fs.mkdirSync(repoPath)
-
     const cachedMode = true
     const proxy = await new ProxyBuilder(
       docker,
@@ -69,14 +52,12 @@ integration('UpdaterBuilder', () => {
       'cred-token',
       'https://example.com',
       '172.17.0.1',
-      updaterImageName('bundler'),
-      workingDirectory
+      updaterImageName('bundler')
     )
     const container = await new UpdaterBuilder(
       docker,
       params,
       input,
-      outputPath,
       proxy,
       updaterImageName('bundler')
     ).run('updater-image-test')

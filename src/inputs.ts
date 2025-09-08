@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {WorkflowDispatchEvent} from '@octokit/webhooks-types'
@@ -15,8 +13,7 @@ export class JobParameters {
     readonly credentialsToken: string,
     readonly dependabotApiUrl: string,
     readonly dependabotApiDockerUrl: string,
-    readonly updaterImage: string,
-    readonly workingDirectory: string
+    readonly updaterImage: string
   ) {}
 }
 
@@ -63,11 +60,6 @@ function checkEnvironmentAndContext(ctx: Context): boolean {
     valid = false
   }
 
-  if (!process.env.GITHUB_WORKSPACE) {
-    core.error('GITHUB_WORKSPACE is not defined')
-    valid = false
-  }
-
   if (!valid) {
     throw new Error('Required Actions environment variables missing.')
   } else {
@@ -85,61 +77,12 @@ function fromWorkflowInputs(ctx: Context): JobParameters {
   const dependabotApiDockerUrl =
     evt.inputs.dependabotApiDockerUrl || evt.inputs.dependabotApiUrl
 
-  const workingDirectory = absoluteWorkingDirectory(
-    evt.inputs.workingDirectory as string
-  )
-
   return new JobParameters(
     parseInt(evt.inputs.jobId as string, 10),
     evt.inputs.jobToken as string,
     evt.inputs.credentialsToken as string,
     evt.inputs.dependabotApiUrl as string,
     dependabotApiDockerUrl as string,
-    evt.inputs.updaterImage as string,
-    workingDirectory
+    evt.inputs.updaterImage as string
   )
-}
-
-function absoluteWorkingDirectory(workingDirectory: string): string {
-  const workspace = process.env.GITHUB_WORKSPACE as string
-
-  if (!workingDirectory) {
-    throw new Error('The workingDirectory input must not be blank.')
-  }
-
-  if (!directoryExistsSync(workspace)) {
-    throw new Error('The GITHUB_WORKSPACE directory does not exist.')
-  }
-
-  const fullPath = path.join(workspace, workingDirectory)
-
-  if (!directoryExistsSync(fullPath)) {
-    throw new Error(
-      `The workingDirectory '${workingDirectory}' does not exist in GITHUB_WORKSPACE`
-    )
-  }
-
-  return fullPath
-}
-
-function directoryExistsSync(directoryPath: string): boolean {
-  let stats: fs.Stats
-
-  try {
-    stats = fs.statSync(directoryPath)
-    return stats.isDirectory()
-  } catch (error: unknown) {
-    if (isNodeError(error) && error.code === 'ENOENT') {
-      return false
-    } else if (error instanceof Error) {
-      throw new Error(
-        `Encountered an error when checking whether path '${directoryPath}' exists: ${error.message}`
-      )
-    }
-  }
-  return false
-}
-
-function isNodeError(error: any): error is NodeJS.ErrnoException {
-  return error instanceof Error
 }
