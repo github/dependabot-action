@@ -13,7 +13,7 @@ import {
 
 const FAKE_SERVER_PORT = 9000
 
-integration('Updater', () => {
+integration('Graph', () => {
   let server: any
 
   // Used from this action to get job details and credentials
@@ -56,9 +56,12 @@ integration('Updater', () => {
   })
 
   jest.setTimeout(120000)
-  it('should run the updater, retry on apiClient failure, and create a pull request', async () => {
+
+  it('should run the graph command', async () => {
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
+
+    details.command = 'graph'
 
     const updater = new Updater(
       updaterImageName('npm_and_yarn'),
@@ -71,12 +74,9 @@ integration('Updater', () => {
     await updater.runUpdater()
 
     // NOTE: This will not work when running against the actual dependabot-api
-    // Checks if the pr was persisted in the fake json-server
-    const res = await client.getJson<any>(`${dependabotApiUrl}/pull_requests/1`)
+    // Checks if the graph_updates was persisted in the fake json-server
+    const res = await client.getJson<any>(`${dependabotApiUrl}/graph_updates/1`)
 
     expect(res.statusCode).toEqual(200)
-    expect(res.result['pr-title']).toEqual(
-      'Bump fetch-factory from 0.0.1 to 0.2.1'
-    )
   })
 })
