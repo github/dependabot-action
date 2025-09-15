@@ -22,7 +22,7 @@ export class Updater {
   /**
    * Execute an update job and report the result to Dependabot API.
    */
-  async runUpdater(): Promise<boolean> {
+  async runUpdater(command?: string): Promise<boolean> {
     const cachedMode =
       this.details.experiments?.hasOwnProperty('proxy-cached') === true
 
@@ -41,7 +41,7 @@ export class Updater {
     await proxy.container.start()
 
     try {
-      await this.runUpdate(proxy)
+      await this.runUpdate(proxy, command)
       return true
     } finally {
       await this.cleanup(proxy)
@@ -137,13 +137,13 @@ export class Updater {
     }
   }
 
-  private async runUpdate(proxy: Proxy): Promise<void> {
+  private async runUpdate(proxy: Proxy, command?: string): Promise<void> {
     const name = `dependabot-job-${this.apiClient.params.jobId}`
     const container = await this.createContainer(proxy, name, {
       job: this.details
     })
 
-    await ContainerService.run(container)
+    await ContainerService.run(container, command)
   }
 
   private async createContainer(

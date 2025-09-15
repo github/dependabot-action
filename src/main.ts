@@ -124,7 +124,7 @@ export async function run(context: Context): Promise<void> {
       try {
         core.info('Starting update process')
 
-        await updater.runUpdater()
+        await updater.runUpdater(details.command)
       } catch (error: unknown) {
         if (error instanceof Error) {
           await failJob(
