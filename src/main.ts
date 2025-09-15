@@ -99,8 +99,7 @@ export async function run(context: Context): Promise<void> {
         PROXY_IMAGE_NAME,
         apiClient,
         details,
-        credentials,
-        params.workingDirectory
+        credentials
       )
 
       core.startGroup('Pulling updater images')

@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import {Updater} from '../src/updater'
 import Docker from 'dockerode'
 import {ContainerService} from '../src/container-service'
@@ -9,17 +7,6 @@ import {ProxyBuilder} from '../src/proxy'
 jest.mock('dockerode')
 jest.mock('../src/container-service')
 jest.mock('../src/proxy')
-
-const outputFixturePath = (fixtureName: string): string => {
-  return path.join(
-    __dirname,
-    '..',
-    '__fixtures__',
-    'output',
-    fixtureName,
-    'output.json'
-  )
-}
 
 describe('Updater', () => {
   const mockApiClient: any = {
@@ -61,22 +48,8 @@ describe('Updater', () => {
     id: 1
   }
 
-  const workingDirectory = path.join(
-    __dirname,
-    '..',
-    'tmp',
-    './test_working_directory'
-  )
-
-  const outputFilePath = path.join(workingDirectory, 'output', 'output.json')
-
-  beforeEach(async () => {
-    fs.mkdirSync(workingDirectory)
-  })
-
   afterEach(async () => {
     jest.clearAllMocks() // Reset any mocked classes
-    fs.rmSync(workingDirectory, {recursive: true})
   })
 
   describe('when there is a happy path update', () => {
@@ -85,11 +58,8 @@ describe('Updater', () => {
       'MOCK_PROXY_IMAGE_NAME',
       mockApiClient,
       mockJobDetails,
-      [],
-      workingDirectory
+      []
     )
-
-    const outputFixture = outputFixturePath('happy_path')
 
     beforeEach(async () => {
       jest
@@ -99,7 +69,6 @@ describe('Updater', () => {
       jest.spyOn(ProxyBuilder.prototype, 'run').mockResolvedValue(mockProxy)
       jest.spyOn(ContainerService, 'run').mockImplementationOnce(
         jest.fn(async () => {
-          fs.copyFileSync(outputFixture, outputFilePath)
           return true
         })
       )
@@ -116,8 +85,7 @@ describe('Updater', () => {
       'MOCK_PROXY_IMAGE_NAME',
       mockApiClient,
       mockJobDetails,
-      [],
-      workingDirectory
+      []
     )
 
     beforeEach(async () => {
@@ -165,8 +133,7 @@ describe('Updater', () => {
           token: 'npm_token',
           'replaces-base': true
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata on the job definition', () => {
@@ -199,8 +166,7 @@ describe('Updater', () => {
           username: 'npm_user',
           token: 'npm_token'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata with the registry from the URL', () => {
@@ -229,8 +195,7 @@ describe('Updater', () => {
           username: 'npm_user',
           token: 'npm_token'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata with the registry from the URL', () => {
@@ -259,8 +224,7 @@ describe('Updater', () => {
           username: 'user',
           token: 'token'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata with the registry from the URL', () => {
@@ -289,8 +253,7 @@ describe('Updater', () => {
           username: 'user',
           token: 'token'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata with the index from the URL', () => {
@@ -319,8 +282,7 @@ describe('Updater', () => {
           username: 'user',
           token: 'token'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata with the registry from the URL', () => {
@@ -349,8 +311,7 @@ describe('Updater', () => {
           username: 'npm_user',
           token: 'npm_token'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('generates credentials metadata with the registry from the URL', () => {
@@ -384,8 +345,7 @@ describe('Updater', () => {
           username: 'user',
           password: 'pass'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('removes duplicates from the metadata', () => {
@@ -418,8 +378,7 @@ describe('Updater', () => {
           host: 'github.com',
           token: 'hello'
         }
-      ],
-      workingDirectory
+      ]
     )
 
     it('removes it from the metadata', () => {

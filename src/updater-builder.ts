@@ -19,7 +19,6 @@ export class UpdaterBuilder {
     private readonly docker: Docker,
     private readonly jobParams: JobParameters,
     private readonly input: FileFetcherInput | FileUpdaterInput,
-    private readonly outputHostPath: string,
     private readonly proxy: Proxy,
 
     private readonly updaterImage: string

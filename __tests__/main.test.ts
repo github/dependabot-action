@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {
@@ -23,8 +21,6 @@ jest.mock('../src/updater')
 
 describe('run', () => {
   let context: Context
-  const workspace = path.join(__dirname, '..', 'tmp')
-  const workingDirectory = path.join(workspace, './test_working_directory')
 
   let markJobAsProcessedSpy: any
   let reportJobErrorSpy: any
@@ -35,7 +31,6 @@ describe('run', () => {
     process.env.GITHUB_EVENT_NAME = 'dynamic'
     process.env.GITHUB_ACTOR = 'dependabot[bot]'
     process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
-    process.env.GITHUB_WORKSPACE = workspace
 
     process.env.GITHUB_SERVER_URL = 'https://test.dev'
     process.env.GITHUB_REPOSITORY = 'foo/bar'
@@ -63,13 +58,10 @@ describe('run', () => {
     sendMetricsSpy = jest
       .spyOn(ApiClient.prototype, 'sendMetrics')
       .mockResolvedValue()
-
-    fs.mkdirSync(workingDirectory)
   })
 
   afterEach(async () => {
     jest.clearAllMocks() // Reset any mocked classes
-    fs.rmdirSync(workingDirectory)
   })
 
   describe('when the run follows the happy path', () => {
@@ -538,8 +530,7 @@ describe('run', () => {
           'cred-token',
           'https://example.com',
           '172.17.0.1',
-          'image/name:tag',
-          './'
+          'image/name:tag'
         )
       )
 
@@ -580,8 +571,7 @@ describe('run', () => {
           '', // credToken set as empty
           'https://example.com',
           '172.17.0.1',
-          'image/name:tag',
-          './'
+          'image/name:tag'
         )
       )
 
@@ -624,8 +614,7 @@ describe('run', () => {
             '',
             'https://example.com',
             '172.17.0.1',
-            'image/name:tag',
-            './'
+            'image/name:tag'
           )
         )
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
@@ -667,8 +656,7 @@ describe('run', () => {
             '',
             'https://example.com',
             '172.17.0.1',
-            'image/name:tag',
-            './'
+            'image/name:tag'
           )
         )
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
@@ -712,8 +700,7 @@ describe('run', () => {
             'yyy',
             'https://example.com',
             '172.17.0.1',
-            'image/name:tag',
-            './'
+            'image/name:tag'
           )
         )
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
@@ -755,8 +742,7 @@ describe('run', () => {
             'yyy',
             'https://example.com',
             '172.17.0.1',
-            'image/name:tag',
-            './'
+            'image/name:tag'
           )
         )
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(

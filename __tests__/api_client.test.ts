@@ -24,8 +24,7 @@ describe('ApiClient', () => {
       credentialsToken,
       dependabotApiUrl: 'https://localhost',
       dependabotApiDockerUrl: 'https://localhost',
-      updaterImage: '', // irrelevant for this test
-      workingDirectory: './job-directory'
+      updaterImage: '' // irrelevant for this test
     },
     jobToken,
     credentialsToken

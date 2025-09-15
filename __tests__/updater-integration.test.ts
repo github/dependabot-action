@@ -1,6 +1,4 @@
 import * as httpClient from '@actions/http-client'
-import fs from 'fs'
-import path from 'path'
 import {ApiClient} from '../src/api-client'
 import {ImageService} from '../src/image-service'
 import {JobParameters} from '../src/inputs'
@@ -25,12 +23,6 @@ integration('Updater', () => {
     process.platform === 'darwin' ? 'host.docker.internal' : '172.17.0.1'
   const dependabotApiDockerUrl = `http://${internalDockerHost}:${FAKE_SERVER_PORT}`
   const updaterImage = updaterImageName('npm_and_yarn')
-  const workingDirectory = path.join(
-    __dirname,
-    '..',
-    'tmp',
-    './integration_working_directory'
-  )
 
   // Define jobToken and credentialsToken
   const jobToken = 'xxx'
@@ -42,8 +34,7 @@ integration('Updater', () => {
     credentialsToken,
     dependabotApiUrl,
     dependabotApiDockerUrl,
-    updaterImage,
-    workingDirectory
+    updaterImage
   )
 
   const client = new httpClient.HttpClient(
@@ -57,14 +48,11 @@ integration('Updater', () => {
 
     const testRetry = true
     server = await runFakeDependabotApi(FAKE_SERVER_PORT, testRetry)
-
-    fs.mkdirSync(workingDirectory)
   })
 
   afterEach(async () => {
     server && server() // eslint-disable-line @typescript-eslint/no-unused-expressions
     await removeDanglingUpdaterContainers()
-    fs.rmSync(workingDirectory, {recursive: true})
   })
 
   jest.setTimeout(120000)
@@ -77,8 +65,7 @@ integration('Updater', () => {
       PROXY_IMAGE_NAME,
       apiClient,
       details,
-      credentials,
-      workingDirectory
+      credentials
     )
 
     await updater.runUpdater()

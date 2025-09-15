@@ -1,6 +1,4 @@
 import Docker, {Container} from 'dockerode'
-import path from 'path'
-import fs from 'fs'
 import {JobDetails, ApiClient, Credential} from './api-client'
 import {ContainerService} from './container-service'
 import {FileUpdaterInput, FileFetcherInput} from './config-types'
@@ -9,20 +7,15 @@ import {UpdaterBuilder} from './updater-builder'
 
 export class Updater {
   docker: Docker
-  outputHostPath: string
-  repoHostPath: string
 
   constructor(
     private readonly updaterImage: string,
     private readonly proxyImage: string,
     private readonly apiClient: ApiClient,
     private readonly details: JobDetails,
-    private readonly credentials: Credential[],
-    private readonly workingDirectory: string
+    private readonly credentials: Credential[]
   ) {
     this.docker = new Docker()
-    this.outputHostPath = path.join(workingDirectory, 'output')
-    this.repoHostPath = path.join(workingDirectory, 'repo')
     this.details['credentials-metadata'] = this.generateCredentialsMetadata()
   }
 
@@ -30,9 +23,6 @@ export class Updater {
    * Execute an update job and report the result to Dependabot API.
    */
   async runUpdater(): Promise<boolean> {
-    // Create required folders in the workingDirectory
-    fs.mkdirSync(this.outputHostPath)
-
     const cachedMode =
       this.details.experiments?.hasOwnProperty('proxy-cached') === true
 
@@ -165,7 +155,6 @@ export class Updater {
       this.docker,
       this.apiClient.params,
       input,
-      this.outputHostPath,
       proxy,
       this.updaterImage
     ).run(containerName)
@@ -173,13 +162,5 @@ export class Updater {
 
   private async cleanup(proxy: Proxy): Promise<void> {
     await proxy.shutdown()
-
-    if (fs.existsSync(this.outputHostPath)) {
-      fs.rmSync(this.outputHostPath, {recursive: true})
-    }
-
-    if (fs.existsSync(this.repoHostPath)) {
-      fs.rmSync(this.repoHostPath, {recursive: true})
-    }
   }
 }
