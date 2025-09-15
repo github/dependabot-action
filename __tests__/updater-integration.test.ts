@@ -79,4 +79,25 @@ integration('Updater', () => {
       'Bump fetch-factory from 0.0.1 to 0.2.1'
     )
   })
+
+  it('should run the graph command', async () => {
+    const details = await apiClient.getJobDetails()
+    const credentials = await apiClient.getCredentials()
+
+    const updater = new Updater(
+      updaterImageName('npm_and_yarn'),
+      PROXY_IMAGE_NAME,
+      apiClient,
+      details,
+      credentials
+    )
+
+    await updater.runUpdater('graph')
+
+    // NOTE: This will not work when running against the actual dependabot-api
+    // Checks if the pr was persisted in the fake json-server
+    const res = await client.getJson<any>(`${dependabotApiUrl}/graph_updates/1`)
+
+    expect(res.statusCode).toEqual(200)
+  })
 })
