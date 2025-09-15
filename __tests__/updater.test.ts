@@ -79,33 +79,6 @@ describe('Updater', () => {
     })
   })
 
-  describe('when there is a happy path update graph', () => {
-    const updater = new Updater(
-      'MOCK_UPDATER_IMAGE_NAME',
-      'MOCK_PROXY_IMAGE_NAME',
-      mockApiClient,
-      mockJobDetails,
-      []
-    )
-
-    beforeEach(async () => {
-      jest
-        .spyOn(Docker.prototype, 'createContainer')
-        .mockResolvedValue(mockContainer)
-
-      jest.spyOn(ProxyBuilder.prototype, 'run').mockResolvedValue(mockProxy)
-      jest.spyOn(ContainerService, 'run').mockImplementationOnce(
-        jest.fn(async () => {
-          return true
-        })
-      )
-    })
-
-    it('should be successful', async () => {
-      expect(await updater.runUpdater('graph')).toBe(true)
-    })
-  })
-
   describe('when the updater container fails', () => {
     const updater = new Updater(
       'MOCK_UPDATER_IMAGE_NAME',

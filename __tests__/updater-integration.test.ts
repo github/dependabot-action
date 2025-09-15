@@ -84,6 +84,8 @@ integration('Updater', () => {
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
 
+    details.command = 'graph'
+
     const updater = new Updater(
       updaterImageName('npm_and_yarn'),
       PROXY_IMAGE_NAME,
@@ -92,7 +94,7 @@ integration('Updater', () => {
       credentials
     )
 
-    await updater.runUpdater('graph')
+    await updater.runUpdater()
 
     // NOTE: This will not work when running against the actual dependabot-api
     // Checks if the pr was persisted in the fake json-server
