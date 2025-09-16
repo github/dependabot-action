@@ -143,7 +143,7 @@ export class Updater {
       job: this.details
     })
 
-    await ContainerService.run(container)
+    await ContainerService.run(container, this.details.command)
   }
 
   private async createContainer(

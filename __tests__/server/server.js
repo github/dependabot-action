@@ -75,6 +75,18 @@ server.post(
   }
 )
 
+server.post(
+  '/update_jobs/:id/create_dependency_submission',
+  jsonServer.bodyParser,
+  (req, res) => {
+    const data = { ...req.body.data, id: req.params.id }
+    db.graph_updates.push(data)
+    router.db.write()
+
+    res.status(204).send()
+  }
+)
+
 server.post('/update_jobs/:id/record_update_job_error', (_, res) => {
   res.status(204).send()
 })

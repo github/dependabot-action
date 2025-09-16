@@ -5,6 +5,7 @@ import {TypedResponse} from '@actions/http-client/lib/interfaces'
 
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {
+  command?: string
   'allowed-updates': Array<{
     'dependency-type': string
   }>
