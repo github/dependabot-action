@@ -20,7 +20,7 @@ cli
     'A URL for Dependabot API is required.'
   )
   .option(
-    '-d, --dependabot-api-docker-url <url>',
+    '--dependabot-api-docker-url <url>',
     'A URL to be used to access the API from Dependabot containers.'
   )
   .parse(process.argv)
