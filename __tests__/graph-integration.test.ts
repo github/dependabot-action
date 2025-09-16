@@ -62,6 +62,9 @@ integration('Graph', () => {
     const credentials = await apiClient.getCredentials()
 
     details.command = 'graph'
+    details.experiments = {
+      enable_dependency_submission_poc: true
+    }
 
     const updater = new Updater(
       updaterImageName('npm_and_yarn'),
