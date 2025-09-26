@@ -1,11 +1,11 @@
-import fs from 'fs'
 import * as core from '@actions/core'
 import Docker, {Container, Network} from 'dockerode'
+import fs from 'fs'
+import {md, pki} from 'node-forge'
+import {Credential} from './api-client'
 import {CertificateAuthority, ProxyConfig} from './config-types'
 import {ContainerService} from './container-service'
-import {Credential} from './api-client'
-import {pki, md} from 'node-forge'
-import {outStream, errStream} from './utils'
+import {errStream, outStream} from './utils'
 
 const KEY_SIZE = 2048
 const KEY_EXPIRY_YEARS = 2
@@ -234,7 +234,9 @@ export class ProxyBuilder {
         `JOB_ID=${jobId}`,
         `JOB_TOKEN=${jobToken}`,
         `PROXY_CACHE=${this.cachedMode ? 'true' : 'false'}`,
-        `DEPENDABOT_API_URL=${dependabotApiUrl}`
+        `DEPENDABOT_API_URL=${dependabotApiUrl}`,
+        `ACTIONS_ID_TOKEN_REQUEST_TOKEN=${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN || ''}`,
+        `ACTIONS_ID_TOKEN_REQUEST_URL=${process.env.ACTIONS_ID_TOKEN_REQUEST_URL || ''}`
       ],
       Entrypoint: [
         'sh',
