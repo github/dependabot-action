@@ -1,12 +1,12 @@
-import Docker from 'dockerode'
-import {Credential} from '../src/api-client'
-import {ImageService} from '../src/image-service'
-import {PROXY_IMAGE_NAME} from '../src/docker-tags'
-import {ProxyBuilder} from '../src/proxy'
-import {integration, removeDanglingUpdaterContainers} from './helpers'
 import {spawnSync} from 'child_process'
+import Docker from 'dockerode'
 import fs from 'fs'
 import path from 'path'
+import {Credential} from '../src/api-client'
+import {PROXY_IMAGE_NAME} from '../src/docker-tags'
+import {ImageService} from '../src/image-service'
+import {ProxyBuilder} from '../src/proxy'
+import {integration, removeDanglingUpdaterContainers} from './helpers'
 
 integration('ProxyBuilder', () => {
   const docker = new Docker()
@@ -181,5 +181,58 @@ integration('ProxyBuilder', () => {
     const proc = spawnSync('docker', ['exec', id, 'printenv', 'https_proxy'])
     const output = proc.stdout.toString().trim()
     expect(output).toEqual(url)
+  })
+
+  jest.setTimeout(20000)
+  it('forwards OIDC token request URL if configured', async () => {
+    const url =
+      'https://vstoken.actions.githubusercontent.com/_apis/distributedtask/hubs/build/plans/123/jobs/456/oidctoken'
+    process.env.ACTIONS_ID_TOKEN_REQUEST_URL = url
+
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', [
+      'exec',
+      id,
+      'printenv',
+      'ACTIONS_ID_TOKEN_REQUEST_URL'
+    ])
+    const output = proc.stdout.toString().trim()
+    expect(output).toEqual(url)
+
+    await proxy.shutdown()
+  })
+
+  jest.setTimeout(20000)
+  it('forwards OIDC token request token if configured', async () => {
+    const token = 'e30='
+    process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = token
+
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', [
+      'exec',
+      id,
+      'printenv',
+      'ACTIONS_ID_TOKEN_REQUEST_TOKEN'
+    ])
+    const output = proc.stdout.toString().trim()
+    expect(output).toEqual(token)
+
+    await proxy.shutdown()
   })
 })
