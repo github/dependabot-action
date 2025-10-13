@@ -39,6 +39,8 @@ export type Credential = {
   'replaces-base'?: boolean
   'public-key-fingerprint'?: string
   'auth-key'?: string
+  'tenant-id'?: string
+  'client-id'?: string
 }
 
 export type Metric = {
