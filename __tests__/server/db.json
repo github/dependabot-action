@@ -23,7 +23,7 @@
       "source": {
         "provider": "github",
         "repo": "dsp-testing/dependabot-all-updates-test",
-        "directory": "/",
+        "directories": ["/"],
         "branch": null,
         "api-endpoint": "https://api.github.com/",
         "hostname": "github.com"
