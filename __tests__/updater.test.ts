@@ -390,4 +390,42 @@ describe('Updater', () => {
       ])
     })
   })
+
+  describe('when given a tenant-id and client-id in credentials', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'git_source',
+          host: 'github.com',
+          username: 'user',
+          password: 'pass'
+        },
+        {
+          type: 'npm_registry',
+          host: 'registry.npmjs.org',
+          'tenant-id': '12345678-1234-1234-1234-123456789012',
+          'client-id': '87654321-4321-4321-4321-210987654321'
+        }
+      ]
+    )
+
+    it('they are excluded from the credentials metadata', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'git_source',
+          host: 'github.com'
+        },
+        {
+          type: 'npm_registry',
+          host: 'registry.npmjs.org'
+        }
+      ])
+    })
+  })
 })
