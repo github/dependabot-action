@@ -1,4 +1,4 @@
-import {base64DecodeDependencyFile} from '../src/utils'
+import {base64DecodeDependencyFile, extractUpdaterSha} from '../src/utils'
 
 describe('base64DecodeDependencyFile', () => {
   test('clones the dependency file', () => {
@@ -16,5 +16,38 @@ describe('base64DecodeDependencyFile', () => {
     const decoded = base64DecodeDependencyFile(dependencyFile)
     expect(decoded.content).toEqual('test string')
     expect(dependencyFile.content).toEqual('dGVzdCBzdHJpbmc=')
+  })
+})
+
+describe('extractUpdaterSha', () => {
+  test('extracts SHA from full image string with registry', () => {
+    const image =
+      'ghcr.io/dependabot/dependabot-updater-gomod:04aab0a156d33033b6082c7deb5feb6a212e4174'
+    const sha = extractUpdaterSha(image)
+    expect(sha).toEqual('04aab0a156d33033b6082c7deb5feb6a212e4174')
+  })
+
+  test('extracts SHA from simple image string', () => {
+    const image = 'dependabot-updater:abc123'
+    const sha = extractUpdaterSha(image)
+    expect(sha).toEqual('abc123')
+  })
+
+  test('handles image string with multiple colons by using the last one', () => {
+    const image = 'localhost:5000/dependabot/updater:sha256'
+    const sha = extractUpdaterSha(image)
+    expect(sha).toEqual('sha256')
+  })
+
+  test('returns null for image string without colon', () => {
+    const image = 'dependabot-updater'
+    const sha = extractUpdaterSha(image)
+    expect(sha).toBeNull()
+  })
+
+  test('returns empty string for image string ending with colon', () => {
+    const image = 'dependabot-updater:'
+    const sha = extractUpdaterSha(image)
+    expect(sha).toEqual('')
   })
 })
