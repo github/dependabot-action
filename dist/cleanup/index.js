@@ -30604,6 +30604,8 @@ var once = __nccwpck_require__(5560);
 
 var noop = function() {};
 
+var qnt = global.Bare ? queueMicrotask : process.nextTick.bind(process);
+
 var isRequest = function(stream) {
 	return stream.setHeader && typeof stream.abort === 'function';
 };
@@ -30647,7 +30649,7 @@ var eos = function(stream, opts, callback) {
 	};
 
 	var onclose = function() {
-		process.nextTick(onclosenexttick);
+		qnt(onclosenexttick);
 	};
 
 	var onclosenexttick = function() {
@@ -40978,7 +40980,7 @@ try {
 } catch (e) {}
 
 var noop = function () {}
-var ancient = /^v?\.0/.test(process.version)
+var ancient = typeof process === 'undefined' ? false : /^v?\.0/.test(process.version)
 
 var isFn = function (fn) {
   return typeof fn === 'function'
@@ -64964,7 +64966,7 @@ exports.extract = function (cwd, opts) {
       if (win32) return next() // skip symlinks on win for now before it can be tested
       xfs.unlink(name, function () {
         var dst = path.resolve(path.dirname(name), header.linkname)
-        if (!dst.startsWith(path.resolve(cwd))) return next(new Error(name + ' is not a valid symlink'))
+        if (!inCwd(dst, cwd)) return next(new Error(name + ' is not a valid symlink'))
 
         xfs.symlink(header.linkname, name, stat)
       })
@@ -64976,7 +64978,7 @@ exports.extract = function (cwd, opts) {
         var srcpath = path.join(cwd, path.join('/', header.linkname))
 
         xfs.realpath(srcpath, function (err, dst) {
-          if (err || !dst.startsWith(path.resolve(cwd))) return next(new Error(name + ' is not a valid hardlink'))
+          if (err || !inCwd(dst, cwd)) return next(new Error(name + ' is not a valid hardlink'))
 
           xfs.link(dst, name, function (err) {
             if (err && err.code === 'EPERM' && opts.hardlinkAsFilesFallback) {
@@ -65058,6 +65060,11 @@ function mkdirfix (name, opts, cb) {
       cb(err)
     }
   })
+}
+
+function inCwd (dst, cwd) {
+  cwd = path.resolve(cwd)
+  return cwd === dst || dst.startsWith(cwd + path.sep)
 }
 
 
