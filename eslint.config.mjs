@@ -95,6 +95,7 @@ export default defineConfig([
         "no-shadow": "off",
         "i18n-text/no-en": "off",
         "filenames/match-regex": "off",
+        "github/filenames-match-regex": "off",
     },
 }, {
     ignores: [
