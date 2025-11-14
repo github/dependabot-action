@@ -47,7 +47,8 @@ const manifest = {
   vcpkg: getImageName('Dockerfile.vcpkg'),
   helm: getImageName('Dockerfile.helm'),
   julia: getImageName('Dockerfile.julia'),
-  bazel: getImageName('Dockerfile.bazel')
+  bazel: getImageName('Dockerfile.bazel'),
+  opentofu: getImageName('Dockerfile.opentofu')
 }
 
 fs.writeFile(

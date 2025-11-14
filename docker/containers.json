@@ -26,5 +26,6 @@
   "vcpkg": "ghcr.io/dependabot/dependabot-updater-vcpkg:v2.0.20250916161401@sha256:40355d74ad784932730577475faee9f21ef863c3cec7b7d2817cc5621f3b1dd7",
   "helm": "ghcr.io/dependabot/dependabot-updater-helm:v2.0.20250916161401@sha256:42fe3e7a6bac84271dec7ec41ac0067ff7d1cffb8e5f63dbe5eec849b5bc433b",
   "julia": "ghcr.io/dependabot/dependabot-updater-julia:v2.0.20251023204638@sha256:49caaedd3e594c3056fa4f811ddc70da174a4d4dcd4726687ca626f844987d82",
-  "bazel": "ghcr.io/dependabot/dependabot-updater-bazel:v2.0.20251027153627@sha256:ab86da3697ccff56c345c37d820ff72003ba242b41bf3309f44af08fd85aa538"
+  "bazel": "ghcr.io/dependabot/dependabot-updater-bazel:v2.0.20251027153627@sha256:ab86da3697ccff56c345c37d820ff72003ba242b41bf3309f44af08fd85aa538",
+  "opentofu": "ghcr.io/dependabot/dependabot-updater-opentofu:v2.0.20251114105702@sha256:9c33300c7a987367cf203bd7dda689029b093c0c95cc58b05c1cf9c6b4c652f7"
 }
