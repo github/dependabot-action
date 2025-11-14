@@ -17,13 +17,15 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-export default defineConfig([{
-    extends: compat.extends("plugin:github/recommended", "plugin:github/typescript", "prettier"),
+const githubConfigs = github.getFlatConfigs();
 
+export default defineConfig([
+    ...compat.extends("prettier"),
+    githubConfigs.recommended,
+    githubConfigs.typescript,
+    {
     plugins: {
-        github,
         jest,
-        "@typescript-eslint": typescriptEslint,
     },
 
     languageOptions: {
