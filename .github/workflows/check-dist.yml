@@ -7,6 +7,8 @@ on:
       - main
       - 'releases/*'
 
+permissions:
+  contents: read
 jobs:
   verify-build: # make sure the checked in dist/ folder matches the output of a rebuild
     runs-on: ubuntu-latest
