@@ -32,7 +32,7 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
-    "@actions/http-client": "^2.2.3",
+    "@actions/http-client": "^3.0.0",
     "@octokit/webhooks-types": "^7.6.1",
     "commander": "^14.0.2",
     "dockerode": "^4.0.9",
