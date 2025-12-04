@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-julia:v2.0.20251023204638@sha256:49caaedd3e594c3056fa4f811ddc70da174a4d4dcd4726687ca626f844987d82
+FROM ghcr.io/dependabot/dependabot-updater-julia:v2.0.20251204174028@sha256:059528c300a1eb3e5f42a1a20b4ec325f2fb6521a53e5ea5f6358e88fe3cdf0f
