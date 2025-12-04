@@ -77,7 +77,7 @@ describe('ApiClient', () => {
       new HttpClientError(JSON.stringify(apiResponse), 400)
     )
 
-    await expect(api.getJobDetails()).rejects.toThrowError(
+    await expect(api.getJobDetails()).rejects.toThrow(
       new JobDetailsFetchingError(
         'fetching job details: unexpected status code: 400: {"errors":[{"status":400,"title":"Bad Request","detail":"Update job has already been processed"}]}'
       )
@@ -89,7 +89,7 @@ describe('ApiClient', () => {
       new Error('unable to get local issuer certificate')
     )
 
-    await expect(api.getJobDetails()).rejects.toThrowError(
+    await expect(api.getJobDetails()).rejects.toThrow(
       new JobDetailsFetchingError(
         'fetching job details: Error: unable to get local issuer certificate'
       )
@@ -132,7 +132,7 @@ describe('ApiClient', () => {
       new HttpClientError('retryable failure', 500)
     )
 
-    await expect(api.getJobDetails()).rejects.toThrowError(
+    await expect(api.getJobDetails()).rejects.toThrow(
       new JobDetailsFetchingError(
         'fetching job details: unexpected status code: 500: retryable failure'
       )
@@ -206,7 +206,7 @@ describe('ApiClient', () => {
     mockHttpClient.getJson.mockRejectedValue(
       new HttpClientError(JSON.stringify(apiResponse), 422)
     )
-    await expect(api.getCredentials()).rejects.toThrowError(
+    await expect(api.getCredentials()).rejects.toThrow(
       new CredentialFetchingError(
         'fetching credentials: unexpected status code: 422: {"errors":[{"status":422,"title":"Secret Not Found","detail":"MISSING_SECRET_NAME"}]}'
       )
