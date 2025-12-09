@@ -3,7 +3,7 @@ import Docker from 'dockerode'
 import {Readable} from 'stream'
 
 const MAX_RETRIES = 5 // Maximum number of retries
-const INITIAL_DELAY_MS = 2000 // Initial delay in milliseconds for backoff
+const INITIAL_DELAY_MS = 5000 // Initial delay in milliseconds for backoff
 
 const sleep = async (ms: number): Promise<void> =>
   new Promise(resolve => setTimeout(resolve, ms))
