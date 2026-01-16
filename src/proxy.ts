@@ -232,7 +232,6 @@ export class ProxyBuilder {
         `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ''}`,
         `JOB_ID=${jobId}`,
         `JOB_TOKEN=${jobToken}`,
-        `PROXY_CACHE=true`,
         `DEPENDABOT_API_URL=${dependabotApiUrl}`,
         `ACTIONS_ID_TOKEN_REQUEST_TOKEN=${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN || ''}`,
         `ACTIONS_ID_TOKEN_REQUEST_URL=${process.env.ACTIONS_ID_TOKEN_REQUEST_URL || ''}`
