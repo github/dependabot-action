@@ -2,7 +2,12 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as httpClient from '@actions/http-client'
 import {Context} from '@actions/github/lib/context'
-import {ApiClient, Credential, CredentialFetchingError} from './api-client'
+import {
+  ApiClient,
+  Credential,
+  CredentialFetchingError,
+  JobDetails
+} from './api-client'
 import {getJobParameters} from './inputs'
 import {ImageService, MetricReporter} from './image-service'
 import {updaterImageName, PROXY_IMAGE_NAME} from './docker-tags'
@@ -94,6 +99,12 @@ export async function run(context: Context): Promise<void> {
 
       credentials.push(...registryCredentials)
 
+      const packagesCred = getPackagesCredential(details, context.actor)
+      if (packagesCred !== null) {
+        core.info('Adding GitHub Packages credential')
+        credentials.push(packagesCred)
+      }
+
       const updater = new Updater(
         updaterImage,
         PROXY_IMAGE_NAME,
@@ -165,6 +176,168 @@ export async function run(context: Context): Promise<void> {
       setFailed('Dependabot encountered an unexpected problem', error)
       botSay('finished: unexpected error')
     }
+  }
+}
+
+export function getPackagesCredential(
+  jobDetails: JobDetails,
+  actor: string
+): Credential | null {
+  const experiments =
+    (jobDetails?.experiments as {[key: string]: boolean}) || {}
+  const experimentName = 'automatic_github_packages_auth'
+  const alternateExperimentName = experimentName.replace(/_/g, '-')
+  const autoAuthWithPackages =
+    experiments[experimentName] ?? experiments[alternateExperimentName] ?? false
+  if (!autoAuthWithPackages) {
+    return null
+  }
+
+  const githubToken = process.env.GITHUB_TOKEN
+  if (!githubToken) {
+    core.warning(
+      'GITHUB_TOKEN is not set; cannot create GitHub Packages credential'
+    )
+    return null
+  }
+
+  core.setSecret(githubToken)
+
+  let credential: Credential | null = null
+  switch (jobDetails['package-manager']) {
+    case 'bundler':
+      credential = getRubyGemsPackagesCredential(jobDetails, actor, githubToken)
+      break
+    case 'docker':
+      credential = getDockerPackagesCredential(jobDetails, actor, githubToken)
+      break
+    case 'maven':
+      credential = getMavenPackagesCredential(jobDetails, actor, githubToken)
+      break
+    case 'npm_and_yarn':
+      credential = getNpmPackagesCredential(jobDetails, actor, githubToken)
+      break
+    case 'nuget':
+      credential = getNuGetPackagesCredential(jobDetails, actor, githubToken)
+      break
+  }
+
+  return credential
+}
+
+function getRubyGemsPackagesCredential(
+  jobDetails: JobDetails,
+  actor: string,
+  githubToken: string
+): Credential | null {
+  const host = 'rubygems.pkg.github.com'
+  const existingIndex = jobDetails['credentials-metadata'].findIndex(
+    c => c.type === 'rubygems_server' && (c.host || '').toLowerCase() === host
+  )
+  if (existingIndex !== -1) {
+    return null
+  }
+
+  // proxy expects `host` and `token` fields
+  return {
+    type: 'rubygems_server',
+    host,
+    token: `${actor}:${githubToken}`
+  }
+}
+
+function getDockerPackagesCredential(
+  jobDetails: JobDetails,
+  actor: string,
+  githubToken: string
+): Credential | null {
+  const registry = 'ghcr.io'
+  const existingIndex = jobDetails['credentials-metadata'].findIndex(
+    c =>
+      c.type === 'docker_registry' &&
+      (c.registry || '').toLowerCase() === registry
+  )
+  if (existingIndex !== -1) {
+    return null
+  }
+
+  // proxy expects `registry`, `username`, and `password` fields
+  return {
+    type: 'docker_registry',
+    registry,
+    username: actor,
+    password: githubToken
+  }
+}
+
+function getMavenPackagesCredential(
+  jobDetails: JobDetails,
+  actor: string,
+  githubToken: string
+): Credential | null {
+  const url = `https://maven.pkg.github.com/${jobDetails.source.repo.split('/')[0]}`
+  const existingIndex = jobDetails['credentials-metadata'].findIndex(
+    c =>
+      c.type === 'maven_repository' &&
+      (c.url || '').toLowerCase().replace(/\/$/, '') === url.toLowerCase()
+  )
+  if (existingIndex !== -1) {
+    return null
+  }
+
+  // proxy expects `url`, `username`, and `password` fields
+  return {
+    type: 'maven_repository',
+    url,
+    username: actor,
+    password: githubToken
+  }
+}
+
+function getNpmPackagesCredential(
+  jobDetails: JobDetails,
+  actor: string,
+  githubToken: string
+): Credential | null {
+  const registry = 'npm.pkg.github.com'
+  const existingIndex = jobDetails['credentials-metadata'].findIndex(
+    c =>
+      c.type === 'npm_registry' && (c.registry || '').toLowerCase() === registry
+  )
+  if (existingIndex !== -1) {
+    return null
+  }
+
+  // proxy expects `registry` and `token` fields
+  return {
+    type: 'npm_registry',
+    registry,
+    token: `${actor}:${githubToken}`
+  }
+}
+
+function getNuGetPackagesCredential(
+  jobDetails: JobDetails,
+  actor: string,
+  githubToken: string
+): Credential | null {
+  const orgName = jobDetails.source.repo.split('/')[0]
+  const feedUrl = `https://nuget.pkg.github.com/${orgName}/index.json`
+  const existingIndex = jobDetails['credentials-metadata'].findIndex(
+    c =>
+      c.type === 'nuget_feed' &&
+      (c.url || '').toLowerCase() === feedUrl.toLowerCase()
+  )
+  if (existingIndex !== -1) {
+    return null
+  }
+
+  // proxy expects `url` and allows either `token` or `username` and `password` fields
+  return {
+    type: 'nuget_feed',
+    url: feedUrl,
+    username: actor,
+    password: githubToken
   }
 }
 
