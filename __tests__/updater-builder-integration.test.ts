@@ -25,7 +25,8 @@ integration('UpdaterBuilder', () => {
     'credentials-metadata': [],
     id: '1',
     'package-manager': 'npm_and_yarn',
-    experiments: {}
+    experiments: {},
+    source: {repo: 'test-org/test-repo'}
   }
 
   beforeAll(async () => {

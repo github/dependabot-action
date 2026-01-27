@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import {Context} from '@actions/github/lib/context'
 import {
   ApiClient,
+  Credential,
   JobDetails,
   CredentialFetchingError,
   JobDetailsFetchingError
@@ -11,7 +12,7 @@ import {Updater} from '../src/updater'
 import {ImageService, MetricReporter} from '../src/image-service'
 import {updaterImageName} from '../src/docker-tags'
 import * as inputs from '../src/inputs'
-import {run, credentialsFromEnv} from '../src/main'
+import {run, credentialsFromEnv, getPackagesCredential} from '../src/main'
 
 import {eventFixturePath} from './helpers'
 
@@ -139,7 +140,8 @@ describe('run', () => {
         'allowed-updates': [],
         'credentials-metadata': [],
         id: '1',
-        experiments: {}
+        experiments: {},
+        source: {repo: 'test-org/test-repo'}
       })
 
       const pullSpy = jest
@@ -818,5 +820,239 @@ describe('credentialsFromEnv', () => {
     expect(setSecretSpy).toHaveBeenCalledWith('tok')
     expect(setSecretSpy).not.toHaveBeenCalledWith('bar')
     expect(setSecretSpy).not.toHaveBeenCalledWith('https://foo')
+  })
+})
+
+describe('getPackagesCredential', () => {
+  const experimentName = 'automatic_github_packages_auth'
+  const alternateExperimentName = experimentName.replace(/_/g, '-')
+  function createJobDetails(
+    packageManager: string,
+    experiments: {[key: string]: boolean},
+    credentialsMetadata: Credential[] = []
+  ): JobDetails {
+    return {
+      'package-manager': packageManager,
+      'allowed-updates': [],
+      'credentials-metadata': credentialsMetadata,
+      id: '1',
+      experiments,
+      source: {repo: 'test-org/test-repo'}
+    }
+  }
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = 'test-token'
+  })
+
+  afterEach(() => {
+    delete process.env.GITHUB_TOKEN
+  })
+
+  describe('when the package manager is unsupported', () => {
+    it('returns null', () => {
+      const details = createJobDetails('unsupported-package-manager', {
+        [experimentName]: true
+      })
+      const cred = getPackagesCredential(details, 'test-actor')
+      expect(cred).toBeNull()
+    })
+  })
+
+  describe('when the package manager is bundler', () => {
+    describe('when automatic package auth is enabled', () => {
+      it('creates a GitHub packages credential', () => {
+        const details = createJobDetails('bundler', {[experimentName]: true})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'rubygems_server',
+          host: 'rubygems.pkg.github.com',
+          token: 'test-actor:test-token'
+        })
+      })
+
+      it('does not create a duplicate credential', () => {
+        const existingCred: Credential = {
+          type: 'rubygems_server',
+          host: 'rubygems.pkg.github.com',
+          token: 'some-other-actor:some-other-token'
+        }
+        const details = createJobDetails('bundler', {[experimentName]: true}, [
+          existingCred
+        ])
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+  })
+
+  describe('when the package manager is docker', () => {
+    describe('when automatic package auth is enabled', () => {
+      it('creates a GitHub packages credential', () => {
+        const details = createJobDetails('docker', {[experimentName]: true})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'docker_registry',
+          registry: 'ghcr.io',
+          username: 'test-actor',
+          password: 'test-token'
+        })
+      })
+
+      it('does not create a duplicate credential', () => {
+        const existingCred: Credential = {
+          type: 'docker_registry',
+          registry: 'ghcr.io',
+          username: 'some-other-actor',
+          password: 'some-other-token'
+        }
+        const details = createJobDetails('docker', {[experimentName]: true}, [
+          existingCred
+        ])
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+  })
+
+  describe('when the package manager is maven', () => {
+    describe('when automatic package auth is enabled', () => {
+      it('creates a GitHub packages credential', () => {
+        const details = createJobDetails('maven', {[experimentName]: true})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'maven_repository',
+          url: 'https://maven.pkg.github.com/test-org',
+          username: 'test-actor',
+          password: 'test-token'
+        })
+      })
+
+      it('does not create a duplicate credential with no trailing slash', () => {
+        const existingCred: Credential = {
+          type: 'maven_repository',
+          url: 'https://maven.pkg.github.com/TEST-ORG',
+          username: 'some-other-actor',
+          password: 'some-other-token'
+        }
+        const details = createJobDetails('maven', {[experimentName]: true}, [
+          existingCred
+        ])
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+
+      it('does not create a duplicate credential with a trailing slash', () => {
+        const existingCred: Credential = {
+          type: 'maven_repository',
+          url: 'https://maven.pkg.github.com/TEST-ORG/',
+          username: 'some-other-actor',
+          password: 'some-other-token'
+        }
+        const details = createJobDetails('maven', {[experimentName]: true}, [
+          existingCred
+        ])
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+  })
+
+  describe('when the package manager is npm_and_yarn', () => {
+    describe('when automatic package auth is enabled', () => {
+      it('creates a GitHub packages credential', () => {
+        const details = createJobDetails('npm_and_yarn', {
+          [experimentName]: true
+        })
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'npm_registry',
+          registry: 'npm.pkg.github.com',
+          token: 'test-actor:test-token'
+        })
+      })
+
+      it('does not create a duplicate credential', () => {
+        const existingCred: Credential = {
+          type: 'npm_registry',
+          registry: 'npm.pkg.github.com',
+          token: 'some-other-actor:some-other-token'
+        }
+        const details = createJobDetails(
+          'npm_and_yarn',
+          {[experimentName]: true},
+          [existingCred]
+        )
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+  })
+
+  describe('when the package manager is nuget', () => {
+    describe('when automatic package auth is not set', () => {
+      it('returns null', () => {
+        const details = createJobDetails('nuget', {})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+
+    describe('when automatic package auth is disabled', () => {
+      it('returns null', () => {
+        const details = createJobDetails('nuget', {[experimentName]: false})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+
+    describe('when GITHUB_TOKEN is not set', () => {
+      it('returns null', () => {
+        delete process.env.GITHUB_TOKEN
+        const details = createJobDetails('nuget', {[experimentName]: true})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
+
+    describe('when automatic package auth is enabled', () => {
+      it('creates a GitHub packages credential', () => {
+        const details = createJobDetails('nuget', {[experimentName]: true})
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'nuget_feed',
+          url: 'https://nuget.pkg.github.com/test-org/index.json',
+          username: 'test-actor',
+          password: 'test-token'
+        })
+      })
+
+      it('creates a GitHub packages credential with alternate experiment name', () => {
+        const details = createJobDetails('nuget', {
+          [alternateExperimentName]: true
+        })
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'nuget_feed',
+          url: 'https://nuget.pkg.github.com/test-org/index.json',
+          username: 'test-actor',
+          password: 'test-token'
+        })
+      })
+
+      it('does not create a duplicate credential', () => {
+        const existingCred: Credential = {
+          type: 'nuget_feed',
+          url: 'https://nuget.pkg.github.com/TEST-ORG/index.json',
+          username: 'some-other-actor',
+          password: 'some-other-token'
+        }
+        const details = createJobDetails('nuget', {[experimentName]: true}, [
+          existingCred
+        ])
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+    })
   })
 })

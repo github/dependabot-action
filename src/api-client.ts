@@ -15,6 +15,11 @@ export type JobDetails = {
   // but the job details contains no secrets
   'credentials-metadata': Credential[]
   experiments: object
+  source: Source
+}
+
+export type Source = {
+  repo: string
 }
 
 export type JobError = {
