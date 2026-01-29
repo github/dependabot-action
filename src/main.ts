@@ -336,7 +336,7 @@ function getNuGetPackagesCredential(
   return {
     type: 'nuget_feed',
     url: feedUrl,
-    username: actor,
+    username: orgName,
     password: githubToken
   }
 }
