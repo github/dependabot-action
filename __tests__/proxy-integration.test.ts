@@ -48,7 +48,7 @@ integration('ProxyBuilder', () => {
     expect(containerInfo.Config.Entrypoint).toEqual([
       'sh',
       '-c',
-      '/usr/sbin/update-ca-certificates && /update-job-proxy'
+      '/usr/sbin/update-ca-certificates && /dependabot-proxy'
     ])
 
     expect(proxy.networkName).toBe('dependabot-job-1-internal-network')

@@ -241,7 +241,7 @@ export class ProxyBuilder {
       Entrypoint: [
         'sh',
         '-c',
-        '/usr/sbin/update-ca-certificates && /update-job-proxy'
+        '/usr/sbin/update-ca-certificates && /dependabot-proxy'
       ],
 
       HostConfig: {
