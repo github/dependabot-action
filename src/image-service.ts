@@ -4,6 +4,7 @@ import {Readable} from 'stream'
 
 const MAX_RETRIES = 5 // Maximum number of retries
 const INITIAL_DELAY_MS = 5000 // Initial delay in milliseconds for backoff
+const AZURE_REGISTRY_RE = /$\w*\.azure-api\.net/g
 
 const sleep = async (ms: number): Promise<void> =>
   new Promise(resolve => setTimeout(resolve, ms))
@@ -39,18 +40,13 @@ export const ImageService = {
     force = false
   ): Promise<void> {
     /*
-      This method fetches images hosts on GitHub infrastructure.
+      This method fetches images hosts on GitHub or Azure infrastructure.
 
       We expose the `fetch_image` utility method to allow us to pull in arbitrary images for unit tests.
     */
-    if (
-      !(
-        imageName.startsWith('ghcr.io/') ||
-        imageName.startsWith('docker.pkg.github.com/')
-      )
-    ) {
+    if (!validImageRepository(imageName)) {
       throw new Error(
-        'Only images distributed via docker.pkg.github.com or ghcr.io can be fetched'
+        'Only images distributed via docker.pkg.github.com, ghcr.io or azure-api.net can be fetched'
       )
     }
 
@@ -128,4 +124,12 @@ export const ImageService = {
       }
     }
   }
+}
+
+const validImageRepository = (imageName: string): boolean => {
+  return (
+    imageName.startsWith('ghcr.io/') ||
+    imageName.startsWith('docker.pkg.github.com/') ||
+    !!imageName.match(AZURE_REGISTRY_RE)
+  )
 }

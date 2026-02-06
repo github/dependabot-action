@@ -409,11 +409,17 @@ describe('run', () => {
     })
   })
 
-  describe('when there is an error pulling images', () => {
+  describe('when there is an error pulling all images', () => {
     beforeEach(() => {
       jest
         .spyOn(ImageService, 'pull')
         .mockImplementationOnce(
+          jest.fn(async () =>
+            Promise.reject(new Error('error pulling an image'))
+          )
+        )
+        .mockImplementationOnce(
+          // when calling Azure
           jest.fn(async () =>
             Promise.reject(new Error('error pulling an image'))
           )
@@ -424,6 +430,10 @@ describe('run', () => {
         })
       )
       context = new Context()
+    })
+
+    afterAll(() => {
+      jest.restoreAllMocks()
     })
 
     test('it fails the workflow', async () => {
@@ -444,6 +454,37 @@ describe('run', () => {
         }
       })
       expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('when there is an error pulling first images', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(ImageService, 'pull')
+        .mockImplementationOnce(
+          jest.fn(async () =>
+            Promise.reject(new Error('error pulling an image'))
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'npm_and_yarn'} as JobDetails
+        })
+      )
+      context = new Context()
+    })
+
+    afterAll(() => {
+      jest.restoreAllMocks()
+    })
+
+    test('it succeeds the workflow', async () => {
+      await run(context)
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        expect.stringContaining('🤖 ~ finished ~')
+      )
     })
   })
 

@@ -9,3 +9,5 @@ This allows us to use Dependabot to keep these SHAs up to date as new versions o
 
 These Dockerfiles are not actually built by the Action or any CI processes, they are purely used as compile-time
 configuration to generate `containers.json` which is used at runtime.
+
+These images are also stored in a fallback registry in Azure under the same path as the GitHub Container Registry.
