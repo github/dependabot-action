@@ -9,7 +9,7 @@ describe('ImageService', () => {
   describe('when asked to fetch non-GitHub hosted images', () => {
     test('it raises an error', async () => {
       await expect(ImageService.pull('hello-world')).rejects.toThrow(
-        'Only images distributed via docker.pkg.github.com or ghcr.io can be fetched'
+        'Only images distributed via docker.pkg.github.com, ghcr.io or azure-api.net can be fetched'
       )
     })
   })
@@ -142,5 +142,23 @@ describe('ImageService.fetchImageWithRetry', () => {
     ).resolves.not.toThrow()
 
     expect(sendMetricsMock).not.toHaveBeenCalled()
+  })
+
+  test('can pull images from azure-api.net', async () => {
+    pullMock.mockResolvedValue(
+      new Readable({
+        read() {}
+      })
+    )
+
+    await expect(
+      ImageService.fetchImageWithRetry(
+        'test.azure-api.net/ghcr.io/dependabot/dependabot-updater-npm',
+        {},
+        docker,
+        undefined, // explicitly pass undefined for sendMetrics
+        'dependabot'
+      )
+    ).resolves.not.toThrow()
   })
 })
