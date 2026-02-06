@@ -40,7 +40,7 @@ export const ImageService = {
     force = false
   ): Promise<void> {
     /*
-      This method fetches images hosts on GitHub or Azure infrastructure.
+      This method fetches images hosted on GitHub or Azure infrastructure.
 
       We expose the `fetch_image` utility method to allow us to pull in arbitrary images for unit tests.
     */
