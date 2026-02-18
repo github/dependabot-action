@@ -55603,7 +55603,7 @@ let AESGCMDecipher;
 let ChaChaPolyDecipher;
 let GenericDecipher;
 try {
-  binding = __nccwpck_require__(490);
+  binding = __nccwpck_require__(8440);
   ({ AESGCMCipher, ChaChaPolyCipher, GenericCipher,
      AESGCMDecipher, ChaChaPolyDecipher, GenericDecipher } = binding);
 } catch {}
@@ -92178,11 +92178,10 @@ module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.nod
 
 /***/ }),
 
-/***/ 490:
-/***/ ((module) => {
+/***/ 8440:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
-
+module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
 
 /***/ }),
 
