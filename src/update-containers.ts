@@ -48,7 +48,8 @@ const manifest = {
   helm: getImageName('Dockerfile.helm'),
   julia: getImageName('Dockerfile.julia'),
   bazel: getImageName('Dockerfile.bazel'),
-  opentofu: getImageName('Dockerfile.opentofu')
+  opentofu: getImageName('Dockerfile.opentofu'),
+  pre_commit: getImageName('Dockerfile.pre-commit')
 }
 
 fs.writeFile(

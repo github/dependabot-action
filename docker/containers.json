@@ -14,6 +14,7 @@
   "hex": "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20260108161155@sha256:71a0e73877d745830fb8df4a9bf493e77efb300dc5f94c75f343a006c812e01d",
   "nuget": "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20260108161155@sha256:a19d0b19ec8c56bf23b9026a8f09aa103bfa9192a3fc35999ce73b5cb30aa8ee",
   "npm_and_yarn": "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20260108161155@sha256:dcc47dc8b3b4b7a951fd55dd15a1d887b11f8e8639b78e25b7be24cf86e81665",
+  "pre_commit": "ghcr.io/dependabot/dependabot-updater-pre-commit:v2.0.20260218183912@sha256:1fab16245f92c414da0ffdf79851dfbc4773f3f68dc507f8336bbc7f0794bb1e",
   "pip": "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20260108161155@sha256:b4f2e066c311478daee2f55008aa07ae65545beb876e55e5be4a5e7caee67de1",
   "rust_toolchain": "ghcr.io/dependabot/dependabot-updater-rust-toolchain:v2.0.20260108161155@sha256:fa7a2582fd6357ace4a50206ba8ca636903c6042085ef9a147540648b9e6871c",
   "swift": "ghcr.io/dependabot/dependabot-updater-swift:v2.0.20260108161155@sha256:d55f037397637ad46ea999fa3c0cd575be9fd689a19569ca3220c5eea478f83b",
