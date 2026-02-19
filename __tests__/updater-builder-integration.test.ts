@@ -75,4 +75,79 @@ integration('UpdaterBuilder', () => {
     await proxy.shutdown()
     await container.remove()
   }, 15000)
+
+  it('passes through OPENSSL_FORCE_FIPS_MODE when set on host', async () => {
+    process.env.OPENSSL_FORCE_FIPS_MODE = '0'
+
+    const cachedMode = true
+    const proxy = await new ProxyBuilder(
+      docker,
+      PROXY_IMAGE_NAME,
+      cachedMode
+    ).run(1, dependabotApiUrl, jobToken, credentials)
+    await proxy.container.start()
+    const input = {job: details}
+    const params = new JobParameters(
+      1,
+      'job-token',
+      'cred-token',
+      'https://example.com',
+      '172.17.0.1',
+      updaterImageName('bundler')
+    )
+    const container = await new UpdaterBuilder(
+      docker,
+      params,
+      input,
+      proxy,
+      updaterImageName('bundler')
+    ).run('updater-fips-test')
+
+    const containerInfo = await container.inspect()
+    expect(containerInfo.Config.Env).toEqual(
+      expect.arrayContaining(['OPENSSL_FORCE_FIPS_MODE=0'])
+    )
+
+    await proxy.shutdown()
+    await container.remove()
+    delete process.env.OPENSSL_FORCE_FIPS_MODE
+  }, 15000)
+
+  it('does not set OPENSSL_FORCE_FIPS_MODE when not set on host', async () => {
+    delete process.env.OPENSSL_FORCE_FIPS_MODE
+
+    const cachedMode = true
+    const proxy = await new ProxyBuilder(
+      docker,
+      PROXY_IMAGE_NAME,
+      cachedMode
+    ).run(1, dependabotApiUrl, jobToken, credentials)
+    await proxy.container.start()
+    const input = {job: details}
+    const params = new JobParameters(
+      1,
+      'job-token',
+      'cred-token',
+      'https://example.com',
+      '172.17.0.1',
+      updaterImageName('bundler')
+    )
+    const container = await new UpdaterBuilder(
+      docker,
+      params,
+      input,
+      proxy,
+      updaterImageName('bundler')
+    ).run('updater-no-fips-test')
+
+    const containerInfo = await container.inspect()
+    expect(containerInfo.Config.Env).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/OPENSSL_FORCE_FIPS_MODE=/)
+      ])
+    )
+
+    await proxy.shutdown()
+    await container.remove()
+  }, 15000)
 })
