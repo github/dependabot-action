@@ -235,4 +235,56 @@ integration('ProxyBuilder', () => {
 
     await proxy.shutdown()
   })
+
+  jest.setTimeout(20000)
+  it('forwards OPENSSL_FORCE_FIPS_MODE if configured', async () => {
+    process.env.OPENSSL_FORCE_FIPS_MODE = '0'
+
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', [
+      'exec',
+      id,
+      'printenv',
+      'OPENSSL_FORCE_FIPS_MODE'
+    ])
+    const output = proc.stdout.toString().trim()
+    expect(output).toEqual('0')
+
+    await proxy.shutdown()
+    delete process.env.OPENSSL_FORCE_FIPS_MODE
+  })
+
+  jest.setTimeout(20000)
+  it('does not set OPENSSL_FORCE_FIPS_MODE when not configured', async () => {
+    delete process.env.OPENSSL_FORCE_FIPS_MODE
+
+    const proxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
+    await proxy.container.start()
+
+    const id = proxy.container.id
+    const proc = spawnSync('docker', [
+      'exec',
+      id,
+      'printenv',
+      'OPENSSL_FORCE_FIPS_MODE'
+    ])
+    // printenv exits with 1 when the variable is not set
+    expect(proc.status).toEqual(1)
+    expect(proc.stdout.toString().trim()).toEqual('')
+
+    await proxy.shutdown()
+  })
 })
