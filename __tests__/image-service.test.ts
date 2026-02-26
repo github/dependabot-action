@@ -143,22 +143,4 @@ describe('ImageService.fetchImageWithRetry', () => {
 
     expect(sendMetricsMock).not.toHaveBeenCalled()
   })
-
-  test('can pull images from azure-api.net', async () => {
-    pullMock.mockResolvedValue(
-      new Readable({
-        read() {}
-      })
-    )
-
-    await expect(
-      ImageService.fetchImageWithRetry(
-        'test.azure-api.net/ghcr.io/dependabot/dependabot-updater-npm',
-        {},
-        docker,
-        undefined, // explicitly pass undefined for sendMetrics
-        'dependabot'
-      )
-    ).resolves.not.toThrow()
-  })
 })

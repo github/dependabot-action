@@ -426,14 +426,13 @@ describe('run', () => {
         )
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
         jest.fn(async () => {
-          return {'package-manager': 'npm_and_yarn'} as JobDetails
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'azure-registry-backup': true}
+          } as JobDetails
         })
       )
       context = new Context()
-    })
-
-    afterAll(() => {
-      jest.restoreAllMocks()
     })
 
     test('it fails the workflow', async () => {
@@ -468,14 +467,13 @@ describe('run', () => {
         )
       jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
         jest.fn(async () => {
-          return {'package-manager': 'npm_and_yarn'} as JobDetails
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'azure-registry-backup': true}
+          } as JobDetails
         })
       )
       context = new Context()
-    })
-
-    afterAll(() => {
-      jest.restoreAllMocks()
     })
 
     test('it succeeds the workflow', async () => {

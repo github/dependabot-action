@@ -21,6 +21,8 @@ export enum DependabotErrorType {
 
 const FALLBACK_CONTAINER_REGISTRY =
   'dependabot-acr-apim-production.azure-api.net'
+const FEATURE_DISABLE_GHCR_PULL = 'disable-ghcr-pull'
+const FEATURE_PULL_FROM_AZURE = 'azure-registry-backup'
 
 let jobId: number
 
@@ -111,35 +113,49 @@ export async function run(context: Context): Promise<void> {
 
       core.startGroup('Pulling updater images')
       let imagesPulled = false
+      let pullError: Error = new Error('No image source was configured')
+      const experiments =
+        (details?.experiments as {[key: string]: boolean}) || {}
 
-      try {
-        // Using sendMetricsWithPackageManager wrapper to inject package manager tag ti
-        // avoid passing additional parameters to ImageService.pull method
-        await ImageService.pull(updaterImage, sendMetricsWithPackageManager)
-        await ImageService.pull(proxyImage, sendMetricsWithPackageManager)
-        imagesPulled = true
-      } catch {
-        core.warning('Primary image pull failed, attempting fallback')
+      if (experiments[FEATURE_DISABLE_GHCR_PULL] !== true) {
+        try {
+          // Using sendMetricsWithPackageManager wrapper to inject package manager tag to
+          // avoid passing additional parameters to ImageService.pull method
+          await ImageService.pull(updaterImage, sendMetricsWithPackageManager)
+          await ImageService.pull(proxyImage, sendMetricsWithPackageManager)
+          imagesPulled = true
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            pullError = error
+          }
+        }
       }
 
-      if (!imagesPulled) {
+      if (!imagesPulled && experiments[FEATURE_PULL_FROM_AZURE]) {
+        core.warning('Primary image pull failed, attempting fallback')
         updaterImage = `${FALLBACK_CONTAINER_REGISTRY}/${updaterImage}`
         proxyImage = `${FALLBACK_CONTAINER_REGISTRY}/${proxyImage}`
         try {
           await ImageService.pull(updaterImage, sendMetricsWithPackageManager)
           await ImageService.pull(proxyImage, sendMetricsWithPackageManager)
+          imagesPulled = true
         } catch (error: unknown) {
           if (error instanceof Error) {
-            await failJob(
-              apiClient,
-              'Error fetching updater images',
-              error,
-              DependabotErrorType.Image
-            )
-            return
+            pullError = error
           }
         }
       }
+
+      if (!imagesPulled) {
+        await failJob(
+          apiClient,
+          'Error fetching updater images',
+          pullError,
+          DependabotErrorType.Image
+        )
+        return
+      }
+
       core.endGroup()
 
       try {

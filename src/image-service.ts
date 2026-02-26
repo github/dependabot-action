@@ -4,7 +4,7 @@ import {Readable} from 'stream'
 
 const MAX_RETRIES = 5 // Maximum number of retries
 const INITIAL_DELAY_MS = 5000 // Initial delay in milliseconds for backoff
-const AZURE_REGISTRY_RE = /$\w*\.azure-api\.net/g
+const AZURE_REGISTRY_RE = /^[\w-.]*\.azure-api\.net\//g
 
 const sleep = async (ms: number): Promise<void> =>
   new Promise(resolve => setTimeout(resolve, ms))
@@ -130,6 +130,6 @@ const validImageRepository = (imageName: string): boolean => {
   return (
     imageName.startsWith('ghcr.io/') ||
     imageName.startsWith('docker.pkg.github.com/') ||
-    !!imageName.match(AZURE_REGISTRY_RE)
+    AZURE_REGISTRY_RE.test(imageName)
   )
 }
