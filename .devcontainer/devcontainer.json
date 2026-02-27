@@ -1,0 +1,3 @@
+{
+  "postCreateCommand": "nvm install && nvm alias default $(cat .nvmrc) && npm install"
+}
