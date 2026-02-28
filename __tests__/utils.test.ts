@@ -1,4 +1,8 @@
-import {base64DecodeDependencyFile, extractUpdaterSha} from '../src/utils'
+import {
+  base64DecodeDependencyFile,
+  extractUpdaterSha,
+  validImageRepository
+} from '../src/utils'
 
 describe('base64DecodeDependencyFile', () => {
   test('clones the dependency file', () => {
@@ -49,5 +53,38 @@ describe('extractUpdaterSha', () => {
     const image = 'dependabot-updater:'
     const sha = extractUpdaterSha(image)
     expect(sha).toEqual('')
+  })
+})
+
+describe('validImageRepository', () => {
+  test('image from ghcr.io', () => {
+    const image = 'ghcr.io/dependabot/dependabot-updater-npm'
+    const result = validImageRepository(image)
+    expect(result).toBeTruthy()
+  })
+
+  test('image from docker.pkg.github.com', () => {
+    const image = 'docker.pkg.github.com/dependabot/dependabot-updater-npm'
+    const result = validImageRepository(image)
+    expect(result).toBeTruthy()
+  })
+
+  test('image from azure-api.net', () => {
+    const image =
+      'my-api.azure-api.net/ghcr.io/dependabot/dependabot-updater-npm'
+    const result = validImageRepository(image)
+    expect(result).toBeTruthy()
+  })
+
+  test('image name blank', () => {
+    const image = ''
+    const result = validImageRepository(image)
+    expect(result).toBeFalsy()
+  })
+
+  test('image name from outside source', () => {
+    const image = 'docker.com/dependabot/dependabot-updater-npm'
+    const result = validImageRepository(image)
+    expect(result).toBeFalsy()
   })
 })
