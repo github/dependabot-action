@@ -9,7 +9,7 @@ describe('ImageService', () => {
   describe('when asked to fetch non-GitHub hosted images', () => {
     test('it raises an error', async () => {
       await expect(ImageService.pull('hello-world')).rejects.toThrow(
-        'Only images distributed via docker.pkg.github.com or ghcr.io can be fetched'
+        'Only images distributed via docker.pkg.github.com, ghcr.io or azure-api.net can be fetched'
       )
     })
   })
