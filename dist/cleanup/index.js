@@ -24209,6 +24209,19 @@ chownr.sync = chownrSync
 
 /***/ }),
 
+/***/ 4982:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+const binding = __nccwpck_require__(5243);
+
+module.exports = binding.getCPUInfo;
+
+
+/***/ }),
+
 /***/ 6110:
 /***/ ((module, exports, __nccwpck_require__) => {
 
@@ -55203,7 +55216,7 @@ const crypto = __nccwpck_require__(6982);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(2123)();
+  cpuInfo = __nccwpck_require__(4982)();
 } catch {}
 
 const { bindingAvailable, CIPHER_INFO, MAC_INFO } = __nccwpck_require__(2888);
@@ -92158,18 +92171,17 @@ function digestName(imageName) {
 
 /***/ }),
 
+/***/ 5243:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
+
+/***/ }),
+
 /***/ 490:
 /***/ ((module) => {
 
 module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
-
-
-/***/ }),
-
-/***/ 2123:
-/***/ ((module) => {
-
-module.exports = eval("require")("cpu-features");
 
 
 /***/ }),
