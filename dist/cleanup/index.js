@@ -25451,14 +25451,14 @@ Modem.prototype.dial = function (options, callback) {
     } else {
       data = options.file;
     }
-    optionsf.headers['Content-Type'] = 'application/tar';
+    optionsf.headers['Content-Type'] = options?.headers?.['Content-Type'] ?? 'application/tar';
   } else if (opts && options.method === 'POST') {
     data = JSON.stringify(opts._body || opts);
     if (options.allowEmpty) {
-      optionsf.headers['Content-Type'] = 'application/json';
+      optionsf.headers['Content-Type'] = options?.headers?.['Content-Type'] ?? 'application/json';
     } else {
       if (data !== '{}' && data !== '""') {
-        optionsf.headers['Content-Type'] = 'application/json';
+        optionsf.headers['Content-Type'] = options?.headers?.['Content-Type'] ?? 'application/json';
       } else {
         data = undefined;
       }
@@ -25521,7 +25521,13 @@ Modem.prototype.buildRequest = function (options, context, data, callback) {
     protocol: 'http:',
   }) : options;
 
-  var req = http[self.protocol === 'ssh' ? 'http' : self.protocol].request(opts, function () { });
+  var req = null;
+  try {
+    req = http[self.protocol === 'ssh' ? 'http' : self.protocol].request(opts, function () { });
+  } catch (e) {
+    callback(e);
+    return;
+  }
 
   debug('Sending: %s', util.inspect(options, {
     showHidden: true,
@@ -25680,31 +25686,55 @@ Modem.prototype.buildPayload = function (err, isStream, statusCodes, openStdin, 
 };
 
 Modem.prototype.demuxStream = function (streama, stdout, stderr) {
-  var nextDataType = null;
-  var nextDataLength = null;
+  var pendingStreamType = null;
+  var pendingDataLength = null;
   var buffer = Buffer.from('');
+  
   function processData(data) {
     if (data) {
       buffer = Buffer.concat([buffer, data]);
     }
-    if (!nextDataType) {
+    if (pendingStreamType === null) {
       if (buffer.length >= 8) {
         var header = bufferSlice(8);
-        nextDataType = header.readUInt8(0);
-        nextDataLength = header.readUInt32BE(4);
+        var streamType = header.readUInt8(0);
+        var dataLength = header.readUInt32BE(4);
+
+        // Validate stream type per Docker multiplex protocol:
+        // 0 = stdin, 1 = stdout, 2 = stderr
+        if (streamType !== 0 && streamType !== 1 && streamType !== 2) {
+          // Invalid header — stream is likely not multiplexed (e.g. TTY mode)
+          // or has become misaligned. Write the entire buffer as stdout
+          // and stop trying to demux.
+          var remaining = Buffer.concat([header, buffer]);
+          stdout.write(remaining);
+          buffer = Buffer.from('');
+          pendingStreamType = null;
+          pendingDataLength = null;
+          // Switch to raw passthrough for the rest of the stream
+          streama.removeListener('data', processData);
+          streama.on('data', function(chunk) {
+            stdout.write(chunk);
+          });
+          return;
+        }
+
+        pendingStreamType = streamType;
+        pendingDataLength = dataLength;
         // It's possible we got a "data" that contains multiple messages
         // Process the next one
         processData();
       }
     } else {
-      if (buffer.length >= nextDataLength) {
-        var content = bufferSlice(nextDataLength);
-        if (nextDataType === 1) {
+      if (buffer.length >= pendingDataLength) {
+        var content = bufferSlice(pendingDataLength);
+        if (pendingStreamType === 1) {
           stdout.write(content);
         } else {
           stderr.write(content);
         }
-        nextDataType = null;
+        pendingStreamType = null;
+        pendingDataLength = null;
         // It's possible we got a "data" that contains multiple messages
         // Process the next one
         processData();
@@ -25878,6 +25908,255 @@ module.exports.parseJSON = function(s) {
   } catch (e) {
     return null;
   }
+};
+
+
+/***/ }),
+
+/***/ 7056:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+var protobuf = __nccwpck_require__(3928);
+var path = __nccwpck_require__(6928);
+
+// Constants
+var BUILDKIT_TRACE_ID = "moby.buildkit.trace";
+var BUILDKIT_IMAGE_ID = "moby.image.id";
+var PROTO_TYPE = "moby.buildkit.v1.StatusResponse";
+var ENCODING_UTF8 = "utf8";
+var ENCODING_BASE64 = "base64";
+
+var StatusResponse;
+
+// Load the protobuf schema
+function loadProto() {
+  if (StatusResponse) return StatusResponse;
+  
+  var root = protobuf.loadSync(
+    __nccwpck_require__.ab + "buildkit_status.proto"
+  );
+  StatusResponse = root.lookupType(PROTO_TYPE);
+  return StatusResponse;
+}
+
+/**
+ * Decodes a BuildKit trace message
+ * @param {string} base64Data - Base64-encoded protobuf data from aux field
+ * @returns {Object} Decoded status response with vertexes, logs, etc.
+ */
+function decodeBuildKitStatus(base64Data) {
+  var StatusResponse = loadProto();
+  
+  // Handle empty messages
+  if (!base64Data || base64Data.length === 0) {
+    return {
+      vertexes: [],
+      statuses: [],
+      logs: [],
+      warnings: []
+    };
+  }
+  
+  var buffer = Buffer.from(base64Data, ENCODING_BASE64);
+  var message = StatusResponse.decode(buffer);
+  return StatusResponse.toObject(message, {
+    longs: String,
+    enums: String,
+    bytes: String,
+    defaults: true
+  });
+}
+
+/**
+ * Formats BuildKit status into human-readable text
+ * @param {Object} status - Decoded status response
+ * @returns {string[]} Array of human-readable log lines
+ */
+function formatBuildKitStatus(status) {
+  var lines = [];
+  
+  // Process vertexes (build steps)
+  if (status.vertexes && status.vertexes.length > 0) {
+    status.vertexes.forEach(function(vertex) {
+      if (vertex.name && vertex.started && !vertex.completed) {
+        lines.push("[" + vertex.digest.substring(0, 12) + "] " + vertex.name);
+      }
+      if (vertex.error) {
+        lines.push("ERROR: " + vertex.error);
+      }
+      if (vertex.completed && vertex.cached) {
+        lines.push("CACHED: " + vertex.name);
+      }
+    });
+  }
+  
+  // Process logs (command output)
+  if (status.logs && status.logs.length > 0) {
+    status.logs.forEach(function(log) {
+      var msg = Buffer.from(log.msg).toString(ENCODING_UTF8);
+      if (msg.trim()) {
+        lines.push(msg.trimEnd());
+      }
+    });
+  }
+  
+  // Process status updates (progress)
+  if (status.statuses && status.statuses.length > 0) {
+    status.statuses.forEach(function(s) {
+      if (s.name && s.total > 0) {
+        var percent = Math.floor((s.current / s.total) * 100);
+        lines.push(s.name + ": " + percent + "% (" + s.current + "/" + s.total + ")");
+      }
+    });
+  }
+  
+  // Process warnings
+  if (status.warnings && status.warnings.length > 0) {
+    status.warnings.forEach(function(warning) {
+      var msg = Buffer.from(warning.short).toString(ENCODING_UTF8);
+      lines.push("WARNING: " + msg);
+    });
+  }
+  
+  return lines;
+}
+
+/**
+ * Parse a BuildKit stream line and extract human-readable logs
+ * @param {string} line - JSON line from build stream
+ * @returns {Object} { isBuildKit: boolean, logs: string[], raw: Object }
+ */
+function parseBuildKitLine(line) {
+  try {
+    var json = JSON.parse(line);
+    
+    // Check if it's a BuildKit trace message
+    if (json.id === BUILDKIT_TRACE_ID && json.aux !== undefined) {
+      var status = decodeBuildKitStatus(json.aux);
+      var logs = formatBuildKitStatus(status);
+      
+      return {
+        isBuildKit: true,
+        logs: logs,
+        raw: status
+      };
+    }
+    
+    // Check if it's the final image ID
+    if (json.id === BUILDKIT_IMAGE_ID && json.aux && json.aux.ID) {
+      return {
+        isBuildKit: true,
+        logs: ["Built image: " + json.aux.ID],
+        raw: json.aux
+      };
+    }
+    
+    // Not a BuildKit message
+    return {
+      isBuildKit: false,
+      logs: [],
+      raw: json
+    };
+  } catch (e) {
+    return {
+      isBuildKit: false,
+      logs: [],
+      raw: null,
+      error: e.message
+    };
+  }
+}
+
+/**
+ * Follow progress of a stream, automatically handling both BuildKit and regular output.
+ * This provides the same ergonomics as modem.followProgress but decodes BuildKit logs.
+ * 
+ * @param {Stream} stream - Stream from buildImage(), pull(), push(), etc.
+ * @param {Function} onFinished - Called when stream ends: (err, output) => void
+ * @param {Function} onProgress - Called for each log event: (event) => void
+ * @returns {void}
+ */
+function followProgress(stream, onFinished, onProgress) {
+  var buffer = '';
+  var output = [];
+  var finished = false;
+
+  stream.on('data', onStreamEvent);
+  stream.on('error', onStreamError);
+  stream.on('end', onStreamEnd);
+  stream.on('close', onStreamEnd);
+
+  function onStreamEvent(data) {
+    buffer += data.toString();
+    
+    // Process complete lines
+    var lines = buffer.split('\n');
+    buffer = lines.pop(); // Save incomplete line
+    
+    lines.forEach(function(line) {
+      if (!line.trim()) return;
+      
+      processLine(line);
+    });
+  }
+
+  function processLine(line) {
+    try {
+      // Try to parse as BuildKit or regular Docker output
+      var result = parseBuildKitLine(line);
+      
+      if (result.isBuildKit) {
+        // BuildKit message - create events from decoded logs
+        result.logs.forEach(function(log) {
+          var event = { stream: log + '\n' };
+          output.push(event);
+          if (onProgress) onProgress(event);
+        });
+      } else if (result.raw) {
+        // Regular Docker message
+        output.push(result.raw);
+        if (onProgress) onProgress(result.raw);
+      }
+    } catch (e) {
+      // If parsing fails, try plain JSON
+      try {
+        var json = JSON.parse(line);
+        output.push(json);
+        if (onProgress) onProgress(json);
+      } catch (e2) {
+        // Ignore parse errors
+      }
+    }
+  }
+
+  function onStreamError(err) {
+    finished = true;
+    stream.removeListener('data', onStreamEvent);
+    stream.removeListener('error', onStreamError);
+    stream.removeListener('end', onStreamEnd);
+    stream.removeListener('close', onStreamEnd);
+    if (onFinished) onFinished(err, output);
+  }
+
+  function onStreamEnd() {
+    if (finished) return;
+    finished = true;
+    
+    // Process any remaining data in buffer
+    if (buffer.trim()) {
+      processLine(buffer);
+    }
+    
+    stream.removeListener('data', onStreamEvent);
+    stream.removeListener('error', onStreamError);
+    stream.removeListener('end', onStreamEnd);
+    stream.removeListener('close', onStreamEnd);
+    if (onFinished) onFinished(null, output);
+  }
+}
+
+module.exports = {
+  followProgress: followProgress
 };
 
 
@@ -27455,6 +27734,30 @@ Docker.prototype.buildImage = function(file, opts, callback) {
   } else {
     dialWithSession(callback);
   }
+};
+
+/**
+ * Follow progress of a stream operation (build, pull, push, etc.) with automatic
+ * BuildKit decoding.
+ * 
+ * This method works identically to docker.modem.followProgress() but additionally
+ * decodes BuildKit v2 build output. BuildKit emits base64-encoded protobuf messages
+ * which this method transparently decodes into human-readable log events.
+ * 
+ * Use this instead of docker.modem.followProgress() when:
+ * - You're using BuildKit builds (version: "2")
+ * - You want a single API that handles both regular and BuildKit output
+ * 
+ * For non-BuildKit streams (pull, push, regular builds), behavior is identical
+ * to docker.modem.followProgress().
+ * 
+ * @param {Stream} stream - Stream from buildImage(), pull(), push(), etc.
+ * @param {Function} onFinished - Called when stream ends: (err, output) => void
+ * @param {Function} onProgress - Optional callback for each event: (event) => void
+ */
+Docker.prototype.followProgress = function(stream, onFinished, onProgress) {
+  var buildkit = __nccwpck_require__(7056);
+  return buildkit.followProgress(stream, onFinished, onProgress);
 };
 
 /**
@@ -47677,9 +47980,14 @@ class Client extends EventEmitter {
     return this;
   }
 
-  sftp(cb) {
+  sftp(env, cb) {
     if (!this._sock || !isWritable(this._sock))
       throw new Error('Not connected');
+
+    if (typeof env === 'function') {
+      cb = env;
+      env = undefined;
+    }
 
     openChannel(this, 'sftp', (err, sftp) => {
       if (err) {
@@ -47687,7 +47995,7 @@ class Client extends EventEmitter {
         return;
       }
 
-      reqSubsystem(sftp, 'sftp', (err, sftp_) => {
+      const reqSubsystemCb = (err, sftp_) => {
         if (err) {
           cb(err);
           return;
@@ -47733,7 +48041,20 @@ class Client extends EventEmitter {
             .on('close', onExit);
 
         sftp._init();
-      });
+      };
+
+      if (typeof env === 'object' && env !== null) {
+        reqEnv(sftp, env, (err) => {
+          if (err) {
+            cb(err);
+            return;
+          }
+
+          reqSubsystem(sftp, 'sftp', reqSubsystemCb);
+        });
+      } else {
+        reqSubsystem(sftp, 'sftp', reqSubsystemCb);
+      }
     });
 
     return this;
@@ -47967,16 +48288,33 @@ function reqExec(chan, cmd, opts, cb) {
   chan._client._protocol.exec(chan.outgoing.id, cmd, true);
 }
 
-function reqEnv(chan, env) {
-  if (chan.outgoing.state !== 'open')
+function reqEnv(chan, env, cb) {
+  const wantReply = (typeof cb === 'function');
+
+  if (chan.outgoing.state !== 'open') {
+    if (wantReply)
+      cb(new Error('Channel is not open'));
     return;
+  }
+
+  if (wantReply) {
+    chan._callbacks.push((had_err) => {
+      if (had_err) {
+        cb(had_err !== true
+           ? had_err
+           : new Error('Unable to set environment'));
+        return;
+      }
+      cb();
+    });
+  }
 
   const keys = Object.keys(env || {});
 
   for (let i = 0; i < keys.length; ++i) {
     const key = keys[i];
     const val = env[key];
-    chan._client._protocol.env(chan.outgoing.id, key, val, false);
+    chan._client._protocol.env(chan.outgoing.id, key, val, wantReply);
   }
 }
 
@@ -94140,7 +94478,7 @@ module.exports = /*#__PURE__*/JSON.parse('{"nested":{"google":{"nested":{"protob
 /***/ ((module) => {
 
 "use strict";
-module.exports = {"rE":"1.16.0"};
+module.exports = {"rE":"1.17.0"};
 
 /***/ })
 
