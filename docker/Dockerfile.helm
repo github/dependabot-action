@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-helm:v2.0.20260318122827@sha256:c760cdd50970ef0b56054f9dfaa80ca15bf3f51705a4f813e4eb1b954c98d0ac
+FROM ghcr.io/dependabot/dependabot-updater-helm:v2.0.20260330140734@sha256:5022956cbc3298894d7c2f0a3e6abf188e94ff480f703e48ed5b0c135c69ff8e
