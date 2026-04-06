@@ -1,5 +1,5 @@
 {
-  "proxy": "ghcr.io/dependabot/proxy:v2.0.20260404001356@sha256:83abcee15bff71bb3b250a6f140fb731e301068055500310be354e80581f1c49",
+  "proxy": "ghcr.io/dependabot/proxy:v2.0.20260406203606@sha256:337a267da17b1289ad1ecec5aa77e5847e9cdff8f1caecaa354ae0d81431938a",
   "bundler": "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20260404053234@sha256:7bcb52251a5dec420c0b39c52a10c5c6885b16ceb0f86c74d7a538f60898a686",
   "cargo": "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20260404053234@sha256:0b5fbbf5a451ff19706721a67bd1a35bc870635d02e80e46c20bb4a831b74984",
   "composer": "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20260404053234@sha256:1a1c1a3500ee90a1d3553ab6033b9ea1af67206079a8819773740cd3c244d4a8",
