@@ -1,16 +1,16 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import * as httpClient from '@actions/http-client'
 import {Context} from '@actions/github/lib/context'
+import * as httpClient from '@actions/http-client'
 import {
   ApiClient,
   Credential,
   CredentialFetchingError,
   JobDetails
 } from './api-client'
-import {getJobParameters} from './inputs'
+import {PROXY_IMAGE_NAME, updaterImageName} from './docker-tags'
 import {ImageService, MetricReporter} from './image-service'
-import {updaterImageName, PROXY_IMAGE_NAME} from './docker-tags'
+import {getJobParameters} from './inputs'
 import {Updater} from './updater'
 
 export enum DependabotErrorType {
@@ -243,11 +243,15 @@ export function getPackagesCredential(
       credential = getRubyGemsPackagesCredential(jobDetails, actor, githubToken)
       break
     case 'docker':
+    case 'docker_compose':
+    case 'devcontainers':
       credential = getDockerPackagesCredential(jobDetails, actor, githubToken)
       break
     case 'maven':
+    case 'gradle':
       credential = getMavenPackagesCredential(jobDetails, actor, githubToken)
       break
+    case 'bun':
     case 'npm_and_yarn':
       credential = getNpmPackagesCredential(jobDetails, actor, githubToken)
       break
