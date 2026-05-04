@@ -21340,6 +21340,8 @@ base64.test = function test(string) {
 
 module.exports = codegen;
 
+var reservedRe = /^(?:do|if|in|for|let|new|try|var|case|else|enum|eval|false|null|this|true|void|with|break|catch|class|const|super|throw|while|yield|delete|export|import|public|return|static|switch|typeof|default|extends|finally|package|private|continue|debugger|function|arguments|interface|protected|implements|instanceof)$/;
+
 /**
  * Begins generating a function.
  * @memberof util
@@ -21414,7 +21416,7 @@ function codegen(functionParams, functionName) {
     }
 
     function toString(functionNameOverride) {
-        return "function " + (functionNameOverride || functionName || "") + "(" + (functionParams && functionParams.join(",") || "") + "){\n  " + body.join("\n  ") + "\n}";
+        return "function " + safeFunctionName(functionNameOverride || functionName) + "(" + (functionParams && functionParams.join(",") || "") + "){\n  " + body.join("\n  ") + "\n}";
     }
 
     Codegen.toString = toString;
@@ -21436,6 +21438,17 @@ function codegen(functionParams, functionName) {
  * @type {boolean}
  */
 codegen.verbose = false;
+
+function safeFunctionName(name) {
+    if (!name)
+        return "";
+    name = String(name).replace(/[^\w$]/g, "");
+    if (!name)
+        return "";
+    if (/^\d/.test(name))
+        name = "_" + name;
+    return reservedRe.test(name) ? name + "_" : name;
+}
 
 
 /***/ }),
@@ -22004,13 +22017,31 @@ module.exports = inquire;
  * @returns {?Object} Required module if available and not empty, otherwise `null`
  */
 function inquire(moduleName) {
-    try {
-        var mod = eval("quire".replace(/^/,"re"))(moduleName); // eslint-disable-line no-eval
-        if (mod && (mod.length || Object.keys(mod).length))
-            return mod;
-    } catch (e) {} // eslint-disable-line no-empty
+  try {
+    if (false) {}
+    var mod = require(moduleName);
+    if (mod && (mod.length || Object.keys(mod).length)) return mod;
     return null;
+  } catch (err) {
+    // ignore
+    return null;
+  }
 }
+
+/*
+// maybe worth a shot to prevent renaming issues:
+// see: https://github.com/webpack/webpack/blob/master/lib/dependencies/CommonJsRequireDependencyParserPlugin.js
+// triggers on:
+// - expression require.cache
+// - expression require (???)
+// - call require
+// - call require:commonjs:item
+// - call require:commonjs:context
+
+Object.defineProperty(Function.prototype, "__self", { get: function() { return this; } });
+var r = require.__self;
+delete Function.prototype.__self;
+*/
 
 
 /***/ }),
@@ -22155,7 +22186,8 @@ function pool(alloc, slice, size) {
  * @memberof util
  * @namespace
  */
-var utf8 = exports;
+var utf8 = exports,
+    replacementChar = "\ufffd";
 
 /**
  * Calculates the UTF8 byte length of a string.
@@ -22188,36 +22220,34 @@ utf8.length = function utf8_length(string) {
  * @returns {string} String read
  */
 utf8.read = function utf8_read(buffer, start, end) {
-    var len = end - start;
-    if (len < 1)
+    if (end - start < 1) {
         return "";
-    var parts = null,
-        chunk = [],
-        i = 0, // char offset
-        t;     // temporary
-    while (start < end) {
-        t = buffer[start++];
-        if (t < 128)
-            chunk[i++] = t;
-        else if (t > 191 && t < 224)
-            chunk[i++] = (t & 31) << 6 | buffer[start++] & 63;
-        else if (t > 239 && t < 365) {
-            t = ((t & 7) << 18 | (buffer[start++] & 63) << 12 | (buffer[start++] & 63) << 6 | buffer[start++] & 63) - 0x10000;
-            chunk[i++] = 0xD800 + (t >> 10);
-            chunk[i++] = 0xDC00 + (t & 1023);
-        } else
-            chunk[i++] = (t & 15) << 12 | (buffer[start++] & 63) << 6 | buffer[start++] & 63;
-        if (i > 8191) {
-            (parts || (parts = [])).push(String.fromCharCode.apply(String, chunk));
-            i = 0;
+    }
+
+    var str = "";
+    for (var i = start; i < end;) {
+        var t = buffer[i++];
+        if (t <= 0x7F) {
+            str += String.fromCharCode(t);
+        } else if (t >= 0xC0 && t < 0xE0) {
+            var c2 = (t & 0x1F) << 6 | buffer[i++] & 0x3F;
+            str += c2 >= 0x80 ? String.fromCharCode(c2) : replacementChar;
+        } else if (t >= 0xE0 && t < 0xF0) {
+            var c3 = (t & 0xF) << 12 | (buffer[i++] & 0x3F) << 6 | buffer[i++] & 0x3F;
+            str += c3 >= 0x800 ? String.fromCharCode(c3) : replacementChar;
+        } else if (t >= 0xF0) {
+            var t2 = (t & 7) << 18 | (buffer[i++] & 0x3F) << 12 | (buffer[i++] & 0x3F) << 6 | buffer[i++] & 0x3F;
+            if (t2 < 0x10000 || t2 > 0x10FFFF)
+                str += replacementChar;
+            else {
+                t2 -= 0x10000;
+                str += String.fromCharCode(0xD800 + (t2 >> 10));
+                str += String.fromCharCode(0xDC00 + (t2 & 0x3FF));
+            }
         }
     }
-    if (parts) {
-        if (i)
-            parts.push(String.fromCharCode.apply(String, chunk.slice(0, i)));
-        return parts.join("");
-    }
-    return String.fromCharCode.apply(String, chunk.slice(0, i));
+
+    return str;
 };
 
 /**
@@ -32274,7 +32304,11 @@ var Namespace = $protobuf.Namespace,
     MapField  = $protobuf.MapField,
     OneOf     = $protobuf.OneOf,
     Service   = $protobuf.Service,
-    Method    = $protobuf.Method;
+    Method    = $protobuf.Method,
+    patterns  = $protobuf.util.patterns;
+
+var numberRe  = patterns.numberRe,
+    typeRefRe = patterns.typeRefRe;
 
 // --- Root ---
 
@@ -32299,6 +32333,25 @@ var Namespace = $protobuf.Namespace,
  * @property {IFileOptions} [options] Options
  * @property {*} [sourceCodeInfo] Not supported
  * @property {string} [syntax="proto2"] Syntax
+ * @property {IEdition} [edition] Edition
+ */
+
+/**
+ * Values of the Edition enum.
+ * @typedef IEdition
+ * @type {number}
+ * @property {number} EDITION_UNKNOWN=0
+ * @property {number} EDITION_LEGACY=900
+ * @property {number} EDITION_PROTO2=998
+ * @property {number} EDITION_PROTO3=999
+ * @property {number} EDITION_2023=1000
+ * @property {number} EDITION_2024=1001
+ * @property {number} EDITION_1_TEST_ONLY=1
+ * @property {number} EDITION_2_TEST_ONLY=2
+ * @property {number} EDITION_99997_TEST_ONLY=99997
+ * @property {number} EDITION_99998_TEST_ONLY=99998
+ * @property {number} EDITION_99998_TEST_ONLY=99999
+ * @property {number} EDITION_MAX=2147483647
  */
 
 /**
@@ -32349,20 +32402,21 @@ Root.fromDescriptor = function fromDescriptor(descriptor) {
             filePackage = root;
             if ((fileDescriptor = descriptor.file[j])["package"] && fileDescriptor["package"].length)
                 filePackage = root.define(fileDescriptor["package"]);
+            var edition = editionFromDescriptor(fileDescriptor);
             if (fileDescriptor.name && fileDescriptor.name.length)
                 root.files.push(filePackage.filename = fileDescriptor.name);
             if (fileDescriptor.messageType)
                 for (i = 0; i < fileDescriptor.messageType.length; ++i)
-                    filePackage.add(Type.fromDescriptor(fileDescriptor.messageType[i], fileDescriptor.syntax));
+                    filePackage.add(Type.fromDescriptor(fileDescriptor.messageType[i], edition));
             if (fileDescriptor.enumType)
                 for (i = 0; i < fileDescriptor.enumType.length; ++i)
-                    filePackage.add(Enum.fromDescriptor(fileDescriptor.enumType[i]));
+                    filePackage.add(Enum.fromDescriptor(fileDescriptor.enumType[i], edition));
             if (fileDescriptor.extension)
                 for (i = 0; i < fileDescriptor.extension.length; ++i)
-                    filePackage.add(Field.fromDescriptor(fileDescriptor.extension[i]));
+                    filePackage.add(Field.fromDescriptor(fileDescriptor.extension[i], edition));
             if (fileDescriptor.service)
                 for (i = 0; i < fileDescriptor.service.length; ++i)
-                    filePackage.add(Service.fromDescriptor(fileDescriptor.service[i]));
+                    filePackage.add(Service.fromDescriptor(fileDescriptor.service[i], edition));
             var opts = fromDescriptorOptions(fileDescriptor.options, exports.FileOptions);
             if (opts) {
                 var ks = Object.keys(opts);
@@ -32372,42 +32426,41 @@ Root.fromDescriptor = function fromDescriptor(descriptor) {
         }
     }
 
-    return root;
+    return root.resolveAll();
 };
 
 /**
  * Converts a root to a descriptor set.
  * @returns {Message<IFileDescriptorSet>} Descriptor
- * @param {string} [syntax="proto2"] Syntax
+ * @param {string} [edition="proto2"] The syntax or edition to use
  */
-Root.prototype.toDescriptor = function toDescriptor(syntax) {
+Root.prototype.toDescriptor = function toDescriptor(edition) {
     var set = exports.FileDescriptorSet.create();
-    Root_toDescriptorRecursive(this, set.file, syntax);
+    Root_toDescriptorRecursive(this, set.file, edition);
     return set;
 };
 
 // Traverses a namespace and assembles the descriptor set
-function Root_toDescriptorRecursive(ns, files, syntax) {
+function Root_toDescriptorRecursive(ns, files, edition) {
 
     // Create a new file
     var file = exports.FileDescriptorProto.create({ name: ns.filename || (ns.fullName.substring(1).replace(/\./g, "_") || "root") + ".proto" });
-    if (syntax)
-        file.syntax = syntax;
+    editionToDescriptor(edition, file);
     if (!(ns instanceof Root))
         file["package"] = ns.fullName.substring(1);
 
     // Add nested types
     for (var i = 0, nested; i < ns.nestedArray.length; ++i)
         if ((nested = ns._nestedArray[i]) instanceof Type)
-            file.messageType.push(nested.toDescriptor(syntax));
+            file.messageType.push(nested.toDescriptor(edition));
         else if (nested instanceof Enum)
             file.enumType.push(nested.toDescriptor());
         else if (nested instanceof Field)
-            file.extension.push(nested.toDescriptor(syntax));
+            file.extension.push(nested.toDescriptor(edition));
         else if (nested instanceof Service)
             file.service.push(nested.toDescriptor());
         else if (nested instanceof /* plain */ Namespace)
-            Root_toDescriptorRecursive(nested, files, syntax); // requires new file
+            Root_toDescriptorRecursive(nested, files, edition); // requires new file
 
     // Keep package-level options
     file.options = toDescriptorOptions(ns.options, exports.FileOptions);
@@ -32458,12 +32511,15 @@ var unnamedMessageIndex = 0;
 
 /**
  * Creates a type from a descriptor.
+ *
+ * Warning: this is not safe to use with editions protos, since it discards relevant file context.
+ *
  * @param {IDescriptorProto|Reader|Uint8Array} descriptor Descriptor
- * @param {string} [syntax="proto2"] Syntax
+ * @param {string} [edition="proto2"] The syntax or edition to use
+ * @param {boolean} [nested=false] Whether or not this is a nested object
  * @returns {Type} Type instance
  */
-Type.fromDescriptor = function fromDescriptor(descriptor, syntax) {
-
+Type.fromDescriptor = function fromDescriptor(descriptor, edition, nested) {
     // Decode the descriptor message if specified as a buffer:
     if (typeof descriptor.length === "number")
         descriptor = exports.DescriptorProto.decode(descriptor);
@@ -32472,28 +32528,31 @@ Type.fromDescriptor = function fromDescriptor(descriptor, syntax) {
     var type = new Type(descriptor.name.length ? descriptor.name : "Type" + unnamedMessageIndex++, fromDescriptorOptions(descriptor.options, exports.MessageOptions)),
         i;
 
+    if (!nested)
+        type._edition = edition;
+
     /* Oneofs */ if (descriptor.oneofDecl)
         for (i = 0; i < descriptor.oneofDecl.length; ++i)
             type.add(OneOf.fromDescriptor(descriptor.oneofDecl[i]));
     /* Fields */ if (descriptor.field)
         for (i = 0; i < descriptor.field.length; ++i) {
-            var field = Field.fromDescriptor(descriptor.field[i], syntax);
+            var field = Field.fromDescriptor(descriptor.field[i], edition, true);
             type.add(field);
             if (descriptor.field[i].hasOwnProperty("oneofIndex")) // eslint-disable-line no-prototype-builtins
                 type.oneofsArray[descriptor.field[i].oneofIndex].add(field);
         }
     /* Extension fields */ if (descriptor.extension)
         for (i = 0; i < descriptor.extension.length; ++i)
-            type.add(Field.fromDescriptor(descriptor.extension[i], syntax));
+            type.add(Field.fromDescriptor(descriptor.extension[i], edition, true));
     /* Nested types */ if (descriptor.nestedType)
         for (i = 0; i < descriptor.nestedType.length; ++i) {
-            type.add(Type.fromDescriptor(descriptor.nestedType[i], syntax));
+            type.add(Type.fromDescriptor(descriptor.nestedType[i], edition, true));
             if (descriptor.nestedType[i].options && descriptor.nestedType[i].options.mapEntry)
                 type.setOption("map_entry", true);
         }
     /* Nested enums */ if (descriptor.enumType)
         for (i = 0; i < descriptor.enumType.length; ++i)
-            type.add(Enum.fromDescriptor(descriptor.enumType[i]));
+            type.add(Enum.fromDescriptor(descriptor.enumType[i], edition, true));
     /* Extension ranges */ if (descriptor.extensionRange && descriptor.extensionRange.length) {
         type.extensions = [];
         for (i = 0; i < descriptor.extensionRange.length; ++i)
@@ -32515,18 +32574,18 @@ Type.fromDescriptor = function fromDescriptor(descriptor, syntax) {
 /**
  * Converts a type to a descriptor.
  * @returns {Message<IDescriptorProto>} Descriptor
- * @param {string} [syntax="proto2"] Syntax
+ * @param {string} [edition="proto2"] The syntax or edition to use
  */
-Type.prototype.toDescriptor = function toDescriptor(syntax) {
+Type.prototype.toDescriptor = function toDescriptor(edition) {
     var descriptor = exports.DescriptorProto.create({ name: this.name }),
         i;
 
     /* Fields */ for (i = 0; i < this.fieldsArray.length; ++i) {
         var fieldDescriptor;
-        descriptor.field.push(fieldDescriptor = this._fieldsArray[i].toDescriptor(syntax));
+        descriptor.field.push(fieldDescriptor = this._fieldsArray[i].toDescriptor(edition));
         if (this._fieldsArray[i] instanceof MapField) { // map fields are repeated FieldNameEntry
-            var keyType = toDescriptorType(this._fieldsArray[i].keyType, this._fieldsArray[i].resolvedKeyType),
-                valueType = toDescriptorType(this._fieldsArray[i].type, this._fieldsArray[i].resolvedType),
+            var keyType = toDescriptorType(this._fieldsArray[i].keyType, this._fieldsArray[i].resolvedKeyType, false),
+                valueType = toDescriptorType(this._fieldsArray[i].type, this._fieldsArray[i].resolvedType, false),
                 valueTypeName = valueType === /* type */ 11 || valueType === /* enum */ 14
                     ? this._fieldsArray[i].resolvedType && shortname(this.parent, this._fieldsArray[i].resolvedType) || this._fieldsArray[i].type
                     : undefined;
@@ -32544,9 +32603,9 @@ Type.prototype.toDescriptor = function toDescriptor(syntax) {
         descriptor.oneofDecl.push(this._oneofsArray[i].toDescriptor());
     /* Nested... */ for (i = 0; i < this.nestedArray.length; ++i) {
         /* Extension fields */ if (this._nestedArray[i] instanceof Field)
-            descriptor.field.push(this._nestedArray[i].toDescriptor(syntax));
+            descriptor.field.push(this._nestedArray[i].toDescriptor(edition));
         /* Types */ else if (this._nestedArray[i] instanceof Type)
-            descriptor.nestedType.push(this._nestedArray[i].toDescriptor(syntax));
+            descriptor.nestedType.push(this._nestedArray[i].toDescriptor(edition));
         /* Enums */ else if (this._nestedArray[i] instanceof Enum)
             descriptor.enumType.push(this._nestedArray[i].toDescriptor());
         // plain nested namespaces become packages instead in Root#toDescriptor
@@ -32632,16 +32691,17 @@ Type.prototype.toDescriptor = function toDescriptor(syntax) {
  * @property {number} JS_NUMBER=2
  */
 
-// copied here from parse.js
-var numberRe = /^(?![eE])[0-9]*(?:\.[0-9]*)?(?:[eE][+-]?[0-9]+)?$/;
-
 /**
  * Creates a field from a descriptor.
+ *
+ * Warning: this is not safe to use with editions protos, since it discards relevant file context.
+ *
  * @param {IFieldDescriptorProto|Reader|Uint8Array} descriptor Descriptor
- * @param {string} [syntax="proto2"] Syntax
+ * @param {string} [edition="proto2"] The syntax or edition to use
+ * @param {boolean} [nested=false] Whether or not this is a top-level object
  * @returns {Field} Field instance
  */
-Field.fromDescriptor = function fromDescriptor(descriptor, syntax) {
+Field.fromDescriptor = function fromDescriptor(descriptor, edition, nested) {
 
     // Decode the descriptor message if specified as a buffer:
     if (typeof descriptor.length === "number")
@@ -32651,10 +32711,13 @@ Field.fromDescriptor = function fromDescriptor(descriptor, syntax) {
         throw Error("missing field id");
 
     // Rewire field type
-    var fieldType;
-    if (descriptor.typeName && descriptor.typeName.length)
-        fieldType = descriptor.typeName;
-    else
+    var typeName = descriptor.typeName,
+        fieldType;
+    if (typeName != null && typeName !== "") {
+        if (typeof typeName !== "string" || !typeRefRe.test(typeName))
+            throw Error("illegal type name: " + typeName);
+        fieldType = typeName;
+    } else
         fieldType = fromDescriptorType(descriptor.type);
 
     // Rewire field rule
@@ -32667,10 +32730,12 @@ Field.fromDescriptor = function fromDescriptor(descriptor, syntax) {
         default: throw Error("illegal label: " + descriptor.label);
     }
 
-	var extendee = descriptor.extendee;
-	if (descriptor.extendee !== undefined) {
-		extendee = extendee.length ? extendee : undefined;
-	}
+    var extendee = descriptor.extendee;
+    if (extendee != null && extendee !== "") {
+        if (typeof extendee !== "string" || !typeRefRe.test(extendee))
+            throw Error("illegal type name: " + extendee);
+    } else
+        extendee = undefined;
     var field = new Field(
         descriptor.name.length ? descriptor.name : "field" + descriptor.number,
         descriptor.number,
@@ -32679,7 +32744,12 @@ Field.fromDescriptor = function fromDescriptor(descriptor, syntax) {
         extendee
     );
 
+    if (!nested)
+        field._edition = edition;
+
     field.options = fromDescriptorOptions(descriptor.options, exports.FieldOptions);
+    if (descriptor.proto3_optional)
+        field.options.proto3_optional = true;
 
     if (descriptor.defaultValue && descriptor.defaultValue.length) {
         var defaultValue = descriptor.defaultValue;
@@ -32700,11 +32770,11 @@ Field.fromDescriptor = function fromDescriptor(descriptor, syntax) {
     }
 
     if (packableDescriptorType(descriptor.type)) {
-        if (syntax === "proto3") { // defaults to packed=true (internal preset is packed=true)
+        if (edition === "proto3") { // defaults to packed=true (internal preset is packed=true)
             if (descriptor.options && !descriptor.options.packed)
                 field.setOption("packed", false);
-        } else if (!(descriptor.options && descriptor.options.packed)) // defaults to packed=false
-            field.setOption("packed", false);
+        } else if ((!edition || edition === "proto2") && descriptor.options && descriptor.options.packed) // defaults to packed=false
+            field.setOption("packed", true);
     }
 
     return field;
@@ -32713,9 +32783,9 @@ Field.fromDescriptor = function fromDescriptor(descriptor, syntax) {
 /**
  * Converts a field to a descriptor.
  * @returns {Message<IFieldDescriptorProto>} Descriptor
- * @param {string} [syntax="proto2"] Syntax
+ * @param {string} [edition="proto2"] The syntax or edition to use
  */
-Field.prototype.toDescriptor = function toDescriptor(syntax) {
+Field.prototype.toDescriptor = function toDescriptor(edition) {
     var descriptor = exports.FieldDescriptorProto.create({ name: this.name, number: this.id });
 
     if (this.map) {
@@ -32727,7 +32797,7 @@ Field.prototype.toDescriptor = function toDescriptor(syntax) {
     } else {
 
         // Rewire field type
-        switch (descriptor.type = toDescriptorType(this.type, this.resolve().resolvedType)) {
+        switch (descriptor.type = toDescriptorType(this.type, this.resolve().resolvedType, this.delimited)) {
             case 10: // group
             case 11: // type
             case 14: // enum
@@ -32736,32 +32806,36 @@ Field.prototype.toDescriptor = function toDescriptor(syntax) {
         }
 
         // Rewire field rule
-        switch (this.rule) {
-            case "repeated": descriptor.label = 3; break;
-            case "required": descriptor.label = 2; break;
-            default: descriptor.label = 1; break;
+        if (this.rule === "repeated") {
+            descriptor.label = 3;
+        } else if (this.required && edition === "proto2") {
+            descriptor.label = 2;
+        } else {
+            descriptor.label = 1;
         }
-
     }
 
     // Handle extension field
     descriptor.extendee = this.extensionField ? this.extensionField.parent.fullName : this.extend;
 
-    // Handle part of oneof
-    if (this.partOf)
+    // Handle part of oneof (only meaningful for message types)
+    if (this.partOf && this.parent instanceof Type) {
         if ((descriptor.oneofIndex = this.parent.oneofsArray.indexOf(this.partOf)) < 0)
             throw Error("missing oneof");
+    }
 
     if (this.options) {
         descriptor.options = toDescriptorOptions(this.options, exports.FieldOptions);
         if (this.options["default"] != null)
             descriptor.defaultValue = String(this.options["default"]);
+        if (this.options.proto3_optional)
+            descriptor.proto3_optional = true;
     }
 
-    if (syntax === "proto3") { // defaults to packed=true
+    if (edition === "proto3") { // defaults to packed=true
         if (!this.packed)
             (descriptor.options || (descriptor.options = exports.FieldOptions.create())).packed = false;
-    } else if (this.packed) // defaults to packed=false
+    } else if ((!edition || edition === "proto2") && this.packed) // defaults to packed=false
         (descriptor.options || (descriptor.options = exports.FieldOptions.create())).packed = true;
 
     return descriptor;
@@ -32796,10 +32870,15 @@ var unnamedEnumIndex = 0;
 
 /**
  * Creates an enum from a descriptor.
+ *
+ * Warning: this is not safe to use with editions protos, since it discards relevant file context.
+ *
  * @param {IEnumDescriptorProto|Reader|Uint8Array} descriptor Descriptor
+ * @param {string} [edition="proto2"] The syntax or edition to use
+ * @param {boolean} [nested=false] Whether or not this is a top-level object
  * @returns {Enum} Enum instance
  */
-Enum.fromDescriptor = function fromDescriptor(descriptor) {
+Enum.fromDescriptor = function fromDescriptor(descriptor, edition, nested) {
 
     // Decode the descriptor message if specified as a buffer:
     if (typeof descriptor.length === "number")
@@ -32814,11 +32893,16 @@ Enum.fromDescriptor = function fromDescriptor(descriptor) {
             values[name && name.length ? name : "NAME" + value] = value;
         }
 
-    return new Enum(
+    var enm = new Enum(
         descriptor.name && descriptor.name.length ? descriptor.name : "Enum" + unnamedEnumIndex++,
         values,
         fromDescriptorOptions(descriptor.options, exports.EnumOptions)
     );
+
+    if (!nested)
+        enm._edition = edition;
+
+    return enm;
 };
 
 /**
@@ -32852,6 +32936,9 @@ var unnamedOneofIndex = 0;
 
 /**
  * Creates a oneof from a descriptor.
+ *
+ * Warning: this is not safe to use with editions protos, since it discards relevant file context.
+ *
  * @param {IOneofDescriptorProto|Reader|Uint8Array} descriptor Descriptor
  * @returns {OneOf} OneOf instance
  */
@@ -32899,16 +32986,23 @@ var unnamedServiceIndex = 0;
 
 /**
  * Creates a service from a descriptor.
+ *
+ * Warning: this is not safe to use with editions protos, since it discards relevant file context.
+ *
  * @param {IServiceDescriptorProto|Reader|Uint8Array} descriptor Descriptor
+ * @param {string} [edition="proto2"] The syntax or edition to use
+ * @param {boolean} [nested=false] Whether or not this is a top-level object
  * @returns {Service} Service instance
  */
-Service.fromDescriptor = function fromDescriptor(descriptor) {
+Service.fromDescriptor = function fromDescriptor(descriptor, edition, nested) {
 
     // Decode the descriptor message if specified as a buffer:
     if (typeof descriptor.length === "number")
         descriptor = exports.ServiceDescriptorProto.decode(descriptor);
 
     var service = new Service(descriptor.name && descriptor.name.length ? descriptor.name : "Service" + unnamedServiceIndex++, fromDescriptorOptions(descriptor.options, exports.ServiceOptions));
+    if (!nested)
+        service._edition = edition;
     if (descriptor.method)
         for (var i = 0; i < descriptor.method.length; ++i)
             service.add(Method.fromDescriptor(descriptor.method[i]));
@@ -32949,6 +33043,9 @@ Service.prototype.toDescriptor = function toDescriptor() {
 
 /**
  * Properties of a MethodOptions message.
+ *
+ * Warning: this is not safe to use with editions protos, since it discards relevant file context.
+ *
  * @interface IMethodOptions
  * @property {boolean} [deprecated]
  */
@@ -32966,12 +33063,24 @@ Method.fromDescriptor = function fromDescriptor(descriptor) {
     if (typeof descriptor.length === "number")
         descriptor = exports.MethodDescriptorProto.decode(descriptor);
 
+    var inputType = descriptor.inputType,
+        outputType = descriptor.outputType;
+
+    if (inputType != null && inputType !== "") {
+        if (typeof inputType !== "string" || !typeRefRe.test(inputType))
+            throw Error("illegal type name: " + inputType);
+    }
+    if (outputType != null && outputType !== "") {
+        if (typeof outputType !== "string" || !typeRefRe.test(outputType))
+            throw Error("illegal type name: " + outputType);
+    }
+
     return new Method(
         // unnamedMethodIndex is global, not per service, because we have no ref to a service here
         descriptor.name && descriptor.name.length ? descriptor.name : "Method" + unnamedMethodIndex++,
         "rpc",
-        descriptor.inputType,
-        descriptor.outputType,
+        inputType,
+        outputType,
         Boolean(descriptor.clientStreaming),
         Boolean(descriptor.serverStreaming),
         fromDescriptorOptions(descriptor.options, exports.MethodOptions)
@@ -33041,7 +33150,7 @@ function packableDescriptorType(type) {
 }
 
 // Converts a protobuf.js basic type to a descriptor type
-function toDescriptorType(type, resolvedType) {
+function toDescriptorType(type, resolvedType, delimited) {
     switch (type) {
         // 0 is reserved for errors
         case "double": return 1;
@@ -33063,41 +33172,60 @@ function toDescriptorType(type, resolvedType) {
     if (resolvedType instanceof Enum)
         return 14;
     if (resolvedType instanceof Type)
-        return resolvedType.group ? 10 : 11;
+        return delimited ? 10 : 11;
     throw Error("illegal type: " + type);
+}
+
+function fromDescriptorOptionsRecursive(obj, type) {
+    var val = {};
+    for (var i = 0, field, key; i < type.fieldsArray.length; ++i) {
+        if ((key = (field = type._fieldsArray[i]).name) === "uninterpretedOption") continue;
+        if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+
+        var newKey = underScore(key);
+        if (field.resolvedType instanceof Type) {
+            val[newKey] = fromDescriptorOptionsRecursive(obj[key], field.resolvedType);
+        } else if(field.resolvedType instanceof Enum) {
+            val[newKey] = field.resolvedType.valuesById[obj[key]];
+        } else {
+            val[newKey] = obj[key];
+        }
+    }
+    return val;
 }
 
 // Converts descriptor options to an options object
 function fromDescriptorOptions(options, type) {
     if (!options)
         return undefined;
-    var out = [];
-    for (var i = 0, field, key, val; i < type.fieldsArray.length; ++i)
-        if ((key = (field = type._fieldsArray[i]).name) !== "uninterpretedOption")
-            if (options.hasOwnProperty(key)) { // eslint-disable-line no-prototype-builtins
-                val = options[key];
-                if (field.resolvedType instanceof Enum && typeof val === "number" && field.resolvedType.valuesById[val] !== undefined)
-                    val = field.resolvedType.valuesById[val];
-                out.push(underScore(key), val);
-            }
-    return out.length ? $protobuf.util.toObject(out) : undefined;
+    return fromDescriptorOptionsRecursive(type.toObject(options), type);
+}
+
+function toDescriptorOptionsRecursive(obj, type) {
+    var val = {};
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; ++i) {
+        var key = keys[i];
+        var newKey = $protobuf.util.camelCase(key);
+        if (!Object.prototype.hasOwnProperty.call(type.fields, newKey)) continue;
+        var field = type.fields[newKey];
+        if (field.resolvedType instanceof Type) {
+            val[newKey] = toDescriptorOptionsRecursive(obj[key], field.resolvedType);
+        } else {
+            val[newKey] = obj[key];
+        }
+        if (field.repeated && !Array.isArray(val[newKey])) {
+            val[newKey] = [val[newKey]];
+        }
+    }
+    return val;
 }
 
 // Converts an options object to descriptor options
 function toDescriptorOptions(options, type) {
     if (!options)
         return undefined;
-    var out = [];
-    for (var i = 0, ks = Object.keys(options), key, val; i < ks.length; ++i) {
-        val = options[key = ks[i]];
-        if (key === "default")
-            continue;
-        var field = type.fields[key];
-        if (!field && !(field = type.fields[key = $protobuf.util.camelCase(key)]))
-            continue;
-        out.push(key, val);
-    }
-    return out.length ? type.fromObject($protobuf.util.toObject(out)) : undefined;
+    return type.fromObject(toDescriptorOptionsRecursive(options, type));
 }
 
 // Calculates the shortest relative path from `from` to `to`.
@@ -33124,6 +33252,37 @@ function underScore(str) {
     return str.substring(0,1)
          + str.substring(1)
                .replace(/([A-Z])(?=[a-z]|$)/g, function($0, $1) { return "_" + $1.toLowerCase(); });
+}
+
+function editionFromDescriptor(fileDescriptor) {
+    if (fileDescriptor.syntax === "editions") {
+        switch(fileDescriptor.edition) {
+            case exports.Edition.EDITION_2023:
+                return "2023";
+            default:
+                throw new Error("Unsupported edition " + fileDescriptor.edition);
+        }
+    }
+    if (fileDescriptor.syntax === "proto3") {
+        return "proto3";
+    }
+    return "proto2";
+}
+
+function editionToDescriptor(edition, fileDescriptor) {
+    if (!edition) return;
+    if (edition === "proto2" || edition === "proto3") {
+        fileDescriptor.syntax = edition;
+    } else {
+        fileDescriptor.syntax = "editions";
+        switch(edition) {
+            case "2023":
+                fileDescriptor.edition = exports.Edition.EDITION_2023;
+                break;
+            default:
+                throw new Error("Unsupported edition " + edition);
+        }
+    }
 }
 
 // --- exports ---
@@ -33786,7 +33945,7 @@ function genValuePartial_fromObject(gen, field, fieldIndex, prop) {
         } else gen
             ("if(typeof d%s!==\"object\")", prop)
                 ("throw TypeError(%j)", field.fullName + ": object expected")
-            ("m%s=types[%i].fromObject(d%s)", prop, fieldIndex, prop);
+            ("m%s=types[%i].fromObject(d%s,n+1)", prop, fieldIndex, prop);
     } else {
         var isUnsigned = false;
         switch (field.type) {
@@ -33848,9 +34007,12 @@ function genValuePartial_fromObject(gen, field, fieldIndex, prop) {
 converter.fromObject = function fromObject(mtype) {
     /* eslint-disable no-unexpected-multiline, block-scoped-var, no-redeclare */
     var fields = mtype.fieldsArray;
-    var gen = util.codegen(["d"], mtype.name + "$fromObject")
+    var gen = util.codegen(["d", "n"], mtype.name + "$fromObject")
     ("if(d instanceof this.ctor)")
-        ("return d");
+        ("return d")
+    ("if(n===undefined)n=0")
+    ("if(n>util.recursionLimit)")
+        ("throw Error(\"maximum nesting depth exceeded\")");
     if (!fields.length) return gen
     ("return new this.ctor");
     gen
@@ -33866,6 +34028,9 @@ converter.fromObject = function fromObject(mtype) {
             ("throw TypeError(%j)", field.fullName + ": object expected")
         ("m%s={}", prop)
         ("for(var ks=Object.keys(d%s),i=0;i<ks.length;++i){", prop);
+            gen
+        ("if(ks[i]===\"__proto__\")")
+            ("util.makeProp(m%s,ks[i])", prop);
             genValuePartial_fromObject(gen, field, /* not sorted */ i, prop + "[ks[i]]")
         ("}")
     ("}");
@@ -33996,11 +34161,11 @@ converter.toObject = function toObject(mtype) {
         ("}else")
             ("d%s=o.longs===String?%j:%i", prop, field.typeDefault.toString(), field.typeDefault.toNumber());
             else if (field.bytes) {
-                var arrayDefault = "[" + Array.prototype.slice.call(field.typeDefault).join(",") + "]";
+                var arrayDefault = Array.prototype.slice.call(field.typeDefault);
                 gen
         ("if(o.bytes===String)d%s=%j", prop, String.fromCharCode.apply(String, field.typeDefault))
         ("else{")
-            ("d%s=%s", prop, arrayDefault)
+            ("d%s=%j", prop, arrayDefault)
             ("if(o.bytes!==Array)d%s=util.newBuffer(d%s)", prop, prop)
         ("}");
             } else gen
@@ -34020,6 +34185,9 @@ converter.toObject = function toObject(mtype) {
     ("if(m%s&&(ks2=Object.keys(m%s)).length){", prop, prop)
         ("d%s={}", prop)
         ("for(var j=0;j<ks2.length;++j){");
+            gen
+        ("if(ks2[j]===\"__proto__\")")
+            ("util.makeProp(d%s,ks2[j])", prop);
             genValuePartial_toObject(gen, field, /* sorted */ index, prop + "[ks2[j]]")
         ("}");
         } else if (field.repeated) { gen
@@ -34068,16 +34236,17 @@ function missing(field) {
  */
 function decoder(mtype) {
     /* eslint-disable no-unexpected-multiline */
-    var gen = util.codegen(["r", "l"], mtype.name + "$decode")
+    var gen = util.codegen(["r", "l", "e", "n"], mtype.name + "$decode")
     ("if(!(r instanceof Reader))")
         ("r=Reader.create(r)")
+    ("if(n===undefined)n=0")
+    ("if(n>Reader.recursionLimit)")
+        ("throw Error(\"maximum nesting depth exceeded\")")
     ("var c=l===undefined?r.len:r.pos+l,m=new this.ctor" + (mtype.fieldsArray.filter(function(field) { return field.map; }).length ? ",k,value" : ""))
     ("while(r.pos<c){")
-        ("var t=r.uint32()");
-    if (mtype.group) gen
-        ("if((t&7)===4)")
-            ("break");
-    gen
+        ("var t=r.uint32()")
+        ("if(t===e)")
+            ("break")
         ("switch(t>>>3){");
 
     var i = 0;
@@ -34111,22 +34280,27 @@ function decoder(mtype) {
                         ("case 2:");
 
             if (types.basic[type] === undefined) gen
-                            ("value=types[%i].decode(r,r.uint32())", i); // can't be groups
+                            ("value=types[%i].decode(r,r.uint32(),undefined,n+1)", i); // can't be groups
             else gen
                             ("value=r.%s()", type);
 
             gen
                             ("break")
                         ("default:")
-                            ("r.skipType(tag2&7)")
+                            ("r.skipType(tag2&7,n)")
                             ("break")
                     ("}")
                 ("}");
 
             if (types.long[field.keyType] !== undefined) gen
                 ("%s[typeof k===\"object\"?util.longToHash(k):k]=value", ref);
-            else gen
+            else {
+                if (field.keyType === "string") gen
+                ("if(k===\"__proto__\")")
+                    ("util.makeProp(%s,k)", ref);
+                gen
                 ("%s[k]=value", ref);
+            }
 
         // Repeated fields
         } else if (field.repeated) { gen
@@ -34143,16 +34317,16 @@ function decoder(mtype) {
                 ("}else");
 
             // Non-packed
-            if (types.basic[type] === undefined) gen(field.resolvedType.group
-                    ? "%s.push(types[%i].decode(r))"
-                    : "%s.push(types[%i].decode(r,r.uint32()))", ref, i);
+            if (types.basic[type] === undefined) gen(field.delimited
+                    ? "%s.push(types[%i].decode(r,undefined,((t&~7)|4),n+1))"
+                    : "%s.push(types[%i].decode(r,r.uint32(),undefined,n+1))", ref, i);
             else gen
                     ("%s.push(r.%s())", ref, type);
 
         // Non-repeated
-        } else if (types.basic[type] === undefined) gen(field.resolvedType.group
-                ? "%s=types[%i].decode(r)"
-                : "%s=types[%i].decode(r,r.uint32())", ref, i);
+        } else if (types.basic[type] === undefined) gen(field.delimited
+                ? "%s=types[%i].decode(r,undefined,((t&~7)|4),n+1)"
+                : "%s=types[%i].decode(r,r.uint32(),undefined,n+1)", ref, i);
         else gen
                 ("%s=r.%s()", ref, type);
         gen
@@ -34161,7 +34335,7 @@ function decoder(mtype) {
         // Unknown fields
     } gen
             ("default:")
-                ("r.skipType(t&7)")
+                ("r.skipType(t&7,n)")
                 ("break")
 
         ("}")
@@ -34204,7 +34378,7 @@ var Enum     = __nccwpck_require__(3528),
  * @ignore
  */
 function genTypePartial(gen, field, fieldIndex, ref) {
-    return field.resolvedType.group
+    return field.delimited
         ? gen("types[%i].encode(%s,w.uint32(%i)).uint32(%i)", fieldIndex, ref, (field.id << 3 | 3) >>> 0, (field.id << 3 | 4) >>> 0)
         : gen("types[%i].encode(%s,w.uint32(%i).fork()).ldelim()", fieldIndex, ref, (field.id << 3 | 2) >>> 0);
 }
@@ -34354,6 +34528,12 @@ function Enum(name, values, options, comment, comments, valuesOptions) {
     this.valuesOptions = valuesOptions;
 
     /**
+     * Resolved values features, if any
+     * @type {Object<string, Object<string, *>>|undefined}
+     */
+    this._valuesFeatures = {};
+
+    /**
      * Reserved ranges, if any.
      * @type {Array.<number[]|string>}
      */
@@ -34365,9 +34545,24 @@ function Enum(name, values, options, comment, comments, valuesOptions) {
 
     if (values)
         for (var keys = Object.keys(values), i = 0; i < keys.length; ++i)
-            if (typeof values[keys[i]] === "number") // use forward entries only
+            if (keys[i] !== "__proto__" && typeof values[keys[i]] === "number") // use forward entries only
                 this.valuesById[ this.values[keys[i]] = values[keys[i]] ] = keys[i];
 }
+
+/**
+ * @override
+ */
+Enum.prototype._resolveFeatures = function _resolveFeatures(edition) {
+    edition = this._edition || edition;
+    ReflectionObject.prototype._resolveFeatures.call(this, edition);
+
+    Object.keys(this.values).forEach(key => {
+        var parentFeaturesCopy = Object.assign({}, this._features);
+        this._valuesFeatures[key] = Object.assign(parentFeaturesCopy, this.valuesOptions && this.valuesOptions[key] && this.valuesOptions[key].features);
+    });
+
+    return this;
+};
 
 /**
  * Enum descriptor.
@@ -34386,6 +34581,9 @@ function Enum(name, values, options, comment, comments, valuesOptions) {
 Enum.fromJSON = function fromJSON(name, json) {
     var enm = new Enum(name, json.values, json.options, json.comment, json.comments);
     enm.reserved = json.reserved;
+    if (json.edition)
+        enm._edition = json.edition;
+    enm._defaultEdition = "proto3";  // For backwards-compatibility.
     return enm;
 };
 
@@ -34397,6 +34595,7 @@ Enum.fromJSON = function fromJSON(name, json) {
 Enum.prototype.toJSON = function toJSON(toJSONOptions) {
     var keepComments = toJSONOptions ? Boolean(toJSONOptions.keepComments) : false;
     return util.toObject([
+        "edition"       , this._editionToJSON(),
         "options"       , this.options,
         "valuesOptions" , this.valuesOptions,
         "values"        , this.values,
@@ -34424,6 +34623,9 @@ Enum.prototype.add = function add(name, id, comment, options) {
 
     if (!util.isInteger(id))
         throw TypeError("id must be an integer");
+
+    if (name === "__proto__")
+        return this;
 
     if (this.values[name] !== undefined)
         throw Error("duplicate name '" + name + "' in " + this);
@@ -34538,7 +34740,11 @@ var ruleRe = /^required|optional|repeated$/;
  * @throws {TypeError} If arguments are invalid
  */
 Field.fromJSON = function fromJSON(name, json) {
-    return new Field(name, json.id, json.type, json.rule, json.extend, json.options, json.comment);
+    var field = new Field(name, json.id, json.type, json.rule, json.extend, json.options, json.comment);
+    if (json.edition)
+        field._edition = json.edition;
+    field._defaultEdition = "proto3";  // For backwards-compatibility.
+    return field;
 };
 
 /**
@@ -34609,18 +34815,6 @@ function Field(name, id, type, rule, extend, options, comment) {
     this.extend = extend || undefined; // toJSON
 
     /**
-     * Whether this field is required.
-     * @type {boolean}
-     */
-    this.required = rule === "required";
-
-    /**
-     * Whether this field is optional.
-     * @type {boolean}
-     */
-    this.optional = !this.required;
-
-    /**
      * Whether this field is repeated.
      * @type {boolean}
      */
@@ -34687,13 +34881,6 @@ function Field(name, id, type, rule, extend, options, comment) {
     this.declaringField = null;
 
     /**
-     * Internally remembers whether this field is packed.
-     * @type {boolean|null}
-     * @private
-     */
-    this._packed = null;
-
-    /**
      * Comment for this field.
      * @type {string|null}
      */
@@ -34701,17 +34888,69 @@ function Field(name, id, type, rule, extend, options, comment) {
 }
 
 /**
- * Determines whether this field is packed. Only relevant when repeated and working with proto2.
+ * Determines whether this field is required.
+ * @name Field#required
+ * @type {boolean}
+ * @readonly
+ */
+Object.defineProperty(Field.prototype, "required", {
+    get: function() {
+        return this._features.field_presence === "LEGACY_REQUIRED";
+    }
+});
+
+/**
+ * Determines whether this field is not required.
+ * @name Field#optional
+ * @type {boolean}
+ * @readonly
+ */
+Object.defineProperty(Field.prototype, "optional", {
+    get: function() {
+        return !this.required;
+    }
+});
+
+/**
+ * Determines whether this field uses tag-delimited encoding.  In proto2 this
+ * corresponded to group syntax.
+ * @name Field#delimited
+ * @type {boolean}
+ * @readonly
+ */
+Object.defineProperty(Field.prototype, "delimited", {
+    get: function() {
+        return this.resolvedType instanceof Type &&
+            this._features.message_encoding === "DELIMITED";
+    }
+});
+
+/**
+ * Determines whether this field is packed. Only relevant when repeated.
  * @name Field#packed
  * @type {boolean}
  * @readonly
  */
 Object.defineProperty(Field.prototype, "packed", {
     get: function() {
-        // defaults to packed=true if not explicity set to false
-        if (this._packed === null)
-            this._packed = this.getOption("packed") !== false;
-        return this._packed;
+        return this._features.repeated_field_encoding === "PACKED";
+    }
+});
+
+/**
+ * Determines whether this field tracks presence.
+ * @name Field#hasPresence
+ * @type {boolean}
+ * @readonly
+ */
+Object.defineProperty(Field.prototype, "hasPresence", {
+    get: function() {
+        if (this.repeated || this.map) {
+            return false;
+        }
+        return this.partOf || // oneofs
+            this.declaringField || this.extensionField || // extensions
+            this._features.field_presence !== "IMPLICIT";
     }
 });
 
@@ -34719,8 +34958,6 @@ Object.defineProperty(Field.prototype, "packed", {
  * @override
  */
 Field.prototype.setOption = function setOption(name, value, ifNotSet) {
-    if (name === "packed") // clear cached before setting
-        this._packed = null;
     return ReflectionObject.prototype.setOption.call(this, name, value, ifNotSet);
 };
 
@@ -34748,6 +34985,7 @@ Field.prototype.setOption = function setOption(name, value, ifNotSet) {
 Field.prototype.toJSON = function toJSON(toJSONOptions) {
     var keepComments = toJSONOptions ? Boolean(toJSONOptions.keepComments) : false;
     return util.toObject([
+        "edition" , this._editionToJSON(),
         "rule"    , this.rule !== "optional" && this.rule || undefined,
         "type"    , this.type,
         "id"      , this.id,
@@ -34787,7 +35025,7 @@ Field.prototype.resolve = function resolve() {
 
     // remove unnecessary options
     if (this.options) {
-        if (this.options.packed === true || this.options.packed !== undefined && this.resolvedType && !(this.resolvedType instanceof Enum))
+        if (this.options.packed !== undefined && this.resolvedType && !(this.resolvedType instanceof Enum))
             delete this.options.packed;
         if (!Object.keys(this.options).length)
             this.options = undefined;
@@ -34823,6 +35061,46 @@ Field.prototype.resolve = function resolve() {
         this.parent.ctor.prototype[this.name] = this.defaultValue;
 
     return ReflectionObject.prototype.resolve.call(this);
+};
+
+/**
+ * Infers field features from legacy syntax that may have been specified differently.
+ * in older editions.
+ * @param {string|undefined} edition The edition this proto is on, or undefined if pre-editions
+ * @returns {object} The feature values to override
+ */
+Field.prototype._inferLegacyProtoFeatures = function _inferLegacyProtoFeatures(edition) {
+    if (edition !== "proto2" && edition !== "proto3") {
+        return {};
+    }
+
+    var features = {};
+
+    if (this.rule === "required") {
+        features.field_presence = "LEGACY_REQUIRED";
+    }
+    if (this.parent && types.defaults[this.type] === undefined) {
+        // We can't use resolvedType because types may not have been resolved yet.  However,
+        // legacy groups are always in the same scope as the field so we don't have to do a
+        // full scan of the tree.
+        var type = this.parent.get(this.type.split(".").pop());
+        if (type && type instanceof Type && type.group) {
+            features.message_encoding = "DELIMITED";
+        }
+    }
+    if (this.getOption("packed") === true) {
+        features.repeated_field_encoding = "PACKED";
+    } else if (this.getOption("packed") === false) {
+        features.repeated_field_encoding = "EXPANDED";
+    }
+    return features;
+};
+
+/**
+ * @override
+ */
+Field.prototype._resolveFeatures = function _resolveFeatures(edition) {
+    return ReflectionObject.prototype._resolveFeatures.call(this, this._edition || edition);
 };
 
 /**
@@ -35211,8 +35489,12 @@ var util = __nccwpck_require__(2857);
 function Message(properties) {
     // not used internally
     if (properties)
-        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-            this[keys[i]] = properties[keys[i]];
+        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i) {
+            var key = keys[i];
+            if (key === "__proto__")
+                continue;
+            this[key] = properties[key];
+        }
 }
 
 /**
@@ -35335,6 +35617,7 @@ Message.prototype.toJSON = function toJSON() {
 };
 
 /*eslint-enable valid-jsdoc*/
+
 
 /***/ }),
 
@@ -35620,10 +35903,40 @@ function Namespace(name, options) {
      * @private
      */
     this._nestedArray = null;
+
+    /**
+     * Cache lookup calls for any objects contains anywhere under this namespace.
+     * This drastically speeds up resolve for large cross-linked protos where the same
+     * types are looked up repeatedly.
+     * @type {Object.<string,ReflectionObject|null>}
+     * @private
+     */
+    this._lookupCache = Object.create(null);
+
+    /**
+     * Whether or not objects contained in this namespace need feature resolution.
+     * @type {boolean}
+     * @protected
+     */
+    this._needsRecursiveFeatureResolution = true;
+
+    /**
+     * Whether or not objects contained in this namespace need a resolve.
+     * @type {boolean}
+     * @protected
+     */
+    this._needsRecursiveResolve = true;
 }
 
 function clearCache(namespace) {
     namespace._nestedArray = null;
+    namespace._lookupCache = Object.create(null);
+
+    // Also clear parent caches, since they include nested lookups.
+    var parent = namespace;
+    while(parent = parent.parent) {
+        parent._lookupCache = Object.create(null);
+    }
     return namespace;
 }
 
@@ -35703,8 +36016,9 @@ Namespace.prototype.addJSON = function addJSON(nestedJson) {
  * @returns {ReflectionObject|null} The reflection object or `null` if it doesn't exist
  */
 Namespace.prototype.get = function get(name) {
-    return this.nested && this.nested[name]
-        || null;
+    return this.nested && Object.prototype.hasOwnProperty.call(this.nested, name)
+        ? this.nested[name]
+        : null;
 };
 
 /**
@@ -35715,7 +36029,7 @@ Namespace.prototype.get = function get(name) {
  * @throws {Error} If there is no such enum
  */
 Namespace.prototype.getEnum = function getEnum(name) {
-    if (this.nested && this.nested[name] instanceof Enum)
+    if (this.nested && Object.prototype.hasOwnProperty.call(this.nested, name) && this.nested[name] instanceof Enum)
         return this.nested[name].values;
     throw Error("no such enum: " + name);
 };
@@ -35731,6 +36045,9 @@ Namespace.prototype.add = function add(object) {
 
     if (!(object instanceof Field && object.extend !== undefined || object instanceof Type  || object instanceof OneOf || object instanceof Enum || object instanceof Service || object instanceof Namespace))
         throw TypeError("object must be a valid nested object");
+
+    if (object.name === "__proto__")
+        return this;
 
     if (!this.nested)
         this.nested = {};
@@ -35752,6 +36069,25 @@ Namespace.prototype.add = function add(object) {
         }
     }
     this.nested[object.name] = object;
+
+    if (!(this instanceof Type || this instanceof Service || this instanceof Enum || this instanceof Field)) {
+        // This is a package or a root namespace.
+        if (!object._edition) {
+            // Make sure that some edition is set if it hasn't already been specified.
+            object._edition = object._defaultEdition;
+        }
+    }
+
+    this._needsRecursiveFeatureResolution = true;
+    this._needsRecursiveResolve = true;
+
+    // Also clear parent caches, since they need to recurse down.
+    var parent = this;
+    while(parent = parent.parent) {
+        parent._needsRecursiveFeatureResolution = true;
+        parent._needsRecursiveResolve = true;
+    }
+
     object.onAdd(this);
     return clearCache(this);
 };
@@ -35813,13 +36149,35 @@ Namespace.prototype.define = function define(path, json) {
  * @returns {Namespace} `this`
  */
 Namespace.prototype.resolveAll = function resolveAll() {
+    if (!this._needsRecursiveResolve) return this;
+
+    this._resolveFeaturesRecursive(this._edition);
+
     var nested = this.nestedArray, i = 0;
+    this.resolve();
     while (i < nested.length)
         if (nested[i] instanceof Namespace)
             nested[i++].resolveAll();
         else
             nested[i++].resolve();
-    return this.resolve();
+    this._needsRecursiveResolve = false;
+    return this;
+};
+
+/**
+ * @override
+ */
+Namespace.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
+    if (!this._needsRecursiveFeatureResolution) return this;
+    this._needsRecursiveFeatureResolution = false;
+
+    edition = this._edition || edition;
+
+    ReflectionObject.prototype._resolveFeaturesRecursive.call(this, edition);
+    this.nestedArray.forEach(nested => {
+        nested._resolveFeaturesRecursive(edition);
+    });
+    return this;
 };
 
 /**
@@ -35830,7 +36188,6 @@ Namespace.prototype.resolveAll = function resolveAll() {
  * @returns {ReflectionObject|null} Looked up object or `null` if none could be found
  */
 Namespace.prototype.lookup = function lookup(path, filterTypes, parentAlreadyChecked) {
-
     /* istanbul ignore next */
     if (typeof filterTypes === "boolean") {
         parentAlreadyChecked = filterTypes;
@@ -35845,29 +36202,72 @@ Namespace.prototype.lookup = function lookup(path, filterTypes, parentAlreadyChe
     } else if (!path.length)
         return this;
 
+    var flatPath = path.join(".");
+
     // Start at root if path is absolute
     if (path[0] === "")
         return this.root.lookup(path.slice(1), filterTypes);
 
+    // Early bailout for objects with matching absolute paths
+    var found = this.root._fullyQualifiedObjects && this.root._fullyQualifiedObjects["." + flatPath];
+    if (found && (!filterTypes || filterTypes.indexOf(found.constructor) > -1)) {
+        return found;
+    }
+
+    // Do a regular lookup at this namespace and below
+    found = this._lookupImpl(path, flatPath);
+    if (found && (!filterTypes || filterTypes.indexOf(found.constructor) > -1)) {
+        return found;
+    }
+
+    if (parentAlreadyChecked)
+        return null;
+
+    // If there hasn't been a match, walk up the tree and look more broadly
+    var current = this;
+    while (current.parent) {
+        found = current.parent._lookupImpl(path, flatPath);
+        if (found && (!filterTypes || filterTypes.indexOf(found.constructor) > -1)) {
+            return found;
+        }
+        current = current.parent;
+    }
+    return null;
+};
+
+/**
+ * Internal helper for lookup that handles searching just at this namespace and below along with caching.
+ * @param {string[]} path Path to look up
+ * @param {string} flatPath Flattened version of the path to use as a cache key
+ * @returns {ReflectionObject|null} Looked up object or `null` if none could be found
+ * @private
+ */
+Namespace.prototype._lookupImpl = function lookup(path, flatPath) {
+    if(Object.prototype.hasOwnProperty.call(this._lookupCache, flatPath)) {
+        return this._lookupCache[flatPath];
+    }
+
     // Test if the first part matches any nested object, and if so, traverse if path contains more
     var found = this.get(path[0]);
+    var exact = null;
     if (found) {
         if (path.length === 1) {
-            if (!filterTypes || filterTypes.indexOf(found.constructor) > -1)
-                return found;
-        } else if (found instanceof Namespace && (found = found.lookup(path.slice(1), filterTypes, true)))
-            return found;
+            exact = found;
+        } else if (found instanceof Namespace) {
+            path = path.slice(1);
+            exact = found._lookupImpl(path, path.join("."));
+        }
 
     // Otherwise try each nested namespace
-    } else
+    } else {
         for (var i = 0; i < this.nestedArray.length; ++i)
-            if (this._nestedArray[i] instanceof Namespace && (found = this._nestedArray[i].lookup(path, filterTypes, true)))
-                return found;
+            if (this._nestedArray[i] instanceof Namespace && (found = this._nestedArray[i]._lookupImpl(path, flatPath)))
+                exact = found;
+    }
 
-    // If there hasn't been a match, try again at the parent
-    if (this.parent === null || parentAlreadyChecked)
-        return null;
-    return this.parent.lookup(path, filterTypes);
+    // Set this even when null, so that when we walk up the tree we can quickly bail on repeated checks back down.
+    this._lookupCache[flatPath] = exact;
+    return exact;
 };
 
 /**
@@ -35956,9 +36356,16 @@ module.exports = ReflectionObject;
 
 ReflectionObject.className = "ReflectionObject";
 
+const OneOf = __nccwpck_require__(4624);
 var util = __nccwpck_require__(9609);
 
 var Root; // cyclic
+
+/* eslint-disable no-warning-comments */
+// TODO: Replace with embedded proto.
+var editions2023Defaults = {enum_type: "OPEN", field_presence: "EXPLICIT", json_format: "ALLOW", message_encoding: "LENGTH_PREFIXED", repeated_field_encoding: "PACKED", utf8_validation: "VERIFY"};
+var proto2Defaults = {enum_type: "CLOSED", field_presence: "EXPLICIT", json_format: "LEGACY_BEST_EFFORT", message_encoding: "LENGTH_PREFIXED", repeated_field_encoding: "EXPANDED", utf8_validation: "NONE"};
+var proto3Defaults = {enum_type: "OPEN", field_presence: "IMPLICIT", json_format: "ALLOW", message_encoding: "LENGTH_PREFIXED", repeated_field_encoding: "PACKED", utf8_validation: "VERIFY"};
 
 /**
  * Constructs a new reflection object instance.
@@ -35993,6 +36400,35 @@ function ReflectionObject(name, options) {
      * @type {string}
      */
     this.name = name;
+
+    /**
+     * The edition specified for this object.  Only relevant for top-level objects.
+     * @type {string}
+     * @private
+     */
+    this._edition = null;
+
+    /**
+     * The default edition to use for this object if none is specified.  For legacy reasons,
+     * this is proto2 except in the JSON parsing case where it was proto3.
+     * @type {string}
+     * @private
+     */
+    this._defaultEdition = "proto2";
+
+    /**
+     * Resolved Features.
+     * @type {object}
+     * @private
+     */
+    this._features = {};
+
+    /**
+     * Whether or not features have been resolved.
+     * @type {boolean}
+     * @private
+     */
+    this._featuresResolved = false;
 
     /**
      * Parent namespace.
@@ -36105,6 +36541,83 @@ ReflectionObject.prototype.resolve = function resolve() {
 };
 
 /**
+ * Resolves this objects editions features.
+ * @param {string} edition The edition we're currently resolving for.
+ * @returns {ReflectionObject} `this`
+ */
+ReflectionObject.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
+    return this._resolveFeatures(this._edition || edition);
+};
+
+/**
+ * Resolves child features from parent features
+ * @param {string} edition The edition we're currently resolving for.
+ * @returns {undefined}
+ */
+ReflectionObject.prototype._resolveFeatures = function _resolveFeatures(edition) {
+    if (this._featuresResolved) {
+        return;
+    }
+
+    var defaults = {};
+
+    /* istanbul ignore if */
+    if (!edition) {
+        throw new Error("Unknown edition for " + this.fullName);
+    }
+
+    var protoFeatures = Object.assign(this.options ? Object.assign({},  this.options.features) : {},
+        this._inferLegacyProtoFeatures(edition));
+
+    if (this._edition) {
+        // For a namespace marked with a specific edition, reset defaults.
+        /* istanbul ignore else */
+        if (edition === "proto2") {
+            defaults = Object.assign({}, proto2Defaults);
+        } else if (edition === "proto3") {
+            defaults = Object.assign({}, proto3Defaults);
+        } else if (edition === "2023") {
+            defaults = Object.assign({}, editions2023Defaults);
+        } else {
+            throw new Error("Unknown edition: " + edition);
+        }
+        this._features = Object.assign(defaults, protoFeatures || {});
+        this._featuresResolved = true;
+        return;
+    }
+
+    // fields in Oneofs aren't actually children of them, so we have to
+    // special-case it
+    /* istanbul ignore else */
+    if (this.partOf instanceof OneOf) {
+        var lexicalParentFeaturesCopy = Object.assign({}, this.partOf._features);
+        this._features = Object.assign(lexicalParentFeaturesCopy, protoFeatures || {});
+    } else if (this.declaringField) {
+        // Skip feature resolution of sister fields.
+    } else if (this.parent) {
+        var parentFeaturesCopy = Object.assign({}, this.parent._features);
+        this._features = Object.assign(parentFeaturesCopy, protoFeatures || {});
+    } else {
+        throw new Error("Unable to find a parent for " + this.fullName);
+    }
+    if (this.extensionField) {
+        // Sister fields should have the same features as their extensions.
+        this.extensionField._features = this._features;
+    }
+    this._featuresResolved = true;
+};
+
+/**
+ * Infers features from legacy syntax that may have been specified differently.
+ * in older editions.
+ * @param {string|undefined} edition The edition this proto is on, or undefined if pre-editions
+ * @returns {object} The feature values to override
+ */
+ReflectionObject.prototype._inferLegacyProtoFeatures = function _inferLegacyProtoFeatures(/*edition*/) {
+    return {};
+};
+
+/**
  * Gets an option value.
  * @param {string} name Option name
  * @returns {*} Option value or `undefined` if not set
@@ -36119,12 +36632,21 @@ ReflectionObject.prototype.getOption = function getOption(name) {
  * Sets an option.
  * @param {string} name Option name
  * @param {*} value Option value
- * @param {boolean} [ifNotSet] Sets the option only if it isn't currently set
+ * @param {boolean|undefined} [ifNotSet] Sets the option only if it isn't currently set
  * @returns {ReflectionObject} `this`
  */
 ReflectionObject.prototype.setOption = function setOption(name, value, ifNotSet) {
-    if (!ifNotSet || !this.options || this.options[name] === undefined)
-        (this.options || (this.options = {}))[name] = value;
+    if (name === "__proto__")
+        return this;
+    if (!this.options)
+        this.options = {};
+    if (/^features\./.test(name)) {
+        util.setProperty(this.options, name, value, ifNotSet);
+    } else if (!ifNotSet || this.options[name] === undefined) {
+        if (this.getOption(name) !== value) this.resolved = false;
+        this.options[name] = value;
+    }
+
     return this;
 };
 
@@ -36136,6 +36658,8 @@ ReflectionObject.prototype.setOption = function setOption(name, value, ifNotSet)
  * @returns {ReflectionObject} `this`
  */
 ReflectionObject.prototype.setParsedOption = function setParsedOption(name, value, propName) {
+    if (name === "__proto__")
+        return this;
     if (!this.parsedOptions) {
         this.parsedOptions = [];
     }
@@ -36148,10 +36672,11 @@ ReflectionObject.prototype.setParsedOption = function setParsedOption(name, valu
         });
         if (opt) {
             // If we found an existing option - just merge the property value
+            // (If it's a feature, will just write over)
             var newValue = opt[name];
             util.setProperty(newValue, propName, value);
         } else {
-            // otherwise, create a new option, set it's property and add it to the list
+            // otherwise, create a new option, set its property and add it to the list
             opt = {};
             opt[name] = util.setProperty({}, propName, value);
             parsedOptions.push(opt);
@@ -36162,6 +36687,7 @@ ReflectionObject.prototype.setParsedOption = function setParsedOption(name, valu
         newOpt[name] = value;
         parsedOptions.push(newOpt);
     }
+
     return this;
 };
 
@@ -36188,6 +36714,19 @@ ReflectionObject.prototype.toString = function toString() {
     if (fullName.length)
         return className + " " + fullName;
     return className;
+};
+
+/**
+ * Converts the edition this object is pinned to for JSON format.
+ * @returns {string|undefined} The edition string for JSON representation
+ */
+ReflectionObject.prototype._editionToJSON = function _editionToJSON() {
+    if (!this._edition || this._edition === "proto3") {
+        // Avoid emitting proto3 since we need to default to it for backwards
+        // compatibility anyway.
+        return undefined;
+    }
+    return this._edition;
 };
 
 // Sets up cyclic dependencies (called in index-light)
@@ -36376,6 +36915,25 @@ OneOf.prototype.onRemove = function onRemove(parent) {
 };
 
 /**
+ * Determines whether this field corresponds to a synthetic oneof created for
+ * a proto3 optional field.  No behavioral logic should depend on this, but it
+ * can be relevant for reflection.
+ * @name OneOf#isProto3Optional
+ * @type {boolean}
+ * @readonly
+ */
+Object.defineProperty(OneOf.prototype, "isProto3Optional", {
+    get: function() {
+        if (this.fieldsArray == null || this.fieldsArray.length !== 1) {
+            return false;
+        }
+
+        var field = this.fieldsArray[0];
+        return field.options != null && field.options["proto3_optional"] === true;
+    }
+});
+
+/**
  * Decorator function as returned by {@link OneOf.d} (TypeScript).
  * @typedef OneOfDecorator
  * @type {function}
@@ -36428,6 +36986,7 @@ var tokenize  = __nccwpck_require__(580),
     Enum      = __nccwpck_require__(3528),
     Service   = __nccwpck_require__(338),
     Method    = __nccwpck_require__(9988),
+    ReflectionObject = __nccwpck_require__(7946),
     types     = __nccwpck_require__(1024),
     util      = __nccwpck_require__(9609);
 
@@ -36437,10 +36996,9 @@ var base10Re    = /^[1-9][0-9]*$/,
     base16NegRe = /^-?0[x][0-9a-fA-F]+$/,
     base8Re     = /^0[0-7]+$/,
     base8NegRe  = /^-?0[0-7]+$/,
-    numberRe    = /^(?![eE])[0-9]*(?:\.[0-9]*)?(?:[eE][+-]?[0-9]+)?$/,
+    numberRe    = util.patterns.numberRe,
     nameRe      = /^[a-zA-Z_][a-zA-Z_0-9]*$/,
-    typeRefRe   = /^(?:\.?[a-zA-Z_][a-zA-Z_0-9]*)(?:\.[a-zA-Z_][a-zA-Z_0-9]*)*$/,
-    fqTypeRefRe = /^(?:\.[a-zA-Z_][a-zA-Z_0-9]*)+$/;
+    typeRefRe   = util.patterns.typeRefRe;
 
 /**
  * Result object returned from {@link parse}.
@@ -36448,7 +37006,6 @@ var base10Re    = /^[1-9][0-9]*$/,
  * @property {string|undefined} package Package name, if declared
  * @property {string[]|undefined} imports Imports, if any
  * @property {string[]|undefined} weakImports Weak imports, if any
- * @property {string|undefined} syntax Syntax, if specified (either `"proto2"` or `"proto3"`)
  * @property {Root} root Populated root instance
  */
 
@@ -36496,12 +37053,24 @@ function parse(source, root, options) {
         pkg,
         imports,
         weakImports,
-        syntax,
-        isProto3 = false;
+        edition = "proto2";
 
     var ptr = root;
 
+    var topLevelObjects = [];
+    var topLevelOptions = {};
+
     var applyCase = options.keepCase ? function(name) { return name; } : util.camelCase;
+
+    function resolveFileFeatures() {
+        topLevelObjects.forEach(obj => {
+            obj._edition = edition;
+            Object.keys(topLevelOptions).forEach(opt => {
+                if (obj.getOption(opt) !== undefined) return;
+                obj.setOption(opt, topLevelOptions[opt], true);
+            });
+        });
+    }
 
     /* istanbul ignore next */
     function illegal(token, name, insideTryCatch) {
@@ -36541,7 +37110,6 @@ function parse(source, root, options) {
         try {
             return parseNumber(token, /* insideTryCatch */ true);
         } catch (e) {
-
             /* istanbul ignore else */
             if (acceptTypeRef && typeRefRe.test(token))
                 return token;
@@ -36554,10 +37122,23 @@ function parse(source, root, options) {
     function readRanges(target, acceptStrings) {
         var token, start;
         do {
-            if (acceptStrings && ((token = peek()) === "\"" || token === "'"))
-                target.push(readString());
-            else
-                target.push([ start = parseId(next()), skip("to", true) ? parseId(next()) : start ]);
+            if (acceptStrings && ((token = peek()) === "\"" || token === "'")) {
+                var str = readString();
+                target.push(str);
+                if (edition >= 2023) {
+                    throw illegal(str, "id");
+                }
+            } else {
+                try {
+                    target.push([ start = parseId(next()), skip("to", true) ? parseId(next()) : start ]);
+                } catch (err) {
+                    if (acceptStrings && typeRefRe.test(token) && edition >= 2023) {
+                        target.push(token);
+                    } else {
+                        throw err;
+                    }
+                }
+            }
         } while (skip(",", true));
         var dummy = {options: undefined};
         dummy.setOption = function(name, value) {
@@ -36634,7 +37215,6 @@ function parse(source, root, options) {
     }
 
     function parsePackage() {
-
         /* istanbul ignore if */
         if (pkg !== undefined)
             throw illegal("package");
@@ -36646,6 +37226,7 @@ function parse(source, root, options) {
             throw illegal(pkg, "name");
 
         ptr = ptr.define(pkg);
+
         skip(";");
     }
 
@@ -36671,19 +37252,27 @@ function parse(source, root, options) {
 
     function parseSyntax() {
         skip("=");
-        syntax = readString();
-        isProto3 = syntax === "proto3";
+        edition = readString();
 
         /* istanbul ignore if */
-        if (!isProto3 && syntax !== "proto2")
-            throw illegal(syntax, "syntax");
-
-        // Syntax is needed to understand the meaning of the optional field rule
-        // Otherwise the meaning is ambiguous between proto2 and proto3
-        root.setOption("syntax", syntax);
+        if (edition < 2023)
+            throw illegal(edition, "syntax");
 
         skip(";");
     }
+
+    function parseEdition() {
+        skip("=");
+        edition = readString();
+        const supportedEditions = ["2023"];
+
+        /* istanbul ignore if */
+        if (!supportedEditions.includes(edition))
+            throw illegal(edition, "edition");
+
+        skip(";");
+    }
+
 
     function parseCommon(parent, token) {
         switch (token) {
@@ -36752,14 +37341,19 @@ function parse(source, root, options) {
                     break;
 
                 case "required":
+                    if (edition !== "proto2")
+                        throw illegal(token);
+                /* eslint-disable no-fallthrough */
                 case "repeated":
                     parseField(type, token);
                     break;
 
                 case "optional":
                     /* istanbul ignore if */
-                    if (isProto3) {
+                    if (edition === "proto3") {
                         parseField(type, "proto3_optional");
+                    } else if (edition !== "proto2") {
+                        throw illegal(token);
                     } else {
                         parseField(type, "optional");
                     }
@@ -36779,8 +37373,9 @@ function parse(source, root, options) {
 
                 default:
                     /* istanbul ignore if */
-                    if (!isProto3 || !typeRefRe.test(token))
+                    if (edition === "proto2" || !typeRefRe.test(token)) {
                         throw illegal(token);
+                    }
 
                     push(token);
                     parseField(type, "optional");
@@ -36788,6 +37383,9 @@ function parse(source, root, options) {
             }
         });
         parent.add(type);
+        if (parent === ptr) {
+            topLevelObjects.push(type);
+        }
     }
 
     function parseField(parent, rule, extend) {
@@ -36814,6 +37412,7 @@ function parse(source, root, options) {
         var name = next();
 
         /* istanbul ignore if */
+
         if (!nameRe.test(name))
             throw illegal(name, "name");
 
@@ -36821,6 +37420,7 @@ function parse(source, root, options) {
         skip("=");
 
         var field = new Field(name, parseId(next()), type, rule, extend);
+
         ifBlock(field, function parseField_block(token) {
 
             /* istanbul ignore else */
@@ -36843,15 +37443,15 @@ function parse(source, root, options) {
         } else {
             parent.add(field);
         }
-
-        // JSON defaults to packed=true if not set so we have to set packed=false explicity when
-        // parsing proto2 descriptors without the option, where applicable. This must be done for
-        // all known packable types and anything that could be an enum (= is not a basic type).
-        if (!isProto3 && field.repeated && (types.packed[type] !== undefined || types.basic[type] === undefined))
-            field.setOption("packed", false, /* ifNotSet */ true);
+        if (parent === ptr) {
+            topLevelObjects.push(field);
+        }
     }
 
     function parseGroup(parent, rule) {
+        if (edition >= 2023) {
+            throw illegal("group");
+        }
         var name = next();
 
         /* istanbul ignore if */
@@ -36874,7 +37474,6 @@ function parse(source, root, options) {
                     parseOption(type, token);
                     skip(";");
                     break;
-
                 case "required":
                 case "repeated":
                     parseField(type, token);
@@ -36882,7 +37481,7 @@ function parse(source, root, options) {
 
                 case "optional":
                     /* istanbul ignore if */
-                    if (isProto3) {
+                    if (edition === "proto3") {
                         parseField(type, "proto3_optional");
                     } else {
                         parseField(type, "optional");
@@ -36895,6 +37494,10 @@ function parse(source, root, options) {
 
                 case "enum":
                     parseEnum(type, token);
+                    break;
+
+                case "reserved":
+                    readRanges(type.reserved || (type.reserved = []), true);
                     break;
 
                 /* istanbul ignore next */
@@ -36980,6 +37583,7 @@ function parse(source, root, options) {
 
             case "reserved":
               readRanges(enm.reserved || (enm.reserved = []), true);
+              if(enm.reserved === undefined) enm.reserved = [];
               break;
 
             default:
@@ -36987,6 +37591,9 @@ function parse(source, root, options) {
           }
         });
         parent.add(enm);
+        if (parent === ptr) {
+            topLevelObjects.push(enm);
+        }
     }
 
     function parseEnumValue(parent, token) {
@@ -37000,10 +37607,14 @@ function parse(source, root, options) {
             dummy = {
                 options: undefined
             };
+        dummy.getOption = function(name) {
+            return this.options[name];
+        };
         dummy.setOption = function(name, value) {
-            if (this.options === undefined)
-                this.options = {};
-            this.options[name] = value;
+            ReflectionObject.prototype.setOption.call(dummy, name, value);
+        };
+        dummy.setParsedOption = function() {
+            return undefined;
         };
         ifBlock(dummy, function parseEnumValue_block(token) {
 
@@ -37017,34 +37628,42 @@ function parse(source, root, options) {
         }, function parseEnumValue_line() {
             parseInlineOptions(dummy); // skip
         });
-        parent.add(token, value, dummy.comment, dummy.options);
+        parent.add(token, value, dummy.comment, dummy.parsedOptions || dummy.options);
     }
 
     function parseOption(parent, token) {
-        var isCustom = skip("(", true);
-
-        /* istanbul ignore if */
-        if (!typeRefRe.test(token = next()))
-            throw illegal(token, "name");
-
-        var name = token;
-        var option = name;
-        var propName;
-
-        if (isCustom) {
-            skip(")");
-            name = "(" + name + ")";
-            option = name;
-            token = peek();
-            if (fqTypeRefRe.test(token)) {
-                propName = token.slice(1); //remove '.' before property name
-                name += token;
-                next();
+            var option;
+            var propName;
+            var isOption = true;
+            if (token === "option") {
+                token = next();
             }
-        }
-        skip("=");
-        var optionValue = parseOptionValue(parent, name);
-        setParsedOption(parent, option, optionValue, propName);
+
+            while (token !== "=") {
+                if (token === "(") {
+                    var parensValue = next();
+                    skip(")");
+                    token = "(" + parensValue + ")";
+                }
+                if (isOption) {
+                    isOption = false;
+                    if (token.includes(".") && !token.includes("(")) {
+                        var tokens = token.split(".");
+                        option = tokens[0] + ".";
+                        token = tokens[1];
+                        continue;
+                    }
+                    option = token;
+                } else {
+                    propName = propName ? propName += token : token;
+                }
+                token = next();
+            }
+            var name = propName ? option.concat(propName) : option;
+            var optionValue = parseOptionValue(parent, name);
+            propName = propName && propName[0] === "." ? propName.slice(1) : propName;
+            option = option && option[option.length - 1] === "." ? option.slice(0, -1) : option;
+            setParsedOption(parent, option, optionValue, propName);
     }
 
     function parseOptionValue(parent, name) {
@@ -37066,12 +37685,12 @@ function parse(source, root, options) {
 
                 skip(":", true);
 
-                if (peek() === "{")
-                    value = parseOptionValue(parent, name + "." + token);
-                else if (peek() === "[") {
+                if (peek() === "{") {
                     // option (my_option) = {
                     //     repeated_value: [ "foo", "bar" ]
                     // };
+                    value = parseOptionValue(parent, name + "." + token);
+                } else if (peek() === "[") {
                     value = [];
                     var lastValue;
                     if (skip("[", true)) {
@@ -37094,7 +37713,8 @@ function parse(source, root, options) {
                 if (prevValue)
                     value = [].concat(prevValue).concat(value);
 
-                objectResult[propName] = value;
+                if (propName !== "__proto__")
+                    objectResult[propName] = value;
 
                 // Semicolons and commas can be optional
                 skip(",", true);
@@ -37111,6 +37731,10 @@ function parse(source, root, options) {
     }
 
     function setOption(parent, name, value) {
+        if (ptr === parent && /^features\./.test(name)) {
+            topLevelOptions[name] = value;
+            return;
+        }
         if (parent.setOption)
             parent.setOption(name, value);
     }
@@ -37138,8 +37762,9 @@ function parse(source, root, options) {
 
         var service = new Service(token);
         ifBlock(service, function parseService_block(token) {
-            if (parseCommon(service, token))
+            if (parseCommon(service, token)) {
                 return;
+            }
 
             /* istanbul ignore else */
             if (token === "rpc")
@@ -37148,6 +37773,9 @@ function parse(source, root, options) {
                 throw illegal(token);
         });
         parent.add(service);
+        if (parent === ptr) {
+            topLevelObjects.push(service);
+        }
     }
 
     function parseMethod(parent, token) {
@@ -37217,7 +37845,7 @@ function parse(source, root, options) {
 
                 case "optional":
                     /* istanbul ignore if */
-                    if (isProto3) {
+                    if (edition === "proto3") {
                         parseField(parent, "proto3_optional", reference);
                     } else {
                         parseField(parent, "optional", reference);
@@ -37226,7 +37854,7 @@ function parse(source, root, options) {
 
                 default:
                     /* istanbul ignore if */
-                    if (!isProto3 || !typeRefRe.test(token))
+                    if (edition === "proto2" || !typeRefRe.test(token))
                         throw illegal(token);
                     push(token);
                     parseField(parent, "optional", reference);
@@ -37266,10 +37894,16 @@ function parse(source, root, options) {
                 parseSyntax();
                 break;
 
-            case "option":
+            case "edition":
+                /* istanbul ignore if */
+                if (!head)
+                    throw illegal(token);
+                parseEdition();
+                break;
 
+            case "option":
                 parseOption(ptr, token);
-                skip(";");
+                skip(";", true);
                 break;
 
             default:
@@ -37285,12 +37919,13 @@ function parse(source, root, options) {
         }
     }
 
+    resolveFileFeatures();
+
     parse.filename = null;
     return {
         "package"     : pkg,
         "imports"     : imports,
          weakImports  : weakImports,
-         syntax       : syntax,
          root         : root
     };
 }
@@ -37669,11 +38304,21 @@ Reader.prototype.skip = function skip(length) {
 };
 
 /**
+ * Recursion limit.
+ * @type {number}
+ */
+Reader.recursionLimit = util.recursionLimit;
+
+/**
  * Skips the next element of the specified wire type.
  * @param {number} wireType Wire type received
+ * @param {number} [depth] Depth of recursion to control nested calls; 0 if omitted
  * @returns {Reader} `this`
  */
-Reader.prototype.skipType = function(wireType) {
+Reader.prototype.skipType = function(wireType, depth) {
+    if (depth === undefined) depth = 0;
+    if (depth > Reader.recursionLimit)
+        throw Error("maximum nesting depth exceeded");
     switch (wireType) {
         case 0:
             this.skip();
@@ -37686,7 +38331,7 @@ Reader.prototype.skipType = function(wireType) {
             break;
         case 3:
             while ((wireType = this.uint32() & 7) !== 4) {
-                this.skipType(wireType);
+                this.skipType(wireType, depth + 1);
             }
             break;
         case 5:
@@ -37834,11 +38479,25 @@ function Root(options) {
      * @type {string[]}
      */
     this.files = [];
+
+    /**
+     * Edition, defaults to proto2 if unspecified.
+     * @type {string}
+     * @private
+     */
+    this._edition = "proto2";
+
+    /**
+     * Global lookup cache of fully qualified names.
+     * @type {Object.<string,ReflectionObject>}
+     * @private
+     */
+    this._fullyQualifiedObjects = {};
 }
 
 /**
  * Loads a namespace descriptor into a root namespace.
- * @param {INamespace} json Nameespace descriptor
+ * @param {INamespace} json Namespace descriptor
  * @param {Root} [root] Root namespace, defaults to create a new one if omitted
  * @returns {Root} Root namespace
  */
@@ -37847,7 +38506,7 @@ Root.fromJSON = function fromJSON(json, root) {
         root = new Root();
     if (json.options)
         root.setOptions(json.options);
-    return root.addJSON(json.nested);
+    return root.addJSON(json.nested).resolveAll();
 };
 
 /**
@@ -37887,18 +38546,24 @@ Root.prototype.load = function load(filename, options, callback) {
         options = undefined;
     }
     var self = this;
-    if (!callback)
+    if (!callback) {
         return util.asPromise(load, self, filename, options);
+    }
 
     var sync = callback === SYNC; // undocumented
 
     // Finishes loading by calling the callback (exactly once)
     function finish(err, root) {
         /* istanbul ignore if */
-        if (!callback)
+        if (!callback) {
             return;
-        if (sync)
+        }
+        if (sync) {
             throw err;
+        }
+        if (root) {
+            root.resolveAll();
+        }
         var cb = callback;
         callback = null;
         cb(err, root);
@@ -37938,8 +38603,9 @@ Root.prototype.load = function load(filename, options, callback) {
         } catch (err) {
             finish(err);
         }
-        if (!sync && !queued)
+        if (!sync && !queued) {
             finish(null, self); // only once anyway
+        }
     }
 
     // Fetches a single file
@@ -37947,15 +38613,16 @@ Root.prototype.load = function load(filename, options, callback) {
         filename = getBundledFileName(filename) || filename;
 
         // Skip if already loaded / attempted
-        if (self.files.indexOf(filename) > -1)
+        if (self.files.indexOf(filename) > -1) {
             return;
+        }
         self.files.push(filename);
 
         // Shortcut bundled definitions
         if (filename in common) {
-            if (sync)
+            if (sync) {
                 process(filename, common[filename]);
-            else {
+            } else {
                 ++queued;
                 setTimeout(function() {
                     --queued;
@@ -37981,8 +38648,9 @@ Root.prototype.load = function load(filename, options, callback) {
             self.fetch(filename, function(err, source) {
                 --queued;
                 /* istanbul ignore if */
-                if (!callback)
+                if (!callback) {
                     return; // terminated meanwhile
+                }
                 if (err) {
                     /* istanbul ignore else */
                     if (!weak)
@@ -37999,17 +38667,21 @@ Root.prototype.load = function load(filename, options, callback) {
 
     // Assembling the root namespace doesn't require working type
     // references anymore, so we can load everything in parallel
-    if (util.isString(filename))
+    if (util.isString(filename)) {
         filename = [ filename ];
+    }
     for (var i = 0, resolved; i < filename.length; ++i)
         if (resolved = self.resolvePath("", filename[i]))
             fetch(resolved);
-
-    if (sync)
+    if (sync) {
+        self.resolveAll();
         return self;
-    if (!queued)
+    }
+    if (!queued) {
         finish(null, self);
-    return undefined;
+    }
+
+    return self;
 };
 // function load(filename:string, options:IParseOptions, callback:LoadCallback):undefined
 
@@ -38051,6 +38723,8 @@ Root.prototype.loadSync = function loadSync(filename, options) {
  * @override
  */
 Root.prototype.resolveAll = function resolveAll() {
+    if (!this._needsRecursiveResolve) return this;
+
     if (this.deferred.length)
         throw Error("unresolvable extensions: " + this.deferred.map(function(field) {
             return "'extend " + field.extend + "' in " + field.parent.fullName;
@@ -38117,6 +38791,11 @@ Root.prototype._handleAdd = function _handleAdd(object) {
             object.parent[object.name] = object; // expose namespace as property of its parent
     }
 
+    if (object instanceof Type || object instanceof Enum || object instanceof Field) {
+        // Only store types and enums for quick lookup during resolve.
+        this._fullyQualifiedObjects[object.fullName] = object;
+    }
+
     // The above also adds uppercased (and thus conflict-free) nested types, services and enums as
     // properties of namespaces just like static code does. This allows using a .d.ts generated for
     // a static module with reflection-based solutions where the condition is met.
@@ -38157,6 +38836,8 @@ Root.prototype._handleRemove = function _handleRemove(object) {
             delete object.parent[object.name]; // unexpose namespaces
 
     }
+
+    delete this._fullyQualifiedObjects[object.fullName];
 };
 
 // Sets up cyclic dependencies (called in index-light)
@@ -38404,6 +39085,8 @@ var Method = __nccwpck_require__(9988),
     util   = __nccwpck_require__(9609),
     rpc    = __nccwpck_require__(9882);
 
+var reservedRe = util.patterns.reservedRe;
+
 /**
  * Constructs a new service instance.
  * @classdesc Reflected service.
@@ -38452,7 +39135,10 @@ Service.fromJSON = function fromJSON(name, json) {
             service.add(Method.fromJSON(names[i], json.methods[names[i]]));
     if (json.nested)
         service.addJSON(json.nested);
+    if (json.edition)
+        service._edition = json.edition;
     service.comment = json.comment;
+    service._defaultEdition = "proto3";  // For backwards-compatibility.
     return service;
 };
 
@@ -38465,6 +39151,7 @@ Service.prototype.toJSON = function toJSON(toJSONOptions) {
     var inherited = Namespace.prototype.toJSON.call(this, toJSONOptions);
     var keepComments = toJSONOptions ? Boolean(toJSONOptions.keepComments) : false;
     return util.toObject([
+        "edition" , this._editionToJSON(),
         "options" , inherited && inherited.options || undefined,
         "methods" , Namespace.arrayToJSON(this.methodsArray, toJSONOptions) || /* istanbul ignore next */ {},
         "nested"  , inherited && inherited.nested || undefined,
@@ -38493,30 +39180,50 @@ function clearCache(service) {
  * @override
  */
 Service.prototype.get = function get(name) {
-    return this.methods[name]
-        || Namespace.prototype.get.call(this, name);
+    return Object.prototype.hasOwnProperty.call(this.methods, name)
+        ? this.methods[name]
+        : Namespace.prototype.get.call(this, name);
 };
 
 /**
  * @override
  */
 Service.prototype.resolveAll = function resolveAll() {
+    if (!this._needsRecursiveResolve) return this;
+
+    Namespace.prototype.resolve.call(this);
     var methods = this.methodsArray;
     for (var i = 0; i < methods.length; ++i)
         methods[i].resolve();
-    return Namespace.prototype.resolve.call(this);
+    return this;
+};
+
+/**
+ * @override
+ */
+Service.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
+    if (!this._needsRecursiveFeatureResolution) return this;
+
+    edition = this._edition || edition;
+
+    Namespace.prototype._resolveFeaturesRecursive.call(this, edition);
+    this.methodsArray.forEach(method => {
+        method._resolveFeaturesRecursive(edition);
+    });
+    return this;
 };
 
 /**
  * @override
  */
 Service.prototype.add = function add(object) {
-
     /* istanbul ignore if */
     if (this.get(object.name))
         throw Error("duplicate name '" + object.name + "' in " + this);
 
     if (object instanceof Method) {
+        if (object.name === "__proto__")
+            return this;
         this.methods[object.name] = object;
         object.parent = this;
         return clearCache(this);
@@ -38552,7 +39259,7 @@ Service.prototype.create = function create(rpcImpl, requestDelimited, responseDe
     var rpcService = new rpc.Service(rpcImpl, requestDelimited, responseDelimited);
     for (var i = 0, method; i < /* initializes */ this.methodsArray.length; ++i) {
         var methodName = util.lcFirst((method = this._methodsArray[i]).resolve().name).replace(/[^$\w_]/g, "");
-        rpcService[methodName] = util.codegen(["r","c"], util.isReserved(methodName) ? methodName + "_" : methodName)("return this.rpcCall(m,q,s,r,c)")({
+        rpcService[methodName] = util.codegen(["r","c"], reservedRe.test(methodName) ? methodName + "_" : methodName)("return this.rpcCall(m,q,s,r,c)")({
             m: method,
             q: method.resolvedRequestType.ctor,
             s: method.resolvedResponseType.ctor
@@ -39023,6 +39730,7 @@ var Enum      = __nccwpck_require__(3528),
  * @param {Object.<string,*>} [options] Declared options
  */
 function Type(name, options) {
+    name = name.replace(/\W/g, "");
     Namespace.call(this, name, options);
 
     /**
@@ -39198,7 +39906,7 @@ Type.generateConstructor = function generateConstructor(mtype) {
         else if (field.repeated) gen
             ("this%s=[]", util.safeProp(field.name));
     return gen
-    ("if(p)for(var ks=Object.keys(p),i=0;i<ks.length;++i)if(p[ks[i]]!=null)") // omit undefined or null
+    ("if(p)for(var ks=Object.keys(p),i=0;i<ks.length;++i)if(p[ks[i]]!=null&&ks[i]!==\"__proto__\")") // omit undefined or null
         ("this[ks[i]]=p[ks[i]]");
     /* eslint-enable no-unexpected-multiline */
 };
@@ -39266,6 +39974,9 @@ Type.fromJSON = function fromJSON(name, json) {
         type.group = true;
     if (json.comment)
         type.comment = json.comment;
+    if (json.edition)
+        type._edition = json.edition;
+    type._defaultEdition = "proto3";  // For backwards-compatibility.
     return type;
 };
 
@@ -39278,6 +39989,7 @@ Type.prototype.toJSON = function toJSON(toJSONOptions) {
     var inherited = Namespace.prototype.toJSON.call(this, toJSONOptions);
     var keepComments = toJSONOptions ? Boolean(toJSONOptions.keepComments) : false;
     return util.toObject([
+        "edition"    , this._editionToJSON(),
         "options"    , inherited && inherited.options || undefined,
         "oneofs"     , Namespace.arrayToJSON(this.oneofsArray, toJSONOptions),
         "fields"     , Namespace.arrayToJSON(this.fieldsArray.filter(function(obj) { return !obj.declaringField; }), toJSONOptions) || {},
@@ -39293,23 +40005,47 @@ Type.prototype.toJSON = function toJSON(toJSONOptions) {
  * @override
  */
 Type.prototype.resolveAll = function resolveAll() {
-    var fields = this.fieldsArray, i = 0;
-    while (i < fields.length)
-        fields[i++].resolve();
+    if (!this._needsRecursiveResolve) return this;
+
+    Namespace.prototype.resolveAll.call(this);
     var oneofs = this.oneofsArray; i = 0;
     while (i < oneofs.length)
         oneofs[i++].resolve();
-    return Namespace.prototype.resolveAll.call(this);
+    var fields = this.fieldsArray, i = 0;
+    while (i < fields.length)
+        fields[i++].resolve();
+    return this;
+};
+
+/**
+ * @override
+ */
+Type.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
+    if (!this._needsRecursiveFeatureResolution) return this;
+
+    edition = this._edition || edition;
+
+    Namespace.prototype._resolveFeaturesRecursive.call(this, edition);
+    this.oneofsArray.forEach(oneof => {
+        oneof._resolveFeatures(edition);
+    });
+    this.fieldsArray.forEach(field => {
+        field._resolveFeatures(edition);
+    });
+    return this;
 };
 
 /**
  * @override
  */
 Type.prototype.get = function get(name) {
-    return this.fields[name]
-        || this.oneofs && this.oneofs[name]
-        || this.nested && this.nested[name]
-        || null;
+    if (Object.prototype.hasOwnProperty.call(this.fields, name))
+        return this.fields[name];
+    if (this.oneofs && Object.prototype.hasOwnProperty.call(this.oneofs, name))
+        return this.oneofs[name];
+    if (this.nested && Object.prototype.hasOwnProperty.call(this.nested, name))
+        return this.nested[name];
+    return null;
 };
 
 /**
@@ -39320,7 +40056,6 @@ Type.prototype.get = function get(name) {
  * @throws {Error} If there is already a nested object with this name or, if a field, when there is already a field with this id
  */
 Type.prototype.add = function add(object) {
-
     if (this.get(object.name))
         throw Error("duplicate name '" + object.name + "' in " + this);
 
@@ -39336,6 +40071,8 @@ Type.prototype.add = function add(object) {
             throw Error("id " + object.id + " is reserved in " + this);
         if (this.isReservedName(object.name))
             throw Error("name '" + object.name + "' is reserved in " + this);
+        if (object.name === "__proto__")
+            return this;
 
         if (object.parent)
             object.parent.remove(object);
@@ -39345,6 +40082,8 @@ Type.prototype.add = function add(object) {
         return clearCache(this);
     }
     if (object instanceof OneOf) {
+        if (object.name === "__proto__")
+            return this;
         if (!this.oneofs)
             this.oneofs = {};
         this.oneofs[object.name] = object;
@@ -39493,12 +40232,14 @@ Type.prototype.encodeDelimited = function encodeDelimited(message, writer) {
  * Decodes a message of this type.
  * @param {Reader|Uint8Array} reader Reader or buffer to decode from
  * @param {number} [length] Length of the message, if known beforehand
+ * @param {number} [end] Expected group end tag, if decoding a group
+ * @param {number} [depth] Current nesting depth
  * @returns {Message<{}>} Decoded message
  * @throws {Error} If the payload is not a reader or valid buffer
  * @throws {util.ProtocolError<{}>} If required fields are missing
  */
-Type.prototype.decode = function decode_setup(reader, length) {
-    return this.setup().decode(reader, length); // overrides this method
+Type.prototype.decode = function decode_setup(reader, length, end, depth) {
+    return this.setup().decode(reader, length, end, depth); // overrides this method
 };
 
 /**
@@ -39517,19 +40258,21 @@ Type.prototype.decodeDelimited = function decodeDelimited(reader) {
 /**
  * Verifies that field values are valid and that required fields are present.
  * @param {Object.<string,*>} message Plain object to verify
+ * @param {number} [depth] Current nesting depth
  * @returns {null|string} `null` if valid, otherwise the reason why it is not
  */
-Type.prototype.verify = function verify_setup(message) {
-    return this.setup().verify(message); // overrides this method
+Type.prototype.verify = function verify_setup(message, depth) {
+    return this.setup().verify(message, depth); // overrides this method
 };
 
 /**
  * Creates a new message of this type from a plain object. Also converts values to their respective internal types.
  * @param {Object.<string,*>} object Plain object to convert
+ * @param {number} [depth] Current nesting depth
  * @returns {Message<{}>} Message instance
  */
-Type.prototype.fromObject = function fromObject(object) {
-    return this.setup().fromObject(object);
+Type.prototype.fromObject = function fromObject(object, depth) {
+    return this.setup().fromObject(object, depth);
 };
 
 /**
@@ -39618,7 +40361,7 @@ var s = [
 ];
 
 function bake(values, offset) {
-    var i = 0, o = {};
+    var i = 0, o = Object.create(null);
     offset |= 0;
     while (i < values.length) o[s[i + offset]] = values[i++];
     return o;
@@ -39809,6 +40552,10 @@ var Type, // cyclic
 util.codegen = __nccwpck_require__(5346);
 util.fetch   = __nccwpck_require__(4279);
 util.path    = __nccwpck_require__(6090);
+util.patterns = __nccwpck_require__(1991);
+
+var reservedRe = util.patterns.reservedRe,
+    unsafePropertyRe = util.patterns.unsafePropertyRe;
 
 /**
  * Node's fs module if available.
@@ -39850,16 +40597,13 @@ util.toObject = function toObject(array) {
     return object;
 };
 
-var safePropBackslashRe = /\\/g,
-    safePropQuoteRe     = /"/g;
-
 /**
  * Tests whether the specified name is a reserved word in JS.
  * @param {string} name Name to test
  * @returns {boolean} `true` if reserved, otherwise `false`
  */
 util.isReserved = function isReserved(name) {
-    return /^(?:do|if|in|for|let|new|try|var|case|else|enum|eval|false|null|this|true|void|with|break|catch|class|const|super|throw|while|yield|delete|export|import|public|return|static|switch|typeof|default|extends|finally|package|private|continue|debugger|function|arguments|interface|protected|implements|instanceof)$/.test(name);
+    return reservedRe.test(name);
 };
 
 /**
@@ -39868,8 +40612,8 @@ util.isReserved = function isReserved(name) {
  * @returns {string} Safe accessor
  */
 util.safeProp = function safeProp(prop) {
-    if (!/^[$\w_]+$/.test(prop) || util.isReserved(prop))
-        return "[\"" + prop.replace(safePropBackslashRe, "\\\\").replace(safePropQuoteRe, "\\\"") + "\"]";
+    if (!/^[$\w_]+$/.test(prop) || reservedRe.test(prop))
+        return "[" + JSON.stringify(prop) + "]";
     return "." + prop;
 };
 
@@ -39966,18 +40710,20 @@ util.decorateEnum = function decorateEnum(object) {
  * @param {Object.<string,*>} dst Destination object
  * @param {string} path dot '.' delimited path of the property to set
  * @param {Object} value the value to set
+ * @param {boolean|undefined} [ifNotSet] Sets the option only if it isn't currently set
  * @returns {Object.<string,*>} Destination object
  */
-util.setProperty = function setProperty(dst, path, value) {
+util.setProperty = function setProperty(dst, path, value, ifNotSet) {
     function setProp(dst, path, value) {
         var part = path.shift();
-        if (part === "__proto__" || part === "prototype") {
-          return dst;
-        }
+        if (unsafePropertyRe.test(part))
+            return dst;
         if (path.length > 0) {
             dst[part] = setProp(dst[part] || {}, path, value);
         } else {
             var prevValue = dst[part];
+            if (prevValue && ifNotSet)
+                return dst;
             if (prevValue)
                 value = [].concat(prevValue).concat(value);
             dst[part] = value;
@@ -40460,11 +41206,34 @@ util.longFromHash = function longFromHash(hash, unsigned) {
 function merge(dst, src, ifNotSet) { // used by converters
     for (var keys = Object.keys(src), i = 0; i < keys.length; ++i)
         if (dst[keys[i]] === undefined || !ifNotSet)
-            dst[keys[i]] = src[keys[i]];
+            if (keys[i] !== "__proto__")
+                dst[keys[i]] = src[keys[i]];
     return dst;
 }
 
 util.merge = merge;
+
+/**
+ * Recursion limit.
+ * @memberof util
+ * @type {number}
+ */
+util.recursionLimit = 100;
+
+/**
+ * Makes a property safe for assignment as an own property.
+ * @memberof util
+ * @param {Object.<string,*>} obj Object
+ * @param {string} key Property key
+ * @returns {undefined}
+ */
+util.makeProp = function makeProp(obj, key) {
+    Object.defineProperty(obj, key, {
+        enumerable: true,
+        configurable: true,
+        writable: true
+    });
+};
 
 /**
  * Converts the first character of a string to lower case.
@@ -40663,6 +41432,22 @@ util._configure = function() {
 
 /***/ }),
 
+/***/ 1991:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+
+var patterns = exports;
+
+patterns.numberRe    = /^(?![eE])[0-9]*(?:\.[0-9]*)?(?:[eE][+-]?[0-9]+)?$/;
+patterns.typeRefRe   = /^(?:\.?[a-zA-Z_][a-zA-Z_0-9]*)(?:\.[a-zA-Z_][a-zA-Z_0-9]*)*$/;
+patterns.reservedRe  = /^(?:do|if|in|for|let|new|try|var|case|else|enum|eval|false|null|this|true|void|with|break|catch|class|const|super|throw|while|yield|delete|export|import|public|return|static|switch|typeof|default|extends|finally|package|private|continue|debugger|function|arguments|interface|protected|implements|instanceof)$/;
+patterns.unsafePropertyRe = /^(?:__proto__|prototype|constructor)$/;
+
+
+/***/ }),
+
 /***/ 7639:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -40701,7 +41486,7 @@ function genVerifyValue(gen, field, fieldIndex, ref) {
         } else {
             gen
             ("{")
-                ("var e=types[%i].verify(%s);", fieldIndex, ref)
+                ("var e=types[%i].verify(%s,n+1);", fieldIndex, ref)
                 ("if(e)")
                     ("return%j+e", field.name + ".")
             ("}");
@@ -40791,9 +41576,12 @@ function genVerifyKey(gen, field, ref) {
 function verifier(mtype) {
     /* eslint-disable no-unexpected-multiline */
 
-    var gen = util.codegen(["m"], mtype.name + "$verify")
+    var gen = util.codegen(["m", "n"], mtype.name + "$verify")
     ("if(typeof m!==\"object\"||m===null)")
-        ("return%j", "object expected");
+        ("return%j", "object expected")
+    ("if(n===undefined)n=0")
+    ("if(n>util.recursionLimit)")
+        ("return%j", "maximum nesting depth exceeded");
     var oneofs = mtype.oneofsArray,
         seenFirstField = {};
     if (oneofs.length) gen
@@ -40845,6 +41633,7 @@ function verifier(mtype) {
     /* eslint-enable no-unexpected-multiline */
 }
 
+
 /***/ }),
 
 /***/ 9781:
@@ -40891,7 +41680,7 @@ var Message = __nccwpck_require__(9450);
 // Custom wrapper for Any
 wrappers[".google.protobuf.Any"] = {
 
-    fromObject: function(object) {
+    fromObject: function(object, depth) {
 
         // unwrap value type if mapped
         if (object && object["@type"]) {
@@ -40907,14 +41696,15 @@ wrappers[".google.protobuf.Any"] = {
                 if (type_url.indexOf("/") === -1) {
                     type_url = "/" + type_url;
                 }
+                var nextDepth = depth === undefined ? 1 : depth + 1;
                 return this.create({
                     type_url: type_url,
-                    value: type.encode(type.fromObject(object)).finish()
+                    value: type.encode(type.fromObject(object, nextDepth)).finish()
                 });
             }
         }
 
-        return this.fromObject(object);
+        return this.fromObject(object, depth);
     },
 
     toObject: function(message, options) {
@@ -94454,7 +95244,7 @@ module.exports = /*#__PURE__*/JSON.parse('{"nested":{"google":{"nested":{"protob
 /***/ ((module) => {
 
 "use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"nested":{"google":{"nested":{"protobuf":{"nested":{"FileDescriptorSet":{"fields":{"file":{"rule":"repeated","type":"FileDescriptorProto","id":1}}},"FileDescriptorProto":{"fields":{"name":{"type":"string","id":1},"package":{"type":"string","id":2},"dependency":{"rule":"repeated","type":"string","id":3},"publicDependency":{"rule":"repeated","type":"int32","id":10,"options":{"packed":false}},"weakDependency":{"rule":"repeated","type":"int32","id":11,"options":{"packed":false}},"messageType":{"rule":"repeated","type":"DescriptorProto","id":4},"enumType":{"rule":"repeated","type":"EnumDescriptorProto","id":5},"service":{"rule":"repeated","type":"ServiceDescriptorProto","id":6},"extension":{"rule":"repeated","type":"FieldDescriptorProto","id":7},"options":{"type":"FileOptions","id":8},"sourceCodeInfo":{"type":"SourceCodeInfo","id":9},"syntax":{"type":"string","id":12}}},"DescriptorProto":{"fields":{"name":{"type":"string","id":1},"field":{"rule":"repeated","type":"FieldDescriptorProto","id":2},"extension":{"rule":"repeated","type":"FieldDescriptorProto","id":6},"nestedType":{"rule":"repeated","type":"DescriptorProto","id":3},"enumType":{"rule":"repeated","type":"EnumDescriptorProto","id":4},"extensionRange":{"rule":"repeated","type":"ExtensionRange","id":5},"oneofDecl":{"rule":"repeated","type":"OneofDescriptorProto","id":8},"options":{"type":"MessageOptions","id":7},"reservedRange":{"rule":"repeated","type":"ReservedRange","id":9},"reservedName":{"rule":"repeated","type":"string","id":10}},"nested":{"ExtensionRange":{"fields":{"start":{"type":"int32","id":1},"end":{"type":"int32","id":2}}},"ReservedRange":{"fields":{"start":{"type":"int32","id":1},"end":{"type":"int32","id":2}}}}},"FieldDescriptorProto":{"fields":{"name":{"type":"string","id":1},"number":{"type":"int32","id":3},"label":{"type":"Label","id":4},"type":{"type":"Type","id":5},"typeName":{"type":"string","id":6},"extendee":{"type":"string","id":2},"defaultValue":{"type":"string","id":7},"oneofIndex":{"type":"int32","id":9},"jsonName":{"type":"string","id":10},"options":{"type":"FieldOptions","id":8}},"nested":{"Type":{"values":{"TYPE_DOUBLE":1,"TYPE_FLOAT":2,"TYPE_INT64":3,"TYPE_UINT64":4,"TYPE_INT32":5,"TYPE_FIXED64":6,"TYPE_FIXED32":7,"TYPE_BOOL":8,"TYPE_STRING":9,"TYPE_GROUP":10,"TYPE_MESSAGE":11,"TYPE_BYTES":12,"TYPE_UINT32":13,"TYPE_ENUM":14,"TYPE_SFIXED32":15,"TYPE_SFIXED64":16,"TYPE_SINT32":17,"TYPE_SINT64":18}},"Label":{"values":{"LABEL_OPTIONAL":1,"LABEL_REQUIRED":2,"LABEL_REPEATED":3}}}},"OneofDescriptorProto":{"fields":{"name":{"type":"string","id":1},"options":{"type":"OneofOptions","id":2}}},"EnumDescriptorProto":{"fields":{"name":{"type":"string","id":1},"value":{"rule":"repeated","type":"EnumValueDescriptorProto","id":2},"options":{"type":"EnumOptions","id":3}}},"EnumValueDescriptorProto":{"fields":{"name":{"type":"string","id":1},"number":{"type":"int32","id":2},"options":{"type":"EnumValueOptions","id":3}}},"ServiceDescriptorProto":{"fields":{"name":{"type":"string","id":1},"method":{"rule":"repeated","type":"MethodDescriptorProto","id":2},"options":{"type":"ServiceOptions","id":3}}},"MethodDescriptorProto":{"fields":{"name":{"type":"string","id":1},"inputType":{"type":"string","id":2},"outputType":{"type":"string","id":3},"options":{"type":"MethodOptions","id":4},"clientStreaming":{"type":"bool","id":5},"serverStreaming":{"type":"bool","id":6}}},"FileOptions":{"fields":{"javaPackage":{"type":"string","id":1},"javaOuterClassname":{"type":"string","id":8},"javaMultipleFiles":{"type":"bool","id":10},"javaGenerateEqualsAndHash":{"type":"bool","id":20,"options":{"deprecated":true}},"javaStringCheckUtf8":{"type":"bool","id":27},"optimizeFor":{"type":"OptimizeMode","id":9,"options":{"default":"SPEED"}},"goPackage":{"type":"string","id":11},"ccGenericServices":{"type":"bool","id":16},"javaGenericServices":{"type":"bool","id":17},"pyGenericServices":{"type":"bool","id":18},"deprecated":{"type":"bool","id":23},"ccEnableArenas":{"type":"bool","id":31},"objcClassPrefix":{"type":"string","id":36},"csharpNamespace":{"type":"string","id":37},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[38,38]],"nested":{"OptimizeMode":{"values":{"SPEED":1,"CODE_SIZE":2,"LITE_RUNTIME":3}}}},"MessageOptions":{"fields":{"messageSetWireFormat":{"type":"bool","id":1},"noStandardDescriptorAccessor":{"type":"bool","id":2},"deprecated":{"type":"bool","id":3},"mapEntry":{"type":"bool","id":7},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[8,8]]},"FieldOptions":{"fields":{"ctype":{"type":"CType","id":1,"options":{"default":"STRING"}},"packed":{"type":"bool","id":2},"jstype":{"type":"JSType","id":6,"options":{"default":"JS_NORMAL"}},"lazy":{"type":"bool","id":5},"deprecated":{"type":"bool","id":3},"weak":{"type":"bool","id":10},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[4,4]],"nested":{"CType":{"values":{"STRING":0,"CORD":1,"STRING_PIECE":2}},"JSType":{"values":{"JS_NORMAL":0,"JS_STRING":1,"JS_NUMBER":2}}}},"OneofOptions":{"fields":{"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"EnumOptions":{"fields":{"allowAlias":{"type":"bool","id":2},"deprecated":{"type":"bool","id":3},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"EnumValueOptions":{"fields":{"deprecated":{"type":"bool","id":1},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"ServiceOptions":{"fields":{"deprecated":{"type":"bool","id":33},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"MethodOptions":{"fields":{"deprecated":{"type":"bool","id":33},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"UninterpretedOption":{"fields":{"name":{"rule":"repeated","type":"NamePart","id":2},"identifierValue":{"type":"string","id":3},"positiveIntValue":{"type":"uint64","id":4},"negativeIntValue":{"type":"int64","id":5},"doubleValue":{"type":"double","id":6},"stringValue":{"type":"bytes","id":7},"aggregateValue":{"type":"string","id":8}},"nested":{"NamePart":{"fields":{"namePart":{"rule":"required","type":"string","id":1},"isExtension":{"rule":"required","type":"bool","id":2}}}}},"SourceCodeInfo":{"fields":{"location":{"rule":"repeated","type":"Location","id":1}},"nested":{"Location":{"fields":{"path":{"rule":"repeated","type":"int32","id":1},"span":{"rule":"repeated","type":"int32","id":2},"leadingComments":{"type":"string","id":3},"trailingComments":{"type":"string","id":4},"leadingDetachedComments":{"rule":"repeated","type":"string","id":6}}}}},"GeneratedCodeInfo":{"fields":{"annotation":{"rule":"repeated","type":"Annotation","id":1}},"nested":{"Annotation":{"fields":{"path":{"rule":"repeated","type":"int32","id":1},"sourceFile":{"type":"string","id":2},"begin":{"type":"int32","id":3},"end":{"type":"int32","id":4}}}}}}}}}}}');
+module.exports = /*#__PURE__*/JSON.parse('{"nested":{"google":{"nested":{"protobuf":{"options":{"go_package":"google.golang.org/protobuf/types/descriptorpb","java_package":"com.google.protobuf","java_outer_classname":"DescriptorProtos","csharp_namespace":"Google.Protobuf.Reflection","objc_class_prefix":"GPB","cc_enable_arenas":true,"optimize_for":"SPEED"},"nested":{"FileDescriptorSet":{"edition":"proto2","fields":{"file":{"rule":"repeated","type":"FileDescriptorProto","id":1}},"extensions":[[536000000,536000000]]},"Edition":{"edition":"proto2","values":{"EDITION_UNKNOWN":0,"EDITION_LEGACY":900,"EDITION_PROTO2":998,"EDITION_PROTO3":999,"EDITION_2023":1000,"EDITION_2024":1001,"EDITION_1_TEST_ONLY":1,"EDITION_2_TEST_ONLY":2,"EDITION_99997_TEST_ONLY":99997,"EDITION_99998_TEST_ONLY":99998,"EDITION_99999_TEST_ONLY":99999,"EDITION_MAX":2147483647}},"FileDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"package":{"type":"string","id":2},"dependency":{"rule":"repeated","type":"string","id":3},"publicDependency":{"rule":"repeated","type":"int32","id":10},"weakDependency":{"rule":"repeated","type":"int32","id":11},"optionDependency":{"rule":"repeated","type":"string","id":15},"messageType":{"rule":"repeated","type":"DescriptorProto","id":4},"enumType":{"rule":"repeated","type":"EnumDescriptorProto","id":5},"service":{"rule":"repeated","type":"ServiceDescriptorProto","id":6},"extension":{"rule":"repeated","type":"FieldDescriptorProto","id":7},"options":{"type":"FileOptions","id":8},"sourceCodeInfo":{"type":"SourceCodeInfo","id":9},"syntax":{"type":"string","id":12},"edition":{"type":"Edition","id":14}}},"DescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"field":{"rule":"repeated","type":"FieldDescriptorProto","id":2},"extension":{"rule":"repeated","type":"FieldDescriptorProto","id":6},"nestedType":{"rule":"repeated","type":"DescriptorProto","id":3},"enumType":{"rule":"repeated","type":"EnumDescriptorProto","id":4},"extensionRange":{"rule":"repeated","type":"ExtensionRange","id":5},"oneofDecl":{"rule":"repeated","type":"OneofDescriptorProto","id":8},"options":{"type":"MessageOptions","id":7},"reservedRange":{"rule":"repeated","type":"ReservedRange","id":9},"reservedName":{"rule":"repeated","type":"string","id":10},"visibility":{"type":"SymbolVisibility","id":11}},"nested":{"ExtensionRange":{"fields":{"start":{"type":"int32","id":1},"end":{"type":"int32","id":2},"options":{"type":"ExtensionRangeOptions","id":3}}},"ReservedRange":{"fields":{"start":{"type":"int32","id":1},"end":{"type":"int32","id":2}}}}},"ExtensionRangeOptions":{"edition":"proto2","fields":{"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999},"declaration":{"rule":"repeated","type":"Declaration","id":2,"options":{"retention":"RETENTION_SOURCE"}},"features":{"type":"FeatureSet","id":50},"verification":{"type":"VerificationState","id":3,"options":{"default":"UNVERIFIED","retention":"RETENTION_SOURCE"}}},"extensions":[[1000,536870911]],"nested":{"Declaration":{"fields":{"number":{"type":"int32","id":1},"fullName":{"type":"string","id":2},"type":{"type":"string","id":3},"reserved":{"type":"bool","id":5},"repeated":{"type":"bool","id":6}},"reserved":[[4,4]]},"VerificationState":{"values":{"DECLARATION":0,"UNVERIFIED":1}}}},"FieldDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"number":{"type":"int32","id":3},"label":{"type":"Label","id":4},"type":{"type":"Type","id":5},"typeName":{"type":"string","id":6},"extendee":{"type":"string","id":2},"defaultValue":{"type":"string","id":7},"oneofIndex":{"type":"int32","id":9},"jsonName":{"type":"string","id":10},"options":{"type":"FieldOptions","id":8},"proto3Optional":{"type":"bool","id":17}},"nested":{"Type":{"values":{"TYPE_DOUBLE":1,"TYPE_FLOAT":2,"TYPE_INT64":3,"TYPE_UINT64":4,"TYPE_INT32":5,"TYPE_FIXED64":6,"TYPE_FIXED32":7,"TYPE_BOOL":8,"TYPE_STRING":9,"TYPE_GROUP":10,"TYPE_MESSAGE":11,"TYPE_BYTES":12,"TYPE_UINT32":13,"TYPE_ENUM":14,"TYPE_SFIXED32":15,"TYPE_SFIXED64":16,"TYPE_SINT32":17,"TYPE_SINT64":18}},"Label":{"values":{"LABEL_OPTIONAL":1,"LABEL_REPEATED":3,"LABEL_REQUIRED":2}}}},"OneofDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"options":{"type":"OneofOptions","id":2}}},"EnumDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"value":{"rule":"repeated","type":"EnumValueDescriptorProto","id":2},"options":{"type":"EnumOptions","id":3},"reservedRange":{"rule":"repeated","type":"EnumReservedRange","id":4},"reservedName":{"rule":"repeated","type":"string","id":5},"visibility":{"type":"SymbolVisibility","id":6}},"nested":{"EnumReservedRange":{"fields":{"start":{"type":"int32","id":1},"end":{"type":"int32","id":2}}}}},"EnumValueDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"number":{"type":"int32","id":2},"options":{"type":"EnumValueOptions","id":3}}},"ServiceDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"method":{"rule":"repeated","type":"MethodDescriptorProto","id":2},"options":{"type":"ServiceOptions","id":3}}},"MethodDescriptorProto":{"edition":"proto2","fields":{"name":{"type":"string","id":1},"inputType":{"type":"string","id":2},"outputType":{"type":"string","id":3},"options":{"type":"MethodOptions","id":4},"clientStreaming":{"type":"bool","id":5},"serverStreaming":{"type":"bool","id":6}}},"FileOptions":{"edition":"proto2","fields":{"javaPackage":{"type":"string","id":1},"javaOuterClassname":{"type":"string","id":8},"javaMultipleFiles":{"type":"bool","id":10},"javaGenerateEqualsAndHash":{"type":"bool","id":20,"options":{"deprecated":true}},"javaStringCheckUtf8":{"type":"bool","id":27},"optimizeFor":{"type":"OptimizeMode","id":9,"options":{"default":"SPEED"}},"goPackage":{"type":"string","id":11},"ccGenericServices":{"type":"bool","id":16},"javaGenericServices":{"type":"bool","id":17},"pyGenericServices":{"type":"bool","id":18},"deprecated":{"type":"bool","id":23},"ccEnableArenas":{"type":"bool","id":31,"options":{"default":true}},"objcClassPrefix":{"type":"string","id":36},"csharpNamespace":{"type":"string","id":37},"swiftPrefix":{"type":"string","id":39},"phpClassPrefix":{"type":"string","id":40},"phpNamespace":{"type":"string","id":41},"phpMetadataNamespace":{"type":"string","id":44},"rubyPackage":{"type":"string","id":45},"features":{"type":"FeatureSet","id":50},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[42,42],[38,38],"php_generic_services"],"nested":{"OptimizeMode":{"values":{"SPEED":1,"CODE_SIZE":2,"LITE_RUNTIME":3}}}},"MessageOptions":{"edition":"proto2","fields":{"messageSetWireFormat":{"type":"bool","id":1},"noStandardDescriptorAccessor":{"type":"bool","id":2},"deprecated":{"type":"bool","id":3},"mapEntry":{"type":"bool","id":7},"deprecatedLegacyJsonFieldConflicts":{"type":"bool","id":11,"options":{"deprecated":true}},"features":{"type":"FeatureSet","id":12},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[4,4],[5,5],[6,6],[8,8],[9,9]]},"FieldOptions":{"edition":"proto2","fields":{"ctype":{"type":"CType","id":1,"options":{"default":"STRING"}},"packed":{"type":"bool","id":2},"jstype":{"type":"JSType","id":6,"options":{"default":"JS_NORMAL"}},"lazy":{"type":"bool","id":5},"unverifiedLazy":{"type":"bool","id":15},"deprecated":{"type":"bool","id":3},"weak":{"type":"bool","id":10,"options":{"deprecated":true}},"debugRedact":{"type":"bool","id":16},"retention":{"type":"OptionRetention","id":17},"targets":{"rule":"repeated","type":"OptionTargetType","id":19},"editionDefaults":{"rule":"repeated","type":"EditionDefault","id":20},"features":{"type":"FeatureSet","id":21},"featureSupport":{"type":"FeatureSupport","id":22},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[4,4],[18,18]],"nested":{"CType":{"values":{"STRING":0,"CORD":1,"STRING_PIECE":2}},"JSType":{"values":{"JS_NORMAL":0,"JS_STRING":1,"JS_NUMBER":2}},"OptionRetention":{"values":{"RETENTION_UNKNOWN":0,"RETENTION_RUNTIME":1,"RETENTION_SOURCE":2}},"OptionTargetType":{"values":{"TARGET_TYPE_UNKNOWN":0,"TARGET_TYPE_FILE":1,"TARGET_TYPE_EXTENSION_RANGE":2,"TARGET_TYPE_MESSAGE":3,"TARGET_TYPE_FIELD":4,"TARGET_TYPE_ONEOF":5,"TARGET_TYPE_ENUM":6,"TARGET_TYPE_ENUM_ENTRY":7,"TARGET_TYPE_SERVICE":8,"TARGET_TYPE_METHOD":9}},"EditionDefault":{"fields":{"edition":{"type":"Edition","id":3},"value":{"type":"string","id":2}}},"FeatureSupport":{"fields":{"editionIntroduced":{"type":"Edition","id":1},"editionDeprecated":{"type":"Edition","id":2},"deprecationWarning":{"type":"string","id":3},"editionRemoved":{"type":"Edition","id":4}}}}},"OneofOptions":{"edition":"proto2","fields":{"features":{"type":"FeatureSet","id":1},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"EnumOptions":{"edition":"proto2","fields":{"allowAlias":{"type":"bool","id":2},"deprecated":{"type":"bool","id":3},"deprecatedLegacyJsonFieldConflicts":{"type":"bool","id":6,"options":{"deprecated":true}},"features":{"type":"FeatureSet","id":7},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"reserved":[[5,5]]},"EnumValueOptions":{"edition":"proto2","fields":{"deprecated":{"type":"bool","id":1},"features":{"type":"FeatureSet","id":2},"debugRedact":{"type":"bool","id":3},"featureSupport":{"type":"FieldOptions.FeatureSupport","id":4},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"ServiceOptions":{"edition":"proto2","fields":{"features":{"type":"FeatureSet","id":34},"deprecated":{"type":"bool","id":33},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]]},"MethodOptions":{"edition":"proto2","fields":{"deprecated":{"type":"bool","id":33},"idempotencyLevel":{"type":"IdempotencyLevel","id":34,"options":{"default":"IDEMPOTENCY_UNKNOWN"}},"features":{"type":"FeatureSet","id":35},"uninterpretedOption":{"rule":"repeated","type":"UninterpretedOption","id":999}},"extensions":[[1000,536870911]],"nested":{"IdempotencyLevel":{"values":{"IDEMPOTENCY_UNKNOWN":0,"NO_SIDE_EFFECTS":1,"IDEMPOTENT":2}}}},"UninterpretedOption":{"edition":"proto2","fields":{"name":{"rule":"repeated","type":"NamePart","id":2},"identifierValue":{"type":"string","id":3},"positiveIntValue":{"type":"uint64","id":4},"negativeIntValue":{"type":"int64","id":5},"doubleValue":{"type":"double","id":6},"stringValue":{"type":"bytes","id":7},"aggregateValue":{"type":"string","id":8}},"nested":{"NamePart":{"fields":{"namePart":{"rule":"required","type":"string","id":1},"isExtension":{"rule":"required","type":"bool","id":2}}}}},"FeatureSet":{"edition":"proto2","fields":{"fieldPresence":{"type":"FieldPresence","id":1,"options":{"retention":"RETENTION_RUNTIME","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2023","edition_defaults.edition":"EDITION_2023","edition_defaults.value":"EXPLICIT"}},"enumType":{"type":"EnumType","id":2,"options":{"retention":"RETENTION_RUNTIME","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2023","edition_defaults.edition":"EDITION_PROTO3","edition_defaults.value":"OPEN"}},"repeatedFieldEncoding":{"type":"RepeatedFieldEncoding","id":3,"options":{"retention":"RETENTION_RUNTIME","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2023","edition_defaults.edition":"EDITION_PROTO3","edition_defaults.value":"PACKED"}},"utf8Validation":{"type":"Utf8Validation","id":4,"options":{"retention":"RETENTION_RUNTIME","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2023","edition_defaults.edition":"EDITION_PROTO3","edition_defaults.value":"VERIFY"}},"messageEncoding":{"type":"MessageEncoding","id":5,"options":{"retention":"RETENTION_RUNTIME","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2023","edition_defaults.edition":"EDITION_LEGACY","edition_defaults.value":"LENGTH_PREFIXED"}},"jsonFormat":{"type":"JsonFormat","id":6,"options":{"retention":"RETENTION_RUNTIME","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2023","edition_defaults.edition":"EDITION_PROTO3","edition_defaults.value":"ALLOW"}},"enforceNamingStyle":{"type":"EnforceNamingStyle","id":7,"options":{"retention":"RETENTION_SOURCE","targets":"TARGET_TYPE_METHOD","feature_support.edition_introduced":"EDITION_2024","edition_defaults.edition":"EDITION_2024","edition_defaults.value":"STYLE2024"}},"defaultSymbolVisibility":{"type":"VisibilityFeature.DefaultSymbolVisibility","id":8,"options":{"retention":"RETENTION_SOURCE","targets":"TARGET_TYPE_FILE","feature_support.edition_introduced":"EDITION_2024","edition_defaults.edition":"EDITION_2024","edition_defaults.value":"EXPORT_TOP_LEVEL"}}},"extensions":[[1000,9994],[9995,9999],[10000,10000]],"reserved":[[999,999]],"nested":{"FieldPresence":{"values":{"FIELD_PRESENCE_UNKNOWN":0,"EXPLICIT":1,"IMPLICIT":2,"LEGACY_REQUIRED":3}},"EnumType":{"values":{"ENUM_TYPE_UNKNOWN":0,"OPEN":1,"CLOSED":2}},"RepeatedFieldEncoding":{"values":{"REPEATED_FIELD_ENCODING_UNKNOWN":0,"PACKED":1,"EXPANDED":2}},"Utf8Validation":{"values":{"UTF8_VALIDATION_UNKNOWN":0,"VERIFY":2,"NONE":3}},"MessageEncoding":{"values":{"MESSAGE_ENCODING_UNKNOWN":0,"LENGTH_PREFIXED":1,"DELIMITED":2}},"JsonFormat":{"values":{"JSON_FORMAT_UNKNOWN":0,"ALLOW":1,"LEGACY_BEST_EFFORT":2}},"EnforceNamingStyle":{"values":{"ENFORCE_NAMING_STYLE_UNKNOWN":0,"STYLE2024":1,"STYLE_LEGACY":2}},"VisibilityFeature":{"fields":{},"reserved":[[1,536870911]],"nested":{"DefaultSymbolVisibility":{"values":{"DEFAULT_SYMBOL_VISIBILITY_UNKNOWN":0,"EXPORT_ALL":1,"EXPORT_TOP_LEVEL":2,"LOCAL_ALL":3,"STRICT":4}}}}}},"FeatureSetDefaults":{"edition":"proto2","fields":{"defaults":{"rule":"repeated","type":"FeatureSetEditionDefault","id":1},"minimumEdition":{"type":"Edition","id":4},"maximumEdition":{"type":"Edition","id":5}},"nested":{"FeatureSetEditionDefault":{"fields":{"edition":{"type":"Edition","id":3},"overridableFeatures":{"type":"FeatureSet","id":4},"fixedFeatures":{"type":"FeatureSet","id":5}},"reserved":[[1,1],[2,2],"features"]}}},"SourceCodeInfo":{"edition":"proto2","fields":{"location":{"rule":"repeated","type":"Location","id":1}},"extensions":[[536000000,536000000]],"nested":{"Location":{"fields":{"path":{"rule":"repeated","type":"int32","id":1,"options":{"packed":true}},"span":{"rule":"repeated","type":"int32","id":2,"options":{"packed":true}},"leadingComments":{"type":"string","id":3},"trailingComments":{"type":"string","id":4},"leadingDetachedComments":{"rule":"repeated","type":"string","id":6}}}}},"GeneratedCodeInfo":{"edition":"proto2","fields":{"annotation":{"rule":"repeated","type":"Annotation","id":1}},"nested":{"Annotation":{"fields":{"path":{"rule":"repeated","type":"int32","id":1,"options":{"packed":true}},"sourceFile":{"type":"string","id":2},"begin":{"type":"int32","id":3},"end":{"type":"int32","id":4},"semantic":{"type":"Semantic","id":5}},"nested":{"Semantic":{"values":{"NONE":0,"SET":1,"ALIAS":2}}}}}},"SymbolVisibility":{"edition":"proto2","values":{"VISIBILITY_UNSET":0,"VISIBILITY_LOCAL":1,"VISIBILITY_EXPORT":2}}}}}}}}');
 
 /***/ }),
 
