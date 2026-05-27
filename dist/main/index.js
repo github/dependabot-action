@@ -129355,13 +129355,7 @@ async function run(context) {
     }
 }
 function getPackagesCredential(jobDetails, actor) {
-    const experiments = jobDetails?.experiments || {};
-    const experimentName = 'automatic_github_packages_auth';
-    const alternateExperimentName = experimentName.replace(/_/g, '-');
-    const autoAuthWithPackages = experiments[experimentName] ?? experiments[alternateExperimentName] ?? false;
-    if (!autoAuthWithPackages) {
-        return null;
-    }
+
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
         core.warning('GITHUB_TOKEN is not set; cannot create GitHub Packages credential');
