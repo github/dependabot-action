@@ -217,16 +217,6 @@ export function getPackagesCredential(
   jobDetails: JobDetails,
   actor: string
 ): Credential | null {
-  const experiments =
-    (jobDetails?.experiments as {[key: string]: boolean}) || {}
-  const experimentName = 'automatic_github_packages_auth'
-  const alternateExperimentName = experimentName.replace(/_/g, '-')
-  const autoAuthWithPackages =
-    experiments[experimentName] ?? experiments[alternateExperimentName] ?? false
-  if (!autoAuthWithPackages) {
-    return null
-  }
-
   const githubToken = process.env.GITHUB_TOKEN
   if (!githubToken) {
     core.warning(

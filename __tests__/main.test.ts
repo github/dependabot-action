@@ -863,8 +863,6 @@ describe('credentialsFromEnv', () => {
 })
 
 describe('getPackagesCredential', () => {
-  const experimentName = 'automatic_github_packages_auth'
-  const alternateExperimentName = experimentName.replace(/_/g, '-')
   function createJobDetails(
     packageManager: string,
     experiments: {[key: string]: boolean},
@@ -890,9 +888,7 @@ describe('getPackagesCredential', () => {
 
   describe('when the package manager is unsupported', () => {
     it('returns null', () => {
-      const details = createJobDetails('unsupported-package-manager', {
-        [experimentName]: true
-      })
+      const details = createJobDetails('unsupported-package-manager', {})
       const cred = getPackagesCredential(details, 'test-actor')
       expect(cred).toBeNull()
     })
@@ -901,7 +897,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is bundler', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('bundler', {[experimentName]: true})
+        const details = createJobDetails('bundler', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'rubygems_server',
@@ -916,7 +912,7 @@ describe('getPackagesCredential', () => {
           host: 'rubygems.pkg.github.com',
           token: 'some-other-actor:some-other-token'
         }
-        const details = createJobDetails('bundler', {[experimentName]: true}, [
+        const details = createJobDetails('bundler', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
@@ -928,7 +924,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is docker', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('docker', {[experimentName]: true})
+        const details = createJobDetails('docker', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'docker_registry',
@@ -945,7 +941,7 @@ describe('getPackagesCredential', () => {
           username: 'some-other-actor',
           password: 'some-other-token'
         }
-        const details = createJobDetails('docker', {[experimentName]: true}, [
+        const details = createJobDetails('docker', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
@@ -957,9 +953,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is docker_compose', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('docker_compose', {
-          [experimentName]: true
-        })
+        const details = createJobDetails('docker_compose', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'docker_registry',
@@ -978,7 +972,7 @@ describe('getPackagesCredential', () => {
         }
         const details = createJobDetails(
           'docker_compose',
-          {[experimentName]: true},
+          {},
           [existingCred]
         )
         const cred = getPackagesCredential(details, 'test-actor')
@@ -990,9 +984,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is devcontainers', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('devcontainers', {
-          [experimentName]: true
-        })
+        const details = createJobDetails('devcontainers', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'docker_registry',
@@ -1011,7 +1003,7 @@ describe('getPackagesCredential', () => {
         }
         const details = createJobDetails(
           'devcontainers',
-          {[experimentName]: true},
+          {},
           [existingCred]
         )
         const cred = getPackagesCredential(details, 'test-actor')
@@ -1023,7 +1015,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is maven', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('maven', {[experimentName]: true})
+        const details = createJobDetails('maven', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'maven_repository',
@@ -1040,7 +1032,7 @@ describe('getPackagesCredential', () => {
           username: 'some-other-actor',
           password: 'some-other-token'
         }
-        const details = createJobDetails('maven', {[experimentName]: true}, [
+        const details = createJobDetails('maven', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
@@ -1054,7 +1046,7 @@ describe('getPackagesCredential', () => {
           username: 'some-other-actor',
           password: 'some-other-token'
         }
-        const details = createJobDetails('maven', {[experimentName]: true}, [
+        const details = createJobDetails('maven', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
@@ -1066,7 +1058,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is gradle', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('gradle', {[experimentName]: true})
+        const details = createJobDetails('gradle', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'maven_repository',
@@ -1083,7 +1075,7 @@ describe('getPackagesCredential', () => {
           username: 'some-other-actor',
           password: 'some-other-token'
         }
-        const details = createJobDetails('gradle', {[experimentName]: true}, [
+        const details = createJobDetails('gradle', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
@@ -1095,9 +1087,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is npm_and_yarn', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('npm_and_yarn', {
-          [experimentName]: true
-        })
+        const details = createJobDetails('npm_and_yarn', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'npm_registry',
@@ -1114,7 +1104,7 @@ describe('getPackagesCredential', () => {
         }
         const details = createJobDetails(
           'npm_and_yarn',
-          {[experimentName]: true},
+          {},
           [existingCred]
         )
         const cred = getPackagesCredential(details, 'test-actor')
@@ -1126,7 +1116,7 @@ describe('getPackagesCredential', () => {
   describe('when the package manager is bun', () => {
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('bun', {[experimentName]: true})
+        const details = createJobDetails('bun', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'npm_registry',
@@ -1141,7 +1131,7 @@ describe('getPackagesCredential', () => {
           registry: 'npm.pkg.github.com',
           token: 'some-other-actor:some-other-token'
         }
-        const details = createJobDetails('bun', {[experimentName]: true}, [
+        const details = createJobDetails('bun', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
@@ -1161,7 +1151,7 @@ describe('getPackagesCredential', () => {
 
     describe('when automatic package auth is disabled', () => {
       it('returns null', () => {
-        const details = createJobDetails('nuget', {[experimentName]: false})
+        const details = createJobDetails('nuget', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toBeNull()
       })
@@ -1170,7 +1160,7 @@ describe('getPackagesCredential', () => {
     describe('when GITHUB_TOKEN is not set', () => {
       it('returns null', () => {
         delete process.env.GITHUB_TOKEN
-        const details = createJobDetails('nuget', {[experimentName]: true})
+        const details = createJobDetails('nuget', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toBeNull()
       })
@@ -1178,7 +1168,7 @@ describe('getPackagesCredential', () => {
 
     describe('when automatic package auth is enabled', () => {
       it('creates a GitHub packages credential', () => {
-        const details = createJobDetails('nuget', {[experimentName]: true})
+        const details = createJobDetails('nuget', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'nuget_feed',
@@ -1189,9 +1179,7 @@ describe('getPackagesCredential', () => {
       })
 
       it('creates a GitHub packages credential with alternate experiment name', () => {
-        const details = createJobDetails('nuget', {
-          [alternateExperimentName]: true
-        })
+        const details = createJobDetails('nuget', {})
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'nuget_feed',
@@ -1208,7 +1196,7 @@ describe('getPackagesCredential', () => {
           username: 'some-other-actor',
           password: 'some-other-token'
         }
-        const details = createJobDetails('nuget', {[experimentName]: true}, [
+        const details = createJobDetails('nuget', {}, [
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
