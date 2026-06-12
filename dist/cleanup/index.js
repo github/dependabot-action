@@ -21473,15 +21473,23 @@ function EventEmitter() {
      * @type {Object.<string,*>}
      * @private
      */
-    this._listeners = {};
+    this._listeners = Object.create(null);
 }
+
+/**
+ * Event listener as used by {@link util.EventEmitter}.
+ * @typedef EventEmitterListener
+ * @type {function}
+ * @param {...*} args Arguments
+ * @returns {undefined}
+ */
 
 /**
  * Registers an event listener.
  * @param {string} evt Event name
- * @param {function} fn Listener
+ * @param {EventEmitterListener} fn Listener
  * @param {*} [ctx] Listener context
- * @returns {util.EventEmitter} `this`
+ * @returns {this} `this`
  */
 EventEmitter.prototype.on = function on(evt, fn, ctx) {
     (this._listeners[evt] || (this._listeners[evt] = [])).push({
@@ -21494,17 +21502,19 @@ EventEmitter.prototype.on = function on(evt, fn, ctx) {
 /**
  * Removes an event listener or any matching listeners if arguments are omitted.
  * @param {string} [evt] Event name. Removes all listeners if omitted.
- * @param {function} [fn] Listener to remove. Removes all listeners of `evt` if omitted.
- * @returns {util.EventEmitter} `this`
+ * @param {EventEmitterListener} [fn] Listener to remove. Removes all listeners of `evt` if omitted.
+ * @returns {this} `this`
  */
 EventEmitter.prototype.off = function off(evt, fn) {
     if (evt === undefined)
-        this._listeners = {};
+        this._listeners = Object.create(null);
     else {
         if (fn === undefined)
             this._listeners[evt] = [];
         else {
             var listeners = this._listeners[evt];
+            if (!listeners)
+                return this;
             for (var i = 0; i < listeners.length;)
                 if (listeners[i].fn === fn)
                     listeners.splice(i, 1);
@@ -21519,7 +21529,7 @@ EventEmitter.prototype.off = function off(evt, fn) {
  * Emits an event by calling its listeners with the specified arguments.
  * @param {string} evt Event name
  * @param {...*} args Arguments
- * @returns {util.EventEmitter} `this`
+ * @returns {this} `this`
  */
 EventEmitter.prototype.emit = function emit(evt) {
     var listeners = this._listeners[evt];
@@ -21545,9 +21555,7 @@ EventEmitter.prototype.emit = function emit(evt) {
 module.exports = fetch;
 
 var asPromise = __nccwpck_require__(2222),
-    inquire   = __nccwpck_require__(7206);
-
-var fs = inquire("fs");
+    fs        = __nccwpck_require__(193);
 
 /**
  * Node-style callback as used by {@link util.fetch}.
@@ -21560,8 +21568,7 @@ var fs = inquire("fs");
 
 /**
  * Options as used by {@link util.fetch}.
- * @typedef FetchOptions
- * @type {Object}
+ * @interface IFetchOptions
  * @property {boolean} [binary=false] Whether expecting a binary response
  * @property {boolean} [xhr=false] If `true`, forces the use of XMLHttpRequest
  */
@@ -21570,7 +21577,7 @@ var fs = inquire("fs");
  * Fetches the contents of a file.
  * @memberof util
  * @param {string} filename File path or url
- * @param {FetchOptions} options Fetch options
+ * @param {IFetchOptions} options Fetch options
  * @param {FetchCallback} callback Callback function
  * @returns {undefined}
  */
@@ -21613,7 +21620,7 @@ function fetch(filename, options, callback) {
  * @name util.fetch
  * @function
  * @param {string} path File path or url
- * @param {FetchOptions} [options] Fetch options
+ * @param {IFetchOptions} [options] Fetch options
  * @returns {Promise<string|Uint8Array>} Promise
  * @variation 3
  */
@@ -21656,6 +21663,25 @@ fetch.xhr = function fetch_xhr(filename, options, callback) {
     xhr.open("GET", filename);
     xhr.send();
 };
+
+
+/***/ }),
+
+/***/ 193:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var fs = null;
+try {
+    fs = __nccwpck_require__(/* webpackIgnore: true */ 9896);
+    if (!fs || !fs.readFile || !fs.readFileSync)
+        fs = null;
+} catch (e) {
+    // `fs` is unavailable in browsers and browser-like bundles.
+}
+module.exports = fs;
 
 
 /***/ }),
@@ -21999,49 +22025,6 @@ function readUintBE(buf, pos) {
           | buf[pos + 2] << 8
           | buf[pos + 3]) >>> 0;
 }
-
-
-/***/ }),
-
-/***/ 7206:
-/***/ ((module) => {
-
-"use strict";
-
-module.exports = inquire;
-
-/**
- * Requires a module only if available.
- * @memberof util
- * @param {string} moduleName Module to require
- * @returns {?Object} Required module if available and not empty, otherwise `null`
- */
-function inquire(moduleName) {
-  try {
-    if (false) {}
-    var mod = require(moduleName);
-    if (mod && (mod.length || Object.keys(mod).length)) return mod;
-    return null;
-  } catch (err) {
-    // ignore
-    return null;
-  }
-}
-
-/*
-// maybe worth a shot to prevent renaming issues:
-// see: https://github.com/webpack/webpack/blob/master/lib/dependencies/CommonJsRequireDependencyParserPlugin.js
-// triggers on:
-// - expression require.cache
-// - expression require (???)
-// - call require
-// - call require:commonjs:item
-// - call require:commonjs:context
-
-Object.defineProperty(Function.prototype, "__self", { get: function() { return this; } });
-var r = require.__self;
-delete Function.prototype.__self;
-*/
 
 
 /***/ }),
@@ -32517,9 +32500,14 @@ var unnamedMessageIndex = 0;
  * @param {IDescriptorProto|Reader|Uint8Array} descriptor Descriptor
  * @param {string} [edition="proto2"] The syntax or edition to use
  * @param {boolean} [nested=false] Whether or not this is a nested object
+ * @param {number} [depth] Current nesting depth, defaults to `0`
  * @returns {Type} Type instance
  */
-Type.fromDescriptor = function fromDescriptor(descriptor, edition, nested) {
+Type.fromDescriptor = function fromDescriptor(descriptor, edition, nested, depth) {
+    if (depth === undefined)
+        depth = 0;
+    if (depth > $protobuf.util.nestingLimit)
+        throw Error("max depth exceeded");
     // Decode the descriptor message if specified as a buffer:
     if (typeof descriptor.length === "number")
         descriptor = exports.DescriptorProto.decode(descriptor);
@@ -32546,7 +32534,7 @@ Type.fromDescriptor = function fromDescriptor(descriptor, edition, nested) {
             type.add(Field.fromDescriptor(descriptor.extension[i], edition, true));
     /* Nested types */ if (descriptor.nestedType)
         for (i = 0; i < descriptor.nestedType.length; ++i) {
-            type.add(Type.fromDescriptor(descriptor.nestedType[i], edition, true));
+            type.add(Type.fromDescriptor(descriptor.nestedType[i], edition, true, depth + 1));
             if (descriptor.nestedType[i].options && descriptor.nestedType[i].options.mapEntry)
                 type.setOption("map_entry", true);
         }
@@ -33943,7 +33931,7 @@ function genValuePartial_fromObject(gen, field, fieldIndex, prop) {
             } gen
             ("}");
         } else gen
-            ("if(typeof d%s!==\"object\")", prop)
+            ("if(!util.isObject(d%s))", prop)
                 ("throw TypeError(%j)", field.fullName + ": object expected")
             ("m%s=types[%i].fromObject(d%s,n+1)", prop, fieldIndex, prop);
     } else {
@@ -33963,14 +33951,14 @@ function genValuePartial_fromObject(gen, field, fieldIndex, prop) {
                 ("m%s=d%s|0", prop, prop);
                 break;
             case "uint64":
+            case "fixed64":
                 isUnsigned = true;
                 // eslint-disable-next-line no-fallthrough
             case "int64":
             case "sint64":
-            case "fixed64":
             case "sfixed64": gen
                 ("if(util.Long)")
-                    ("(m%s=util.Long.fromValue(d%s)).unsigned=%j", prop, prop, isUnsigned)
+                    ("m%s=util.Long.fromValue(d%s,%j)", prop, prop, isUnsigned)
                 ("else if(typeof d%s===\"string\")", prop)
                     ("m%s=parseInt(d%s,10)", prop, prop)
                 ("else if(typeof d%s===\"number\")", prop)
@@ -34009,12 +33997,15 @@ converter.fromObject = function fromObject(mtype) {
     var fields = mtype.fieldsArray;
     var gen = util.codegen(["d", "n"], mtype.name + "$fromObject")
     ("if(d instanceof this.ctor)")
-        ("return d")
+        ("return d");
+    if (!fields.length) return gen
+    ("return new this.ctor");
+    gen
+    ("if(!util.isObject(d))")
+        ("throw TypeError(%j)", mtype.fullName + ": object expected")
     ("if(n===undefined)n=0")
     ("if(n>util.recursionLimit)")
         ("throw Error(\"maximum nesting depth exceeded\")");
-    if (!fields.length) return gen
-    ("return new this.ctor");
     gen
     ("var m=new this.ctor");
     for (var i = 0; i < fields.length; ++i) {
@@ -34024,7 +34015,7 @@ converter.fromObject = function fromObject(mtype) {
         // Map fields
         if (field.map) { gen
     ("if(d%s){", prop)
-        ("if(typeof d%s!==\"object\")", prop)
+        ("if(!util.isObject(d%s))", prop)
             ("throw TypeError(%j)", field.fullName + ": object expected")
         ("m%s={}", prop)
         ("for(var ks=Object.keys(d%s),i=0;i<ks.length;++i){", prop);
@@ -34074,7 +34065,7 @@ function genValuePartial_toObject(gen, field, fieldIndex, prop) {
         if (field.resolvedType instanceof Enum) gen
             ("d%s=o.enums===String?(types[%i].values[m%s]===undefined?m%s:types[%i].values[m%s]):m%s", prop, fieldIndex, prop, prop, fieldIndex, prop, prop);
         else gen
-            ("d%s=types[%i].toObject(m%s,o)", prop, fieldIndex, prop);
+            ("d%s=types[%i].toObject(m%s,o,q+1)", prop, fieldIndex, prop);
     } else {
         var isUnsigned = false;
         switch (field.type) {
@@ -34083,13 +34074,15 @@ function genValuePartial_toObject(gen, field, fieldIndex, prop) {
             ("d%s=o.json&&!isFinite(m%s)?String(m%s):m%s", prop, prop, prop, prop);
                 break;
             case "uint64":
+            case "fixed64":
                 isUnsigned = true;
                 // eslint-disable-next-line no-fallthrough
             case "int64":
             case "sint64":
-            case "fixed64":
             case "sfixed64": gen
-            ("if(typeof m%s===\"number\")", prop)
+            ("if(typeof BigInt!==\"undefined\"&&o.longs===BigInt)")
+                ("d%s=typeof m%s===\"number\"?BigInt(m%s):util.Long.fromBits(m%s.low>>>0,m%s.high>>>0,%j).toBigInt()", prop, prop, prop, prop, prop, isUnsigned)
+            ("else if(typeof m%s===\"number\")", prop)
                 ("d%s=o.longs===String?String(m%s):m%s", prop, prop, prop)
             ("else") // Long-like
                 ("d%s=o.longs===String?util.Long.prototype.toString.call(m%s):o.longs===Number?new util.LongBits(m%s.low>>>0,m%s.high>>>0).toNumber(%s):m%s", prop, prop, prop, prop, isUnsigned ? "true": "", prop);
@@ -34116,9 +34109,12 @@ converter.toObject = function toObject(mtype) {
     var fields = mtype.fieldsArray.slice().sort(util.compareFieldsById);
     if (!fields.length)
         return util.codegen()("return {}");
-    var gen = util.codegen(["m", "o"], mtype.name + "$toObject")
+    var gen = util.codegen(["m", "o", "q"], mtype.name + "$toObject")
     ("if(!o)")
         ("o={}")
+    ("if(q===undefined)q=0")
+    ("if(q>util.recursionLimit)")
+        ("throw Error(\"max depth exceeded\")")
     ("var d={}");
 
     var repeatedFields = [],
@@ -34157,9 +34153,9 @@ converter.toObject = function toObject(mtype) {
             else if (field.long) gen
         ("if(util.Long){")
             ("var n=new util.Long(%i,%i,%j)", field.typeDefault.low, field.typeDefault.high, field.typeDefault.unsigned)
-            ("d%s=o.longs===String?n.toString():o.longs===Number?n.toNumber():n", prop)
+            ("d%s=o.longs===String?n.toString():o.longs===Number?n.toNumber():typeof BigInt!==\"undefined\"&&o.longs===BigInt?n.toBigInt():n", prop)
         ("}else")
-            ("d%s=o.longs===String?%j:%i", prop, field.typeDefault.toString(), field.typeDefault.toNumber());
+            ("d%s=o.longs===String?%j:typeof BigInt!==\"undefined\"&&o.longs===BigInt?BigInt(%j):%i", prop, field.typeDefault.toString(), field.typeDefault.toString(), field.typeDefault.toNumber());
             else if (field.bytes) {
                 var arrayDefault = Array.prototype.slice.call(field.typeDefault);
                 gen
@@ -34197,7 +34193,7 @@ converter.toObject = function toObject(mtype) {
             genValuePartial_toObject(gen, field, /* sorted */ index, prop + "[j]")
         ("}");
         } else { gen
-    ("if(m%s!=null&&m.hasOwnProperty(%j)){", prop, field.name); // !== undefined && !== null
+    ("if(m%s!=null&&Object.hasOwnProperty.call(m,%j)){", prop, field.name); // !== undefined && !== null
         genValuePartial_toObject(gen, field, /* sorted */ index, prop);
         if (field.partOf) gen
         ("if(o.oneofs)")
@@ -34345,7 +34341,7 @@ function decoder(mtype) {
     for (i = 0; i < mtype._fieldsArray.length; ++i) {
         var rfield = mtype._fieldsArray[i];
         if (rfield.required) gen
-    ("if(!m.hasOwnProperty(%j))", rfield.name)
+            ("if(!Object.hasOwnProperty.call(m,%j))", rfield.name)
         ("throw util.ProtocolError(%j,{instance:m})", missing(rfield));
     }
 
@@ -34379,8 +34375,8 @@ var Enum     = __nccwpck_require__(3528),
  */
 function genTypePartial(gen, field, fieldIndex, ref) {
     return field.delimited
-        ? gen("types[%i].encode(%s,w.uint32(%i)).uint32(%i)", fieldIndex, ref, (field.id << 3 | 3) >>> 0, (field.id << 3 | 4) >>> 0)
-        : gen("types[%i].encode(%s,w.uint32(%i).fork()).ldelim()", fieldIndex, ref, (field.id << 3 | 2) >>> 0);
+        ? gen("types[%i].encode(%s,w.uint32(%i),q+1).uint32(%i)", fieldIndex, ref, (field.id << 3 | 3) >>> 0, (field.id << 3 | 4) >>> 0)
+        : gen("types[%i].encode(%s,w.uint32(%i).fork(),q+1).ldelim()", fieldIndex, ref, (field.id << 3 | 2) >>> 0);
 }
 
 /**
@@ -34390,9 +34386,12 @@ function genTypePartial(gen, field, fieldIndex, ref) {
  */
 function encoder(mtype) {
     /* eslint-disable no-unexpected-multiline, block-scoped-var, no-redeclare */
-    var gen = util.codegen(["m", "w"], mtype.name + "$encode")
+    var gen = util.codegen(["m", "w", "q"], mtype.name + "$encode")
     ("if(!w)")
-        ("w=Writer.create()");
+        ("w=Writer.create()")
+    ("if(q===undefined)q=0")
+    ("if(q>util.recursionLimit)")
+        ("throw Error(\"max depth exceeded\")");
 
     var i, ref;
 
@@ -34413,7 +34412,7 @@ function encoder(mtype) {
         ("for(var ks=Object.keys(%s),i=0;i<ks.length;++i){", ref)
             ("w.uint32(%i).fork().uint32(%i).%s(ks[i])", (field.id << 3 | 2) >>> 0, 8 | types.mapKey[field.keyType], field.keyType);
             if (wireType === undefined) gen
-            ("types[%i].encode(%s[ks[i]],w.uint32(18).fork()).ldelim().ldelim()", index, ref); // can't be groups
+            ("types[%i].encode(%s[ks[i]],w.uint32(18).fork(),q+1).ldelim().ldelim()", index, ref); // can't be groups
             else gen
             (".uint32(%i).%s(%s[ks[i]]).ldelim()", 16 | wireType, type, ref);
             gen
@@ -34557,8 +34556,8 @@ Enum.prototype._resolveFeatures = function _resolveFeatures(edition) {
     ReflectionObject.prototype._resolveFeatures.call(this, edition);
 
     Object.keys(this.values).forEach(key => {
-        var parentFeaturesCopy = Object.assign({}, this._features);
-        this._valuesFeatures[key] = Object.assign(parentFeaturesCopy, this.valuesOptions && this.valuesOptions[key] && this.valuesOptions[key].features);
+        var parentFeaturesCopy = util.merge({}, this._features);
+        this._valuesFeatures[key] = util.merge(parentFeaturesCopy, this.valuesOptions && this.valuesOptions[key] && this.valuesOptions[key].features || {});
     });
 
     return this;
@@ -35033,7 +35032,7 @@ Field.prototype.resolve = function resolve() {
 
     // convert to internal data type if necesssary
     if (this.long) {
-        this.typeDefault = util.Long.fromNumber(this.typeDefault, this.type.charAt(0) === "u");
+        this.typeDefault = util.Long.fromNumber(this.typeDefault, this.type === "uint64" || this.type === "fixed64");
 
         /* istanbul ignore else */
         if (Object.freeze)
@@ -35824,11 +35823,13 @@ var Type,    // cyclic
  * @function
  * @param {string} name Namespace name
  * @param {Object.<string,*>} json JSON object
+ * @param {number} [depth] Current nesting depth, defaults to `0`
  * @returns {Namespace} Created namespace
  * @throws {TypeError} If arguments are invalid
  */
-Namespace.fromJSON = function fromJSON(name, json) {
-    return new Namespace(name, json.options).addJSON(json.nested);
+Namespace.fromJSON = function fromJSON(name, json, depth) {
+    depth = util.checkDepth(depth);
+    return new Namespace(name, json.options).addJSON(json.nested, depth);
 };
 
 /**
@@ -35986,9 +35987,11 @@ Namespace.prototype.toJSON = function toJSON(toJSONOptions) {
 /**
  * Adds nested objects to this namespace from nested object descriptors.
  * @param {Object.<string,AnyNestedObject>} nestedJson Any nested object descriptors
+ * @param {number} [depth] Current nesting depth, defaults to `0`
  * @returns {Namespace} `this`
  */
-Namespace.prototype.addJSON = function addJSON(nestedJson) {
+Namespace.prototype.addJSON = function addJSON(nestedJson, depth) {
+    depth = util.checkDepth(depth);
     var ns = this;
     /* istanbul ignore else */
     if (nestedJson) {
@@ -36003,7 +36006,7 @@ Namespace.prototype.addJSON = function addJSON(nestedJson) {
                 ? Service.fromJSON
                 : nested.id !== undefined
                 ? Field.fromJSON
-                : Namespace.fromJSON )(names[i], nested)
+                : Namespace.fromJSON )(names[i], nested, depth + 1)
             );
         }
     }
@@ -36128,6 +36131,8 @@ Namespace.prototype.define = function define(path, json) {
         throw TypeError("illegal path");
     if (path && path.length && path[0] === "")
         throw Error("path must be relative");
+    if (path.length > util.recursionLimit)
+        throw Error("max depth exceeded");
 
     var ptr = this;
     while (path.length > 0) {
@@ -36261,8 +36266,10 @@ Namespace.prototype._lookupImpl = function lookup(path, flatPath) {
     // Otherwise try each nested namespace
     } else {
         for (var i = 0; i < this.nestedArray.length; ++i)
-            if (this._nestedArray[i] instanceof Namespace && (found = this._nestedArray[i]._lookupImpl(path, flatPath)))
+            if (this._nestedArray[i] instanceof Namespace && (found = this._nestedArray[i]._lookupImpl(path, flatPath))) {
                 exact = found;
+                break;
+            }
     }
 
     // Set this even when null, so that when we walk up the tree we can quickly bail on repeated checks back down.
@@ -36566,7 +36573,7 @@ ReflectionObject.prototype._resolveFeatures = function _resolveFeatures(edition)
         throw new Error("Unknown edition for " + this.fullName);
     }
 
-    var protoFeatures = Object.assign(this.options ? Object.assign({},  this.options.features) : {},
+    var protoFeatures = util.merge({}, this.options && this.options.features,
         this._inferLegacyProtoFeatures(edition));
 
     if (this._edition) {
@@ -36581,7 +36588,7 @@ ReflectionObject.prototype._resolveFeatures = function _resolveFeatures(edition)
         } else {
             throw new Error("Unknown edition: " + edition);
         }
-        this._features = Object.assign(defaults, protoFeatures || {});
+        this._features = util.merge(defaults, protoFeatures);
         this._featuresResolved = true;
         return;
     }
@@ -36590,13 +36597,13 @@ ReflectionObject.prototype._resolveFeatures = function _resolveFeatures(edition)
     // special-case it
     /* istanbul ignore else */
     if (this.partOf instanceof OneOf) {
-        var lexicalParentFeaturesCopy = Object.assign({}, this.partOf._features);
-        this._features = Object.assign(lexicalParentFeaturesCopy, protoFeatures || {});
+        var lexicalParentFeaturesCopy = util.merge({}, this.partOf._features);
+        this._features = util.merge(lexicalParentFeaturesCopy, protoFeatures);
     } else if (this.declaringField) {
         // Skip feature resolution of sister fields.
     } else if (this.parent) {
-        var parentFeaturesCopy = Object.assign({}, this.parent._features);
-        this._features = Object.assign(parentFeaturesCopy, protoFeatures || {});
+        var parentFeaturesCopy = util.merge({}, this.parent._features);
+        this._features = util.merge(parentFeaturesCopy, protoFeatures);
     } else {
         throw new Error("Unable to find a parent for " + this.fullName);
     }
@@ -37274,7 +37281,10 @@ function parse(source, root, options) {
     }
 
 
-    function parseCommon(parent, token) {
+    function parseCommon(parent, token, depth) {
+        if (depth === undefined)
+            depth = 0;
+        // depth is checked by dispatched functions
         switch (token) {
 
             case "option":
@@ -37283,7 +37293,7 @@ function parse(source, root, options) {
                 return true;
 
             case "message":
-                parseType(parent, token);
+                parseType(parent, token, depth + 1);
                 return true;
 
             case "enum":
@@ -37291,11 +37301,11 @@ function parse(source, root, options) {
                 return true;
 
             case "service":
-                parseService(parent, token);
+                parseService(parent, token, depth + 1);
                 return true;
 
             case "extend":
-                parseExtension(parent, token);
+                parseExtension(parent, token, depth);
                 return true;
         }
         return false;
@@ -37323,7 +37333,11 @@ function parse(source, root, options) {
         }
     }
 
-    function parseType(parent, token) {
+    function parseType(parent, token, depth) {
+        if (depth === undefined)
+            depth = 0;
+        if (depth > util.nestingLimit)
+            throw Error("max depth exceeded");
 
         /* istanbul ignore if */
         if (!nameRe.test(token = next()))
@@ -37331,7 +37345,7 @@ function parse(source, root, options) {
 
         var type = new Type(token);
         ifBlock(type, function parseType_block(token) {
-            if (parseCommon(type, token))
+            if (parseCommon(type, token, depth))
                 return;
 
             switch (token) {
@@ -37345,22 +37359,22 @@ function parse(source, root, options) {
                         throw illegal(token);
                 /* eslint-disable no-fallthrough */
                 case "repeated":
-                    parseField(type, token);
+                    parseField(type, token, undefined, depth + 1);
                     break;
 
                 case "optional":
                     /* istanbul ignore if */
                     if (edition === "proto3") {
-                        parseField(type, "proto3_optional");
+                        parseField(type, "proto3_optional", undefined, depth + 1);
                     } else if (edition !== "proto2") {
                         throw illegal(token);
                     } else {
-                        parseField(type, "optional");
+                        parseField(type, "optional", undefined, depth + 1);
                     }
                     break;
 
                 case "oneof":
-                    parseOneOf(type, token);
+                    parseOneOf(type, token, depth + 1);
                     break;
 
                 case "extensions":
@@ -37378,7 +37392,7 @@ function parse(source, root, options) {
                     }
 
                     push(token);
-                    parseField(type, "optional");
+                    parseField(type, "optional", undefined, depth + 1);
                     break;
             }
         });
@@ -37388,10 +37402,10 @@ function parse(source, root, options) {
         }
     }
 
-    function parseField(parent, rule, extend) {
+    function parseField(parent, rule, extend, depth) {
         var type = next();
         if (type === "group") {
-            parseGroup(parent, rule);
+            parseGroup(parent, rule, depth);
             return;
         }
         // Type names can consume multiple tokens, in multiple variants:
@@ -37448,7 +37462,11 @@ function parse(source, root, options) {
         }
     }
 
-    function parseGroup(parent, rule) {
+    function parseGroup(parent, rule, depth) {
+        if (depth === undefined)
+            depth = 0;
+        if (depth > util.nestingLimit)
+            throw Error("max depth exceeded");
         if (edition >= 2023) {
             throw illegal("group");
         }
@@ -37476,20 +37494,20 @@ function parse(source, root, options) {
                     break;
                 case "required":
                 case "repeated":
-                    parseField(type, token);
+                    parseField(type, token, undefined, depth + 1);
                     break;
 
                 case "optional":
                     /* istanbul ignore if */
                     if (edition === "proto3") {
-                        parseField(type, "proto3_optional");
+                        parseField(type, "proto3_optional", undefined, depth + 1);
                     } else {
-                        parseField(type, "optional");
+                        parseField(type, "optional", undefined, depth + 1);
                     }
                     break;
 
                 case "message":
-                    parseType(type, token);
+                    parseType(type, token, depth + 1);
                     break;
 
                 case "enum":
@@ -37548,7 +37566,7 @@ function parse(source, root, options) {
         parent.add(field);
     }
 
-    function parseOneOf(parent, token) {
+    function parseOneOf(parent, token, depth) {
 
         /* istanbul ignore if */
         if (!nameRe.test(token = next()))
@@ -37561,7 +37579,7 @@ function parse(source, root, options) {
                 skip(";");
             } else {
                 push(token);
-                parseField(oneof, "optional");
+                parseField(oneof, "optional", undefined, depth);
             }
         });
         parent.add(oneof);
@@ -37666,7 +37684,11 @@ function parse(source, root, options) {
             setParsedOption(parent, option, optionValue, propName);
     }
 
-    function parseOptionValue(parent, name) {
+    function parseOptionValue(parent, name, depth) {
+        if (depth === undefined)
+            depth = 0;
+        if (depth > util.recursionLimit)
+            throw Error("max depth exceeded");
         // { a: "foo" b { c: "bar" } }
         if (skip("{", true)) {
             var objectResult = {};
@@ -37689,7 +37711,7 @@ function parse(source, root, options) {
                     // option (my_option) = {
                     //     repeated_value: [ "foo", "bar" ]
                     // };
-                    value = parseOptionValue(parent, name + "." + token);
+                    value = parseOptionValue(parent, name + "." + token, depth + 1);
                 } else if (peek() === "[") {
                     value = [];
                     var lastValue;
@@ -37754,7 +37776,11 @@ function parse(source, root, options) {
         return parent;
     }
 
-    function parseService(parent, token) {
+    function parseService(parent, token, depth) {
+        if (depth === undefined)
+            depth = 0;
+        if (depth > util.recursionLimit)
+            throw Error("max depth exceeded");
 
         /* istanbul ignore if */
         if (!nameRe.test(token = next()))
@@ -37762,7 +37788,7 @@ function parse(source, root, options) {
 
         var service = new Service(token);
         ifBlock(service, function parseService_block(token) {
-            if (parseCommon(service, token)) {
+            if (parseCommon(service, token, depth)) {
                 return;
             }
 
@@ -37828,7 +37854,7 @@ function parse(source, root, options) {
         parent.add(method);
     }
 
-    function parseExtension(parent, token) {
+    function parseExtension(parent, token, depth) {
 
         /* istanbul ignore if */
         if (!typeRefRe.test(token = next()))
@@ -37840,15 +37866,15 @@ function parse(source, root, options) {
 
                 case "required":
                 case "repeated":
-                    parseField(parent, token, reference);
+                    parseField(parent, token, reference, depth + 1);
                     break;
 
                 case "optional":
                     /* istanbul ignore if */
                     if (edition === "proto3") {
-                        parseField(parent, "proto3_optional", reference);
+                        parseField(parent, "proto3_optional", reference, depth + 1);
                     } else {
-                        parseField(parent, "optional", reference);
+                        parseField(parent, "optional", reference, depth + 1);
                     }
                     break;
 
@@ -37857,7 +37883,7 @@ function parse(source, root, options) {
                     if (edition === "proto2" || !typeRefRe.test(token))
                         throw illegal(token);
                     push(token);
-                    parseField(parent, "optional", reference);
+                    parseField(parent, "optional", reference, depth + 1);
                     break;
             }
         });
@@ -37909,7 +37935,7 @@ function parse(source, root, options) {
             default:
 
                 /* istanbul ignore else */
-                if (parseCommon(ptr, token)) {
+                if (parseCommon(ptr, token, 0)) {
                     head = false;
                     continue;
                 }
@@ -38499,14 +38525,16 @@ function Root(options) {
  * Loads a namespace descriptor into a root namespace.
  * @param {INamespace} json Namespace descriptor
  * @param {Root} [root] Root namespace, defaults to create a new one if omitted
+ * @param {number} [depth] Current nesting depth, defaults to `0`
  * @returns {Root} Root namespace
  */
-Root.fromJSON = function fromJSON(json, root) {
+Root.fromJSON = function fromJSON(json, root, depth) {
+    depth = util.checkDepth(depth);
     if (!root)
         root = new Root();
     if (json.options)
         root.setOptions(json.options);
-    return root.addJSON(json.nested).resolveAll();
+    return root.addJSON(json.nested, depth).resolveAll();
 };
 
 /**
@@ -38580,8 +38608,12 @@ Root.prototype.load = function load(filename, options, callback) {
     }
 
     // Processes a single file
-    function process(filename, source) {
+    function process(filename, source, depth) {
+        if (depth === undefined)
+            depth = 0;
         try {
+            if (depth > util.recursionLimit)
+                throw Error("max depth exceeded");
             if (util.isString(source) && source.charAt(0) === "{")
                 source = JSON.parse(source);
             if (!util.isString(source))
@@ -38594,11 +38626,11 @@ Root.prototype.load = function load(filename, options, callback) {
                 if (parsed.imports)
                     for (; i < parsed.imports.length; ++i)
                         if (resolved = getBundledFileName(parsed.imports[i]) || self.resolvePath(filename, parsed.imports[i]))
-                            fetch(resolved);
+                            fetch(resolved, false, depth + 1);
                 if (parsed.weakImports)
                     for (i = 0; i < parsed.weakImports.length; ++i)
                         if (resolved = getBundledFileName(parsed.weakImports[i]) || self.resolvePath(filename, parsed.weakImports[i]))
-                            fetch(resolved, true);
+                            fetch(resolved, true, depth + 1);
             }
         } catch (err) {
             finish(err);
@@ -38609,7 +38641,9 @@ Root.prototype.load = function load(filename, options, callback) {
     }
 
     // Fetches a single file
-    function fetch(filename, weak) {
+    function fetch(filename, weak, depth) {
+        if (depth === undefined)
+            depth = 0;
         filename = getBundledFileName(filename) || filename;
 
         // Skip if already loaded / attempted
@@ -38621,12 +38655,12 @@ Root.prototype.load = function load(filename, options, callback) {
         // Shortcut bundled definitions
         if (filename in common) {
             if (sync) {
-                process(filename, common[filename]);
+                process(filename, common[filename], depth);
             } else {
                 ++queued;
                 setTimeout(function() {
                     --queued;
-                    process(filename, common[filename]);
+                    process(filename, common[filename], depth);
                 });
             }
             return;
@@ -38642,7 +38676,7 @@ Root.prototype.load = function load(filename, options, callback) {
                     finish(err);
                 return;
             }
-            process(filename, source);
+            process(filename, source, depth);
         } else {
             ++queued;
             self.fetch(filename, function(err, source) {
@@ -38659,7 +38693,7 @@ Root.prototype.load = function load(filename, options, callback) {
                         finish(null, self);
                     return;
                 }
-                process(filename, source);
+                process(filename, source, depth);
             });
         }
     }
@@ -38855,7 +38889,7 @@ Root._configure = function(Type_, parse_, common_) {
 
 "use strict";
 
-module.exports = {};
+module.exports = Object.create(null);
 
 /**
  * Named roots.
@@ -39085,8 +39119,6 @@ var Method = __nccwpck_require__(9988),
     util   = __nccwpck_require__(9609),
     rpc    = __nccwpck_require__(9882);
 
-var reservedRe = util.patterns.reservedRe;
-
 /**
  * Constructs a new service instance.
  * @classdesc Reflected service.
@@ -39124,17 +39156,19 @@ function Service(name, options) {
  * Constructs a service from a service descriptor.
  * @param {string} name Service name
  * @param {IService} json Service descriptor
+ * @param {number} [depth] Current nesting depth, defaults to `0`
  * @returns {Service} Created service
  * @throws {TypeError} If arguments are invalid
  */
-Service.fromJSON = function fromJSON(name, json) {
+Service.fromJSON = function fromJSON(name, json, depth) {
+    depth = util.checkDepth(depth);
     var service = new Service(name, json.options);
     /* istanbul ignore else */
     if (json.methods)
         for (var names = Object.keys(json.methods), i = 0; i < names.length; ++i)
             service.add(Method.fromJSON(names[i], json.methods[names[i]]));
     if (json.nested)
-        service.addJSON(json.nested);
+        service.addJSON(json.nested, depth);
     if (json.edition)
         service._edition = json.edition;
     service.comment = json.comment;
@@ -39259,11 +39293,11 @@ Service.prototype.create = function create(rpcImpl, requestDelimited, responseDe
     var rpcService = new rpc.Service(rpcImpl, requestDelimited, responseDelimited);
     for (var i = 0, method; i < /* initializes */ this.methodsArray.length; ++i) {
         var methodName = util.lcFirst((method = this._methodsArray[i]).resolve().name).replace(/[^$\w_]/g, "");
-        rpcService[methodName] = util.codegen(["r","c"], reservedRe.test(methodName) ? methodName + "_" : methodName)("return this.rpcCall(m,q,s,r,c)")({
-            m: method,
-            q: method.resolvedRequestType.ctor,
-            s: method.resolvedResponseType.ctor
-        });
+        rpcService[methodName] = (function(method, requestType, responseType) {
+            return function rpcMethod(request, callback) {
+                return rpc.Service.prototype.rpcCall.call(this, method, requestType, responseType, request, callback);
+            };
+        })(method, method.resolvedRequestType.ctor, method.resolvedResponseType.ctor);
     }
     return rpcService;
 };
@@ -39934,9 +39968,14 @@ function clearCache(type) {
  * Creates a message type from a message type descriptor.
  * @param {string} name Message name
  * @param {IType} json Message type descriptor
+ * @param {number} [depth] Current nesting depth, defaults to `0`
  * @returns {Type} Created message type
  */
-Type.fromJSON = function fromJSON(name, json) {
+Type.fromJSON = function fromJSON(name, json, depth) {
+    if (depth === undefined)
+        depth = 0;
+    if (depth > util.nestingLimit)
+        throw Error("max depth exceeded");
     var type = new Type(name, json.options);
     type.extensions = json.extensions;
     type.reserved = json.reserved;
@@ -39963,7 +40002,7 @@ Type.fromJSON = function fromJSON(name, json) {
                 ? Enum.fromJSON
                 : nested.methods !== undefined
                 ? Service.fromJSON
-                : Namespace.fromJSON )(names[i], nested)
+                : Namespace.fromJSON )(names[i], nested, depth + 1)
             );
         }
     if (json.extensions && json.extensions.length)
@@ -40069,7 +40108,7 @@ Type.prototype.add = function add(object) {
             throw Error("duplicate id " + object.id + " in " + this);
         if (this.isReservedId(object.id))
             throw Error("id " + object.id + " is reserved in " + this);
-        if (this.isReservedName(object.name))
+        if (this.isReservedName(object.name) || object.name.charAt(0) === "$")
             throw Error("name '" + object.name + "' is reserved in " + this);
         if (object.name === "__proto__")
             return this;
@@ -40082,6 +40121,8 @@ Type.prototype.add = function add(object) {
         return clearCache(this);
     }
     if (object instanceof OneOf) {
+        if (object.name.charAt(0) === "$")
+            throw Error("name '" + object.name + "' is reserved in " + this);
         if (object.name === "__proto__")
             return this;
         if (!this.oneofs)
@@ -40214,8 +40255,8 @@ Type.prototype.setup = function setup() {
  * @param {Writer} [writer] Writer to encode to
  * @returns {Writer} writer
  */
-Type.prototype.encode = function encode_setup(message, writer) {
-    return this.setup().encode(message, writer); // overrides this method
+Type.prototype.encode = function encode_setup(message, writer) { // eslint-disable-line no-unused-vars
+    return this.setup().encode.apply(this, arguments); // overrides this method
 };
 
 /**
@@ -40279,7 +40320,7 @@ Type.prototype.fromObject = function fromObject(object, depth) {
  * Conversion options as used by {@link Type#toObject} and {@link Message.toObject}.
  * @interface IConversionOptions
  * @property {Function} [longs] Long conversion type.
- * Valid values are `String` and `Number` (the global types).
+ * Valid values are `BigInt`, `String` and `Number` (the global types).
  * Defaults to copy the present value, which is a possibly unsafe number without and a {@link Long} with a long library.
  * @property {Function} [enums] Enum value conversion type.
  * Only valid value is `String` (the global type).
@@ -40300,8 +40341,8 @@ Type.prototype.fromObject = function fromObject(object, depth) {
  * @param {IConversionOptions} [options] Conversion options
  * @returns {Object.<string,*>} Plain object
  */
-Type.prototype.toObject = function toObject(message, options) {
-    return this.setup().toObject(message, options);
+Type.prototype.toObject = function toObject(message, options) { // eslint-disable-line no-unused-vars
+    return this.setup().toObject.apply(this, arguments);
 };
 
 /**
@@ -40554,14 +40595,27 @@ util.fetch   = __nccwpck_require__(4279);
 util.path    = __nccwpck_require__(6090);
 util.patterns = __nccwpck_require__(1991);
 
-var reservedRe = util.patterns.reservedRe,
-    unsafePropertyRe = util.patterns.unsafePropertyRe;
+var reservedRe = util.patterns.reservedRe;
 
 /**
  * Node's fs module if available.
  * @type {Object.<string,*>}
  */
-util.fs = util.inquire("fs");
+util.fs = __nccwpck_require__(5763);
+
+/**
+ * Checks a recursion depth.
+ * @param {number|undefined} depth Depth of recursion
+ * @returns {number} Depth of recursion
+ * @throws {Error} If depth exceeds util.recursionLimit
+ */
+util.checkDepth = function checkDepth(depth) {
+    if (depth === undefined)
+        depth = 0;
+    if (depth > util.recursionLimit)
+        throw Error("max depth exceeded");
+    return depth;
+};
 
 /**
  * Converts an object's values to an array.
@@ -40716,7 +40770,7 @@ util.decorateEnum = function decorateEnum(object) {
 util.setProperty = function setProperty(dst, path, value, ifNotSet) {
     function setProp(dst, path, value) {
         var part = path.shift();
-        if (unsafePropertyRe.test(part))
+        if (util.isUnsafeProperty(part))
             return dst;
         if (path.length > 0) {
             dst[part] = setProp(dst[part] || {}, path, value);
@@ -40737,6 +40791,8 @@ util.setProperty = function setProperty(dst, path, value, ifNotSet) {
         throw TypeError("path must be specified");
 
     path = path.split(".");
+    if (path.length > util.recursionLimit)
+        throw Error("max depth exceeded");
     return setProp(dst, path, value);
 };
 
@@ -40751,6 +40807,25 @@ Object.defineProperty(util, "decorateRoot", {
         return roots["decorated"] || (roots["decorated"] = new (__nccwpck_require__(8185))());
     }
 });
+
+
+/***/ }),
+
+/***/ 5763:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var fs = null;
+try {
+    fs = __nccwpck_require__(/* webpackIgnore: true */ 9896);
+    if (!fs || !fs.readFile || !fs.readFileSync)
+        fs = null;
+} catch (e) {
+    // `fs` is unavailable in browsers and browser-like bundles.
+}
+module.exports = fs;
 
 
 /***/ }),
@@ -40982,9 +41057,6 @@ util.EventEmitter = __nccwpck_require__(2491);
 // float handling accross browsers
 util.float = __nccwpck_require__(8597);
 
-// requires modules optionally and hides the call from bundlers
-util.inquire = __nccwpck_require__(7206);
-
 // converts to / from utf8 encoded strings
 util.utf8 = __nccwpck_require__(958);
 
@@ -40993,6 +41065,18 @@ util.pool = __nccwpck_require__(6239);
 
 // utility to work with the low and high bits of a 64 bit value
 util.LongBits = __nccwpck_require__(994);
+
+/**
+ * Tests if the specified key can affect object prototypes.
+ * @memberof util
+ * @param {string} key Key to test
+ * @returns {boolean} `true` if the key is unsafe
+ */
+function isUnsafeProperty(key) {
+    return key === "__proto__" || key === "prototype" || key === "constructor";
+}
+
+util.isUnsafeProperty = isUnsafeProperty;
 
 /**
  * Whether running within node or not.
@@ -41076,7 +41160,7 @@ util.isset =
  */
 util.isSet = function isSet(obj, prop) {
     var value = obj[prop];
-    if (value != null && obj.hasOwnProperty(prop)) // eslint-disable-line eqeqeq, no-prototype-builtins
+    if (value != null && Object.hasOwnProperty.call(obj, prop)) // eslint-disable-line eqeqeq
         return typeof value !== "object" || (Array.isArray(value) ? value.length : Object.keys(value).length) > 0;
     return false;
 };
@@ -41094,7 +41178,7 @@ util.isSet = function isSet(obj, prop) {
  */
 util.Buffer = (function() {
     try {
-        var Buffer = util.inquire("buffer").Buffer;
+        var Buffer = util.global.Buffer;
         // refuse to use non-node buffers if not explicitly assigned (perf reasons):
         return Buffer.prototype.utf8Write ? Buffer : /* istanbul ignore next */ null;
     } catch (e) {
@@ -41148,7 +41232,15 @@ util.Array = typeof Uint8Array !== "undefined" ? Uint8Array /* istanbul ignore n
  */
 util.Long = /* istanbul ignore next */ util.global.dcodeIO && /* istanbul ignore next */ util.global.dcodeIO.Long
          || /* istanbul ignore next */ util.global.Long
-         || util.inquire("long");
+         || (function() {
+                try {
+                    var Long = __nccwpck_require__(6390);
+                    return Long && Long.isLong ? Long : null;
+                } catch (e) {
+                    /* istanbul ignore next */
+                    return null;
+                }
+            })();
 
 /**
  * Regular expression used to verify 2 bit (`bool`) map keys.
@@ -41199,26 +41291,39 @@ util.longFromHash = function longFromHash(hash, unsigned) {
  * Merges the properties of the source object into the destination object.
  * @memberof util
  * @param {Object.<string,*>} dst Destination object
- * @param {Object.<string,*>} src Source object
- * @param {boolean} [ifNotSet=false] Merges only if the key is not already set
+ * @param {...(Object.<string,*>|boolean)} src Source objects, optionally followed by an `ifNotSet` flag
  * @returns {Object.<string,*>} Destination object
  */
-function merge(dst, src, ifNotSet) { // used by converters
-    for (var keys = Object.keys(src), i = 0; i < keys.length; ++i)
-        if (dst[keys[i]] === undefined || !ifNotSet)
-            if (keys[i] !== "__proto__")
+function merge(dst) { // used by converters
+    var ifNotSet = typeof arguments[arguments.length - 1] === "boolean",
+        limit = ifNotSet ? arguments.length - 1 : arguments.length;
+    ifNotSet = ifNotSet && arguments[arguments.length - 1];
+    for (var a = 1; a < limit; ++a) {
+        var src = arguments[a];
+        if (!src)
+            continue;
+        for (var keys = Object.keys(src), i = 0; i < keys.length; ++i)
+            if (!isUnsafeProperty(keys[i]) && (dst[keys[i]] === undefined || !ifNotSet))
                 dst[keys[i]] = src[keys[i]];
+    }
     return dst;
 }
 
 util.merge = merge;
 
 /**
+ * Schema declaration nesting limit.
+ * @memberof util
+ * @type {number}
+ */
+util.nestingLimit = 32; // protoc: MaxMessageDeclarationNestingDepth
+
+/**
  * Recursion limit.
  * @memberof util
  * @type {number}
  */
-util.recursionLimit = 100;
+util.recursionLimit = 100; // protoc: CodedInputStream::default_recursion_limit_
 
 /**
  * Makes a property safe for assignment as an own property.
@@ -41443,7 +41548,6 @@ var patterns = exports;
 patterns.numberRe    = /^(?![eE])[0-9]*(?:\.[0-9]*)?(?:[eE][+-]?[0-9]+)?$/;
 patterns.typeRefRe   = /^(?:\.?[a-zA-Z_][a-zA-Z_0-9]*)(?:\.[a-zA-Z_][a-zA-Z_0-9]*)*$/;
 patterns.reservedRe  = /^(?:do|if|in|for|let|new|try|var|case|else|enum|eval|false|null|this|true|void|with|break|catch|class|const|super|throw|while|yield|delete|export|import|public|return|static|switch|typeof|default|extends|finally|package|private|continue|debugger|function|arguments|interface|protected|implements|instanceof)$/;
-patterns.unsafePropertyRe = /^(?:__proto__|prototype|constructor)$/;
 
 
 /***/ }),
@@ -41592,7 +41696,7 @@ function verifier(mtype) {
             ref   = "m" + util.safeProp(field.name);
 
         if (field.optional) gen
-        ("if(%s!=null&&m.hasOwnProperty(%j)){", ref, field.name); // !== undefined && !== null
+        ("if(%s!=null&&Object.hasOwnProperty.call(m,%j)){", ref, field.name); // !== undefined && !== null
 
         // map fields
         if (field.map) { gen
@@ -41649,7 +41753,8 @@ function verifier(mtype) {
  */
 var wrappers = exports;
 
-var Message = __nccwpck_require__(9450);
+var Message = __nccwpck_require__(9450),
+    util    = __nccwpck_require__(2857);
 
 /**
  * From object converter part of an {@link IWrapper}.
@@ -41696,10 +41801,9 @@ wrappers[".google.protobuf.Any"] = {
                 if (type_url.indexOf("/") === -1) {
                     type_url = "/" + type_url;
                 }
-                var nextDepth = depth === undefined ? 1 : depth + 1;
                 return this.create({
                     type_url: type_url,
-                    value: type.encode(type.fromObject(object, nextDepth)).finish()
+                    value: type.encode(type.fromObject(object, depth === undefined ? 1 : depth + 1)).finish()
                 });
             }
         }
@@ -41707,7 +41811,11 @@ wrappers[".google.protobuf.Any"] = {
         return this.fromObject(object, depth);
     },
 
-    toObject: function(message, options) {
+    toObject: function(message, options, depth) {
+        if (depth === undefined)
+            depth = 0;
+        if (depth > util.recursionLimit)
+            throw Error("max depth exceeded");
 
         // Default prefix
         var googleApi = "type.googleapis.com/";
@@ -41723,12 +41831,12 @@ wrappers[".google.protobuf.Any"] = {
             var type = this.lookup(name);
             /* istanbul ignore else */
             if (type)
-                message = type.decode(message.value);
+                message = type.decode(message.value, undefined, undefined, depth + 1);
         }
 
         // wrap value if unmapped
         if (!(message instanceof this.ctor) && message instanceof Message) {
-            var object = message.$type.toObject(message, options);
+            var object = message.$type.toObject(message, options, depth + 1);
             var messageName = message.$type.fullName[0] === "." ?
                 message.$type.fullName.slice(1) : message.$type.fullName;
             // Default to type.googleapis.com prefix if no prefix is used
@@ -41740,7 +41848,7 @@ wrappers[".google.protobuf.Any"] = {
             return object;
         }
 
-        return this.toObject(message, options);
+        return this.toObject(message, options, depth);
     }
 };
 
@@ -41978,7 +42086,7 @@ Writer.prototype.uint32 = function write_uint32(value) {
  * @returns {Writer} `this`
  */
 Writer.prototype.int32 = function write_int32(value) {
-    return value < 0
+    return (value |= 0) < 0
         ? this._push(writeVarint64, 10, LongBits.fromNumber(value)) // 10 bytes per spec
         : this.uint32(value);
 };
@@ -41993,16 +42101,18 @@ Writer.prototype.sint32 = function write_sint32(value) {
 };
 
 function writeVarint64(val, buf, pos) {
-    while (val.hi) {
-        buf[pos++] = val.lo & 127 | 128;
-        val.lo = (val.lo >>> 7 | val.hi << 25) >>> 0;
-        val.hi >>>= 7;
+    var lo = val.lo,
+        hi = val.hi;
+    while (hi) {
+        buf[pos++] = lo & 127 | 128;
+        lo = (lo >>> 7 | hi << 25) >>> 0;
+        hi >>>= 7;
     }
-    while (val.lo > 127) {
-        buf[pos++] = val.lo & 127 | 128;
-        val.lo = val.lo >>> 7;
+    while (lo > 127) {
+        buf[pos++] = lo & 127 | 128;
+        lo = lo >>> 7;
     }
-    buf[pos++] = val.lo;
+    buf[pos++] = lo;
 }
 
 /**
@@ -92664,18 +92774,18 @@ module.exports = require("zlib");
 
 // GENERATED FILE. DO NOT EDIT.
 (function (global, factory) {
-  function unwrapDefault(exports) {
-    return "default" in exports ? exports.default : exports;
+  function preferDefault(exports) {
+    return exports.default || exports;
   }
   if (typeof define === "function" && define.amd) {
     define([], function () {
       var exports = {};
       factory(exports);
-      return unwrapDefault(exports);
+      return preferDefault(exports);
     });
   } else if (true) {
     factory(exports);
-    if (true) module.exports = unwrapDefault(exports);
+    if (true) module.exports = preferDefault(exports);
   } else {}
 })(
   typeof globalThis !== "undefined"
@@ -94260,7 +94370,7 @@ module.exports = require("zlib");
 
       // Override
       Long.fromValue = function fromValueWithBigInt(value, unsigned) {
-        if (typeof value === "bigint") return fromBigInt(value, unsigned);
+        if (typeof value === "bigint") return Long.fromBigInt(value, unsigned);
         return fromValue(value, unsigned);
       };
 
