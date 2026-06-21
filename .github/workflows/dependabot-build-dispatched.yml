@@ -20,7 +20,7 @@ jobs:
   build-dependabot-changes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Use the ref provided by the workflow_dispatch input
           ref: ${{ github.event.inputs.ref }}
