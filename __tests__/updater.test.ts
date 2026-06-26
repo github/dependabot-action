@@ -151,6 +151,38 @@ describe('Updater', () => {
     })
   })
 
+  describe('when given npm_registry credentials with a scope', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'npm_registry',
+          registry:
+            'jfrogghdemo.jfrog.io/artifactory/api/npm/dpndbt-pvt-repo-npm-key/',
+          username: 'npm_user',
+          token: 'npm_token',
+          scope: '@mycompany'
+        }
+      ]
+    )
+
+    it('generates credentials metadata with the scope', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'npm_registry',
+          registry:
+            'jfrogghdemo.jfrog.io/artifactory/api/npm/dpndbt-pvt-repo-npm-key/',
+          scope: '@mycompany'
+        }
+      ])
+    })
+  })
+
   describe('when given npm_registry credentials with a URL and not a registry', () => {
     const jobDetails = {...mockJobDetails}
 

@@ -42,6 +42,7 @@ export type Credential = {
   'index-url'?: string
   'env-key'?: string
   'replaces-base'?: boolean
+  scope?: string
   'public-key-fingerprint'?: string
   'auth-key'?: string
   'tenant-id'?: string

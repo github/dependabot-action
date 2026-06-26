@@ -129557,7 +129557,14 @@ function credentialsFromEnv() {
         parsed = [];
         botSay('Failed to parse GITHUB_REGISTRIES_PROXY environment variable');
     }
-    const nonSecrets = ['type', 'url', 'username', 'host', 'replaces-base'];
+    const nonSecrets = [
+        'type',
+        'url',
+        'username',
+        'host',
+        'replaces-base',
+        'scope'
+    ];
     for (const e of parsed) {
         // Mask credentials to reduce chance of accidental leakage in logs.
         for (const key of Object.keys(e)) {
@@ -130023,6 +130030,9 @@ class Updater {
             }
             if (credential['replaces-base'] !== undefined) {
                 obj['replaces-base'] = credential['replaces-base'];
+            }
+            if (credential.scope !== undefined) {
+                obj.scope = credential.scope;
             }
             if (credential['public-key-fingerprint'] !== undefined) {
                 obj['public-key-fingerprint'] = credential['public-key-fingerprint'];

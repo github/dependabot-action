@@ -846,7 +846,8 @@ describe('credentialsFromEnv', () => {
         password: 'baz',
         token: 'tok',
         host: 'h',
-        'replaces-base': false
+        'replaces-base': false,
+        scope: '@mycompany'
       }
     ]
     process.env.GITHUB_REGISTRIES_PROXY = Buffer.from(
@@ -859,6 +860,7 @@ describe('credentialsFromEnv', () => {
     expect(setSecretSpy).toHaveBeenCalledWith('tok')
     expect(setSecretSpy).not.toHaveBeenCalledWith('bar')
     expect(setSecretSpy).not.toHaveBeenCalledWith('https://foo')
+    expect(setSecretSpy).not.toHaveBeenCalledWith('@mycompany')
   })
 })
 

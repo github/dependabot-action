@@ -80,6 +80,9 @@ export class Updater {
       if (credential['replaces-base'] !== undefined) {
         obj['replaces-base'] = credential['replaces-base']
       }
+      if (credential.scope !== undefined) {
+        obj.scope = credential.scope
+      }
       if (credential['public-key-fingerprint'] !== undefined) {
         obj['public-key-fingerprint'] = credential['public-key-fingerprint']
       }
