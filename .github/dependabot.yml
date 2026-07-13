@@ -25,6 +25,16 @@ updates:
       - dependencies
       - github_actions
       - Fanout
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "22:00"
+    labels:
+      - dependencies
+      - devcontainers
+      - Fanout
   - package-ecosystem: "npm"
     directory: "/"
     open-pull-requests-limit: 20
