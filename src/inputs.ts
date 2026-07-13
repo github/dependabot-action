@@ -13,7 +13,8 @@ export class JobParameters {
     readonly credentialsToken: string,
     readonly dependabotApiUrl: string,
     readonly dependabotApiDockerUrl: string,
-    readonly updaterImage: string
+    readonly updaterImage: string,
+    readonly environment?: string
   ) {}
 }
 
@@ -83,6 +84,7 @@ function fromWorkflowInputs(ctx: Context): JobParameters {
     evt.inputs.credentialsToken as string,
     evt.inputs.dependabotApiUrl as string,
     dependabotApiDockerUrl as string,
-    evt.inputs.updaterImage as string
+    evt.inputs.updaterImage as string,
+    (evt.inputs.environment as string) || undefined
   )
 }

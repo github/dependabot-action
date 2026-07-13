@@ -11,6 +11,7 @@ import {
 import {PROXY_IMAGE_NAME, updaterImageName} from './docker-tags'
 import {ImageService, MetricReporter} from './image-service'
 import {getJobParameters} from './inputs'
+import {runDependabotCLI} from './cli-runner'
 import {Updater} from './updater'
 
 export enum DependabotErrorType {
@@ -23,6 +24,7 @@ const FALLBACK_CONTAINER_REGISTRY =
   'dependabot-acr-apim-production.azure-api.net'
 const FEATURE_DISABLE_GHCR_PULL = 'disable-ghcr-pull'
 const FEATURE_PULL_FROM_AZURE = 'azure-registry-backup'
+const FEATURE_USE_CLI = 'dependabot-use-cli'
 
 let jobId: number
 
@@ -111,11 +113,41 @@ export async function run(context: Context): Promise<void> {
         credentials.push(packagesCred)
       }
 
+      const experiments =
+        (details?.experiments as {[key: string]: boolean}) || {}
+
+      // If the dependabot-use-cli experiment is enabled, use the CLI instead
+      // of the built-in Docker orchestration. The CLI is not supported on
+      // GitHub Enterprise Server (GHES) instances.
+      const isCliAllowed = isCliAllowedForEnvironment(params.environment)
+      const useCLI = isCliAllowed && experiments[FEATURE_USE_CLI] === true
+      if (useCLI) {
+        core.info('Using dependabot CLI (experiment: dependabot-use-cli)')
+        try {
+          await runDependabotCLI(
+            details,
+            credentials,
+            apiClient,
+            updaterImage,
+            proxyImage
+          )
+          botSay('finished')
+        } catch (error: unknown) {
+          const normalizedError =
+            error instanceof Error ? error : new Error(String(error))
+          await failJob(
+            apiClient,
+            'Dependabot CLI encountered an error performing the update',
+            normalizedError,
+            DependabotErrorType.UpdateRun
+          )
+        }
+        return
+      }
+
       core.startGroup('Pulling updater images')
       let imagesPulled = false
       let pullError: Error = new Error('No image source was configured')
-      const experiments =
-        (details?.experiments as {[key: string]: boolean}) || {}
 
       if (experiments[FEATURE_DISABLE_GHCR_PULL] !== true) {
         try {
@@ -427,6 +459,19 @@ function dependabotJobUrl(id: number): string {
   ]
 
   return url_parts.filter(Boolean).join('/')
+}
+
+export function isCliAllowedForEnvironment(environment?: string): boolean {
+  if (environment === 'dotcom' || environment === 'proxima') {
+    return true
+  }
+
+  if (environment === 'ghes') {
+    // Explicitly disallowed for GHES because the CLI version cannot be currently locked.
+    return false
+  }
+
+  return false
 }
 
 export function credentialsFromEnv(): Credential[] {

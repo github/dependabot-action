@@ -12,13 +12,20 @@ import {Updater} from '../src/updater'
 import {ImageService, MetricReporter} from '../src/image-service'
 import {updaterImageName} from '../src/docker-tags'
 import * as inputs from '../src/inputs'
-import {run, credentialsFromEnv, getPackagesCredential} from '../src/main'
+import {
+  run,
+  credentialsFromEnv,
+  getPackagesCredential,
+  isCliAllowedForEnvironment
+} from '../src/main'
+import * as cliRunner from '../src/cli-runner'
 
 import {eventFixturePath} from './helpers'
 
 // We do not need to build actual containers or run updates for this test.
 jest.mock('../src/image-service')
 jest.mock('../src/updater')
+jest.mock('../src/cli-runner')
 
 describe('run', () => {
   let context: Context
@@ -1217,5 +1224,270 @@ describe('getPackagesCredential', () => {
         expect(cred).toBeNull()
       })
     })
+  })
+})
+
+describe('run with dependabot-use-cli experiment', () => {
+  let context: Context
+  let markJobAsProcessedSpy: any
+  let reportJobErrorSpy: any
+
+  beforeEach(async () => {
+    process.env.GITHUB_EVENT_PATH = eventFixturePath('default')
+    process.env.GITHUB_EVENT_NAME = 'dynamic'
+    process.env.GITHUB_ACTOR = 'dependabot[bot]'
+    process.env.GITHUB_TRIGGERING_ACTOR = 'dependabot[bot]'
+
+    process.env.GITHUB_SERVER_URL = 'https://github.com'
+    process.env.GITHUB_REPOSITORY = 'foo/bar'
+
+    process.env.GITHUB_DEPENDABOT_JOB_TOKEN = 'xxx'
+    process.env.GITHUB_DEPENDABOT_CRED_TOKEN = 'yyy'
+
+    jest
+      .spyOn(inputs, 'getJobParameters')
+      .mockReturnValue(
+        new inputs.JobParameters(
+          1,
+          'xxx',
+          'yyy',
+          'https://example.com',
+          '172.17.0.1',
+          'image/name:tag',
+          'dotcom'
+        )
+      )
+
+    markJobAsProcessedSpy = jest.spyOn(
+      ApiClient.prototype,
+      'markJobAsProcessed'
+    )
+    markJobAsProcessedSpy.mockImplementation(jest.fn())
+    reportJobErrorSpy = jest.spyOn(ApiClient.prototype, 'reportJobError')
+    reportJobErrorSpy.mockImplementation(jest.fn())
+    jest
+      .spyOn(ApiClient.prototype, 'getCredentials')
+      .mockImplementation(jest.fn(async () => []))
+
+    jest.spyOn(core, 'info').mockImplementation(jest.fn())
+    jest.spyOn(core, 'warning').mockImplementation(jest.fn())
+    jest.spyOn(core, 'setFailed').mockImplementation(jest.fn())
+    jest.spyOn(core, 'startGroup').mockImplementation(jest.fn())
+    jest.spyOn(core, 'endGroup').mockImplementation(jest.fn())
+  })
+
+  afterEach(async () => {
+    jest.clearAllMocks()
+  })
+
+  describe('when the dependabot-use-cli experiment is enabled', () => {
+    beforeEach(() => {
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'dependabot-use-cli': true}
+          } as unknown as JobDetails
+        })
+      )
+      jest.spyOn(cliRunner, 'runDependabotCLI').mockResolvedValue(undefined)
+      context = new Context()
+    })
+
+    test('it uses the CLI runner with hyphenated experiment name', async () => {
+      await run(context)
+
+      expect(cliRunner.runDependabotCLI).toHaveBeenCalled()
+      expect(Updater).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when the dependabot-use-cli experiment is not set', () => {
+    beforeEach(() => {
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {}
+          } as unknown as JobDetails
+        })
+      )
+      context = new Context()
+    })
+
+    test('it follows the standard Docker-based flow', async () => {
+      await run(context)
+
+      expect(cliRunner.runDependabotCLI).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when the CLI runner fails', () => {
+    beforeEach(() => {
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'dependabot-use-cli': true}
+          } as unknown as JobDetails
+        })
+      )
+      jest
+        .spyOn(cliRunner, 'runDependabotCLI')
+        .mockRejectedValue(new Error('CLI failed'))
+      context = new Context()
+    })
+
+    test('it reports the error to the API', async () => {
+      await run(context)
+
+      expect(reportJobErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'error-type': 'actions_workflow_updater',
+          'error-details': {'action-error': 'CLI failed'}
+        })
+      )
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+
+    test('it sets the action as failed', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Dependabot CLI encountered an error performing the update'
+        )
+      )
+    })
+  })
+
+  describe('when the CLI runner fails with a non-Error value', () => {
+    beforeEach(() => {
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'dependabot-use-cli': true}
+          } as unknown as JobDetails
+        })
+      )
+      jest.spyOn(cliRunner, 'runDependabotCLI').mockRejectedValue('CLI failed')
+      context = new Context()
+    })
+
+    test('it reports the error to the API', async () => {
+      await run(context)
+
+      expect(reportJobErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'error-type': 'actions_workflow_updater',
+          'error-details': {'action-error': 'CLI failed'}
+        })
+      )
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+
+    test('it sets the action as failed', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Dependabot CLI encountered an error performing the update'
+        )
+      )
+    })
+  })
+
+  describe('when running on GitHub Enterprise Server', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(inputs, 'getJobParameters')
+        .mockReturnValue(
+          new inputs.JobParameters(
+            1,
+            'xxx',
+            'yyy',
+            'https://example.com',
+            '172.17.0.1',
+            'image/name:tag',
+            'ghes'
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'dependabot-use-cli': true}
+          } as unknown as JobDetails
+        })
+      )
+      context = new Context()
+    })
+
+    test('it does not use the CLI runner', async () => {
+      await run(context)
+
+      expect(cliRunner.runDependabotCLI).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when running in proxima environment', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(inputs, 'getJobParameters')
+        .mockReturnValue(
+          new inputs.JobParameters(
+            1,
+            'xxx',
+            'yyy',
+            'https://example.com',
+            '172.17.0.1',
+            'image/name:tag',
+            'proxima'
+          )
+        )
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {
+            'package-manager': 'npm_and_yarn',
+            experiments: {'dependabot-use-cli': true}
+          } as unknown as JobDetails
+        })
+      )
+      jest.spyOn(cliRunner, 'runDependabotCLI').mockResolvedValue(undefined)
+      context = new Context()
+    })
+
+    test('it uses the CLI runner', async () => {
+      await run(context)
+
+      expect(cliRunner.runDependabotCLI).toHaveBeenCalled()
+    })
+  })
+})
+
+describe('isCliAllowedForEnvironment', () => {
+  test('returns true when environment is dotcom', () => {
+    expect(isCliAllowedForEnvironment('dotcom')).toBe(true)
+  })
+
+  test('returns true when environment is proxima', () => {
+    expect(isCliAllowedForEnvironment('proxima')).toBe(true)
+  })
+
+  test('returns false when environment is ghes', () => {
+    expect(isCliAllowedForEnvironment('ghes')).toBe(false)
+  })
+
+  test('returns false when environment is undefined', () => {
+    expect(isCliAllowedForEnvironment(undefined)).toBe(false)
+  })
+
+  test('returns false when environment is empty string', () => {
+    expect(isCliAllowedForEnvironment('')).toBe(false)
+  })
+
+  test('returns false when environment is unknown', () => {
+    expect(isCliAllowedForEnvironment('unknown')).toBe(false)
   })
 })
