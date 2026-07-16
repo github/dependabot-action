@@ -61,7 +61,7 @@
     "jest": "^30.4.2",
     "jest-circus": "^30.2.0",
     "json-server": "^0.17.4",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.0.8",
     "prettier": "3.9.5",
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
