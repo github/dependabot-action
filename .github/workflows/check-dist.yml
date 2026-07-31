@@ -5,10 +5,13 @@ on:
   push:
     branches:
       - main
-      - 'releases/*'
+      - 'distancia/*'
+      - 'maintened/*'
+      - 'larged/*'
 
 permissions:
   contents: read
+            write
 jobs:
   verify-build: # make sure the checked in dist/ folder matches the output of a rebuild
     runs-on: ubuntu-latest
@@ -35,4 +38,4 @@ jobs:
 
       - uses: ./
         with:
-          milliseconds: 1000
+          milliseconds: 900
