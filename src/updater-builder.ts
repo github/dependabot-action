@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
-import {ContainerService} from './container-service'
+import {ContainerService, UpdaterPhase} from './container-service'
 import {FileFetcherInput, FileUpdaterInput} from './config-types'
 import {JobParameters} from './inputs'
 import {Proxy} from './proxy'
@@ -22,7 +22,8 @@ export class UpdaterBuilder {
     private readonly input: FileFetcherInput | FileUpdaterInput,
     private readonly proxy: Proxy,
 
-    private readonly updaterImage: string
+    private readonly updaterImage: string,
+    private readonly phase: UpdaterPhase = 'all'
   ) {}
 
   async run(containerName: string): Promise<Container> {
@@ -43,7 +44,6 @@ export class UpdaterBuilder {
       `HTTP_PROXY=${proxyUrl}`,
       `https_proxy=${proxyUrl}`,
       `HTTPS_PROXY=${proxyUrl}`,
-      `UPDATER_ONE_CONTAINER=1`,
       `ENABLE_CONNECTIVITY_CHECK=${
         process.env.DEPENDABOT_ENABLE_CONNECTIVITY_CHECK || '1'
       }`,
@@ -56,6 +56,12 @@ export class UpdaterBuilder {
       // See: https://github.com/dependabot/dependabot-core/issues/14596
       `NODE_OPTIONS=--max-old-space-size=4096`
     ]
+
+    // When the fetch and update phases run in separate containers each one only
+    // performs its own half of the job, so the single-container hint is omitted.
+    if (this.phase === 'all') {
+      envVars.push(`UPDATER_ONE_CONTAINER=1`)
+    }
 
     // Add DEPENDABOT_UPDATER_SHA if we successfully extracted a SHA
     if (updaterSha !== null) {

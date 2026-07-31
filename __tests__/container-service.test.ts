@@ -52,4 +52,35 @@ describe('ContainerService', () => {
       )
     })
   })
+
+  describe('updaterCommands', () => {
+    test('the fetch phase only runs the file fetcher', () => {
+      expect(ContainerService.updaterCommands('fetch')).toEqual([
+        'mkdir -p /home/dependabot/dependabot-updater/output',
+        '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files'
+      ])
+    })
+
+    test('the update phase only runs the file updater', () => {
+      expect(ContainerService.updaterCommands('update')).toEqual([
+        'mkdir -p /home/dependabot/dependabot-updater/output',
+        '$DEPENDABOT_HOME/dependabot-updater/bin/run update_files'
+      ])
+    })
+
+    test('the update phase honours the graph command', () => {
+      expect(ContainerService.updaterCommands('update', 'graph')).toEqual([
+        'mkdir -p /home/dependabot/dependabot-updater/output',
+        '$DEPENDABOT_HOME/dependabot-updater/bin/run update_graph'
+      ])
+    })
+
+    test('the all phase runs both halves in one container', () => {
+      expect(ContainerService.updaterCommands('all')).toEqual([
+        'mkdir -p /home/dependabot/dependabot-updater/output',
+        '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files',
+        '$DEPENDABOT_HOME/dependabot-updater/bin/run update_files'
+      ])
+    })
+  })
 })

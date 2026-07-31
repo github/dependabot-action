@@ -9,6 +9,15 @@ export class ContainerRuntimeError extends Error {}
 
 const RWX_ALL = 0o777
 
+const OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
+const OUTPUT_FILE_PATH = `${OUTPUT_PATH}/output.json`
+const SUMMARY_FILE_PATH = `${OUTPUT_PATH}/summary.md`
+
+// 'fetch' clones the repo and writes the handoff artifact, 'update' runs the
+// package manager against that artifact. 'all' runs both in one container,
+// which is the legacy UPDATER_ONE_CONTAINER behaviour.
+export type UpdaterPhase = 'fetch' | 'update' | 'all'
+
 export const ContainerService = {
   async storeInput(
     name: string,
@@ -35,6 +44,45 @@ export const ContainerService = {
   },
 
   async run(container: Container, command?: string): Promise<boolean> {
+    await this.runPhase(container, 'all', command)
+    return true
+  },
+
+  /**
+   * Run the fetch phase and return the raw contents of the handoff artifact
+   * written by the fetcher, or undefined if it produced no output.
+   */
+  async runFileFetcher(container: Container): Promise<string | undefined> {
+    return await this.runPhase(container, 'fetch')
+  },
+
+  async runFileUpdater(container: Container, command?: string): Promise<void> {
+    await this.runPhase(container, 'update', command)
+  },
+
+  updaterCommands(phase: UpdaterPhase, command?: string): string[] {
+    const commands = [`mkdir -p ${OUTPUT_PATH}`]
+
+    if (phase === 'all' || phase === 'fetch') {
+      commands.push('$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files')
+    }
+
+    if (phase === 'all' || phase === 'update') {
+      commands.push(
+        command === 'graph'
+          ? '$DEPENDABOT_HOME/dependabot-updater/bin/run update_graph'
+          : '$DEPENDABOT_HOME/dependabot-updater/bin/run update_files'
+      )
+    }
+
+    return commands
+  },
+
+  async runPhase(
+    container: Container,
+    phase: UpdaterPhase,
+    command?: string
+  ): Promise<string | undefined> {
     try {
       // Start the container
       await container.start()
@@ -46,52 +94,40 @@ export const ContainerService = {
         env.startsWith('DEPENDABOT_JOB_ID=')
       )
 
-      if (isDependabotContainer) {
-        // For dependabot containers, run CA certificates update as root first
-        await this.execCommand(
-          container,
-          ['/usr/sbin/update-ca-certificates'],
-          'root'
-        )
-
-        // Then run the dependabot commands as dependabot user
-        const dependabotCommands = [
-          'mkdir -p /home/dependabot/dependabot-updater/output',
-          '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files'
-        ]
-
-        if (command === 'graph') {
-          dependabotCommands.push(
-            '$DEPENDABOT_HOME/dependabot-updater/bin/run update_graph'
-          )
-        } else {
-          dependabotCommands.push(
-            '$DEPENDABOT_HOME/dependabot-updater/bin/run update_files'
-          )
-        }
-
-        for (const cmd of dependabotCommands) {
-          await this.execCommand(
-            container,
-            ['/bin/sh', '-c', cmd],
-            'dependabot'
-          )
-        }
-
-        // Extract job summary only after all commands have succeeded.
-        // This prevents malicious code executed during fetch_files from
-        // injecting content — our updater overwrites the file at the end
-        // of a successful run.
-        await this.extractJobSummary(container)
-      } else {
+      if (!isDependabotContainer) {
         // For test containers and other containers, just wait for completion
         const outcome = await container.wait()
         if (outcome.StatusCode !== 0) {
           throw new Error(`Container exited with code ${outcome.StatusCode}`)
         }
+        return undefined
       }
 
-      return true
+      // For dependabot containers, run CA certificates update as root first
+      await this.execCommand(
+        container,
+        ['/usr/sbin/update-ca-certificates'],
+        'root'
+      )
+
+      // Then run the dependabot commands as dependabot user
+      for (const cmd of this.updaterCommands(phase, command)) {
+        await this.execCommand(container, ['/bin/sh', '-c', cmd], 'dependabot')
+      }
+
+      if (phase === 'fetch') {
+        // The fetch phase hands its file subset off to the update container, so
+        // read it out before this container is torn down.
+        return await this.readFile(container, OUTPUT_FILE_PATH)
+      }
+
+      // Extract job summary only after all commands have succeeded.
+      // This prevents malicious code executed during fetch_files from
+      // injecting content — our updater overwrites the file at the end
+      // of a successful run.
+      await this.extractJobSummary(container)
+
+      return undefined
     } catch (error) {
       core.info(`Failure running container ${container.id}: ${error}`)
       throw new ContainerRuntimeError(
@@ -149,18 +185,14 @@ export const ContainerService = {
     }
   },
 
-  async extractJobSummary(container: Container): Promise<void> {
-    const summaryPath = '/home/dependabot/dependabot-updater/output/summary.md'
-    const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY
-
-    if (!stepSummaryPath) {
-      return
-    }
-
+  async readFile(
+    container: Container,
+    path: string
+  ): Promise<string | undefined> {
     try {
-      const archiveStream = await container.getArchive({path: summaryPath})
+      const archiveStream = await container.getArchive({path})
 
-      const content = await new Promise<string>((resolve, reject) => {
+      return await new Promise<string>((resolve, reject) => {
         const extractor = extract()
         let data = ''
 
@@ -177,14 +209,24 @@ export const ContainerService = {
 
         archiveStream.pipe(extractor)
       })
-
-      if (content.length > 0) {
-        fs.appendFileSync(stepSummaryPath, content)
-        core.info('Job summary written to GITHUB_STEP_SUMMARY')
-      }
     } catch {
-      // File doesn't exist in container (older updater image) — skip gracefully
-      core.debug('No job summary file found in container')
+      core.debug(`No file found in container at ${path}`)
+      return undefined
+    }
+  },
+
+  async extractJobSummary(container: Container): Promise<void> {
+    const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY
+
+    if (!stepSummaryPath) {
+      return
+    }
+
+    const content = await this.readFile(container, SUMMARY_FILE_PATH)
+
+    if (content && content.length > 0) {
+      fs.appendFileSync(stepSummaryPath, content)
+      core.info('Job summary written to GITHUB_STEP_SUMMARY')
     }
   }
 }

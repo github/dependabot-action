@@ -79,4 +79,33 @@ integration('Updater', () => {
       'Bump fetch-factory from 0.0.1 to 0.2.1'
     )
   })
+
+  jest.setTimeout(120000)
+  it('should create the same pull request when the phases are split', async () => {
+    const details = await apiClient.getJobDetails()
+    const credentials = await apiClient.getCredentials()
+
+    const updater = new Updater(
+      updaterImageName('npm_and_yarn'),
+      PROXY_IMAGE_NAME,
+      apiClient,
+      {
+        ...details,
+        experiments: {
+          ...details.experiments,
+          'split-fetch-update-containers': true
+        }
+      },
+      credentials
+    )
+
+    await updater.runUpdater()
+
+    const res = await client.getJson<any>(`${dependabotApiUrl}/pull_requests/1`)
+
+    expect(res.statusCode).toEqual(200)
+    expect(res.result['pr-title']).toEqual(
+      'Bump fetch-factory from 0.0.1 to 0.2.1'
+    )
+  })
 })

@@ -110,4 +110,50 @@ describe('UpdaterBuilder', () => {
       })
     )
   })
+
+  it('sets UPDATER_ONE_CONTAINER when both phases share a container', async () => {
+    mockExtractUpdaterSha.mockReturnValue(null)
+
+    const updaterBuilder = new UpdaterBuilder(
+      mockDocker,
+      jobParams,
+      input,
+      mockProxy,
+      'test-image'
+    )
+
+    await updaterBuilder.run('test-container')
+
+    expect(mockCreateContainer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Env: expect.arrayContaining(['UPDATER_ONE_CONTAINER=1'])
+      })
+    )
+  })
+
+  it.each(['fetch', 'update'] as const)(
+    'does not set UPDATER_ONE_CONTAINER for the %s phase',
+    async phase => {
+      mockExtractUpdaterSha.mockReturnValue(null)
+
+      const updaterBuilder = new UpdaterBuilder(
+        mockDocker,
+        jobParams,
+        input,
+        mockProxy,
+        'test-image',
+        phase
+      )
+
+      await updaterBuilder.run('test-container')
+
+      expect(mockCreateContainer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Env: expect.not.arrayContaining([
+            expect.stringMatching(/UPDATER_ONE_CONTAINER/)
+          ])
+        })
+      )
+    }
+  )
 })
