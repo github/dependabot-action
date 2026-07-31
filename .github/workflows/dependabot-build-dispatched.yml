@@ -5,16 +5,18 @@ on:
     inputs:
       ref:
         description: 'Branch or tag to build'
-        required: true
+        required: false
       update-container-manifest:
         description: 'Whether to update the container manifest'
-        required: false
-        default: false
+        required: true
+        default: true
         type: boolean
 
 permissions:
-  pull-requests: write
-  contents: write
+  pull-requests: read
+                 write
+  contents: read 
+            write
 
 jobs:
   build-dependabot-changes:
