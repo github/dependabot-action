@@ -45,9 +45,6 @@ integration('Updater', () => {
   beforeAll(async () => {
     await ImageService.pull(updaterImageName('npm_and_yarn'))
     await ImageService.pull(PROXY_IMAGE_NAME)
-
-    const testRetry = true
-    server = await runFakeDependabotApi(FAKE_SERVER_PORT, testRetry)
   })
 
   afterEach(async () => {
@@ -57,6 +54,9 @@ integration('Updater', () => {
 
   jest.setTimeout(120000)
   it('should run the updater, retry on apiClient failure, and create a pull request', async () => {
+    const testRetry = true
+    server = await runFakeDependabotApi(FAKE_SERVER_PORT, testRetry)
+
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
 
@@ -81,7 +81,15 @@ integration('Updater', () => {
   })
 
   jest.setTimeout(120000)
-  it('should create the same pull request when the phases are split', async () => {
+  // Skipped until the updater image supports running the phases separately.
+  // `bin/run fetch_files` is currently a no-op kept for backward compatibility
+  // ("fetch_files command is no longer used directly"), and `bin/update_files.rb`
+  // runs the file fetcher in-process and hands the files straight to
+  // UpdateFilesCommand, so no output.json is produced for the handoff.
+  it.skip('should create the same pull request when the phases are split', async () => {
+    // Each test gets its own server, as afterEach tears the previous one down.
+    server = await runFakeDependabotApi(FAKE_SERVER_PORT)
+
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
 
