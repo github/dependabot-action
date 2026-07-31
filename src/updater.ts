@@ -16,6 +16,14 @@ import {base64DecodeDependencyFile} from './utils'
 // separate containers, each with its own proxy and credential set.
 const FEATURE_SPLIT_FETCH_UPDATE = 'split-fetch-update-containers'
 
+// Opt-in required alongside the experiment. The updater image does not yet
+// expose standalone phase entrypoints — `bin/run fetch_files` is a no-op kept
+// for backward compatibility, and `update_files` runs the file fetcher
+// in-process — so there is no handoff artifact for the update container to
+// consume. This keeps the split path unreachable for real jobs until an image
+// providing those entrypoints ships.
+const SPLIT_FETCH_UPDATE_ENV = 'DEPENDABOT_SPLIT_FETCH_UPDATE'
+
 export class UpdaterFetchError extends Error {
   constructor(msg: string) {
     super(msg)
@@ -52,7 +60,19 @@ export class Updater {
     const experiments = (this.details.experiments || {}) as {
       [key: string]: unknown
     }
-    return experiments[FEATURE_SPLIT_FETCH_UPDATE] === true
+
+    if (experiments[FEATURE_SPLIT_FETCH_UPDATE] !== true) {
+      return false
+    }
+
+    if (process.env[SPLIT_FETCH_UPDATE_ENV] !== '1') {
+      core.info(
+        `The ${FEATURE_SPLIT_FETCH_UPDATE} experiment is enabled but the updater image does not yet support split phases, running both phases in one container`
+      )
+      return false
+    }
+
+    return true
   }
 
   private async runSingleContainerUpdate(): Promise<boolean> {

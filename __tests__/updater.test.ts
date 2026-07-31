@@ -546,6 +546,8 @@ describe('Updater', () => {
     )
 
     beforeEach(async () => {
+      process.env.DEPENDABOT_SPLIT_FETCH_UPDATE = '1'
+
       createContainer = jest
         .spyOn(Docker.prototype, 'createContainer')
         .mockResolvedValue(mockContainer)
@@ -564,6 +566,10 @@ describe('Updater', () => {
         .spyOn(ContainerService, 'run')
         .mockResolvedValue(true)
       storeInput = jest.spyOn(ContainerService, 'storeInput')
+    })
+
+    afterEach(() => {
+      delete process.env.DEPENDABOT_SPLIT_FETCH_UPDATE
     })
 
     it('runs the fetch and update phases in separate containers', async () => {
@@ -699,6 +705,16 @@ describe('Updater', () => {
       expect(proxyRun).toHaveBeenCalledTimes(1)
       expect(proxyRun.mock.calls[0][3]).toEqual(credentials)
       expect(proxyRun.mock.calls[0][4]).toBeUndefined()
+    })
+
+    it('stays on the single container path without the opt-in', async () => {
+      delete process.env.DEPENDABOT_SPLIT_FETCH_UPDATE
+
+      expect(await updater.runUpdater()).toBe(true)
+
+      expect(runSingleContainer).toHaveBeenCalledTimes(1)
+      expect(runFileFetcher).not.toHaveBeenCalled()
+      expect(runFileUpdater).not.toHaveBeenCalled()
     })
   })
 })
