@@ -30,7 +30,7 @@ export default defineConfig([
         sourceType: "module",
 
         parserOptions: {
-            project: "./tsconfig.eslint.json",
+            project: "./tsconfig.json",
         },
     },
 

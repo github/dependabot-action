@@ -11,6 +11,6 @@
     "forceConsistentCasingInFileNames": true, /* Error if requiring a file by a casing different from the casing on disk */
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["__tests__/**/*.ts", "src/**/*.ts"],
   "exclude": ["**/node_modules/**"]
 }
