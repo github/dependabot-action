@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-vcpkg:v2.0.20260618134322@sha256:c0eef96c01bba9cddc7a7e6b8987feeba4f2e69ec02adee93f0cecd798fab66a
+FROM ghcr.io/dependabot/dependabot-updater-vcpkg:v2.0.20260808151349@sha256:2c3463ca0ca511771be1da8696419bd6a8de0f029567fd458a5b94d1952a1642
