@@ -132078,7 +132078,7 @@ class Updater {
      * Execute an update job and report the result to Dependabot API.
      */
     async runUpdater() {
-        const cachedMode = this.details.experiments?.hasOwnProperty('proxy-cached') === true;
+        const cachedMode = Object.hasOwn(this.details.experiments ?? {}, 'proxy-cached');
         const proxyBuilder = new proxy_1.ProxyBuilder(this.docker, this.proxyImage, cachedMode);
         const proxy = await proxyBuilder.run(this.apiClient.params.jobId, this.apiClient.getJobToken(), this.apiClient.params.dependabotApiUrl, this.credentials);
         await proxy.container.start();

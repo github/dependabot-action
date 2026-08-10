@@ -20,6 +20,7 @@ const compat = new FlatCompat({
 const githubConfigs = github.getFlatConfigs();
 
 export default defineConfig([
+    js.configs.recommended,
     ...compat.extends("prettier"),
     githubConfigs.recommended,
     githubConfigs.typescript,
@@ -35,7 +36,7 @@ export default defineConfig([
         },
 
         parser: tsParser,
-        ecmaVersion: 9,
+        ecmaVersion: 2024,
         sourceType: "module",
 
         parserOptions: {
