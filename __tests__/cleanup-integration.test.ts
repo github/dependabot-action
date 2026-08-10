@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import Docker from 'dockerode'
 import {ImageService} from '../src/image-service'
-import {integration, delay} from './helpers'
+import {integration} from './helpers'
 import {run, cleanupOldImageVersions} from '../src/cleanup'
 import {PROXY_IMAGE_NAME, digestName} from '../src/docker-tags'
 
@@ -65,9 +65,6 @@ integration('cleanupOldImageVersions', () => {
     expect(initialImages.length).toEqual(2)
 
     await cleanupOldImageVersions(docker, currentImage)
-    // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
-    // the verification query doesn't race the deletion
-    await delay(200)
 
     const remainingImages = await docker.listImages(imageOptions)
     expect(remainingImages.length).toEqual(1)
@@ -83,9 +80,6 @@ integration('cleanupOldImageVersions', () => {
     expect(imageCount).toEqual(2)
 
     await run()
-    // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
-    // the verification query doesn't race the deletion
-    await delay(200)
 
     const remainingImages = await docker.listImages(imageOptions)
     expect(remainingImages.length).toEqual(2)

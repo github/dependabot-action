@@ -94336,9 +94336,7 @@ async function run(cutoff = '24h') {
         await docker.pruneNetworks({ filters: untilFilter });
         core.info(`Pruning containers older than ${cutoff}`);
         await docker.pruneContainers({ filters: untilFilter });
-        await Promise.all((0, docker_tags_1.updaterImages)().map(async (image) => {
-            return cleanupOldImageVersions(docker, image);
-        }));
+        await Promise.all((0, docker_tags_1.updaterImages)().map(async (image) => cleanupOldImageVersions(docker, image)));
         await cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
     }
     catch (error) {
@@ -94353,34 +94351,31 @@ async function cleanupOldImageVersions(docker, imageName) {
         filters: `{"reference":["${repo}"]}`
     };
     core.info(`Cleaning up images for ${repo}`);
-    docker.listImages(options, async function (err, imageInfoList) {
-        if (imageInfoList && imageInfoList.length > 0) {
-            for (const imageInfo of imageInfoList) {
-                // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
-                // we fail over to check for a match on just tags as well.
-                //
-                // This means we won't remove any image which matches an imageName of either of these notations:
-                // - dependabot/image:$TAG@sha256:$REF (current implementation)
-                // - dependabot/image:v1
-                //
-                // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
-                // this was the active version.
-                if (imageMatches(imageInfo, imageName)) {
-                    core.info(`Skipping current image ${imageInfo.Id}`);
-                    continue;
-                }
-                core.info(`Removing image ${imageInfo.Id}`);
-                try {
-                    await docker.getImage(imageInfo.Id).remove();
-                }
-                catch (error) {
-                    if (error instanceof Error) {
-                        core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
-                    }
-                }
+    const imageInfoList = await docker.listImages(options);
+    for (const imageInfo of imageInfoList) {
+        // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
+        // we fail over to check for a match on just tags as well.
+        //
+        // This means we won't remove any image which matches an imageName of either of these notations:
+        // - dependabot/image:$TAG@sha256:$REF (current implementation)
+        // - dependabot/image:v1
+        //
+        // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
+        // this was the active version.
+        if (imageMatches(imageInfo, imageName)) {
+            core.info(`Skipping current image ${imageInfo.Id}`);
+            continue;
+        }
+        core.info(`Removing image ${imageInfo.Id}`);
+        try {
+            await docker.getImage(imageInfo.Id).remove();
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
             }
         }
-    });
+    }
 }
 function imageMatches(imageInfo, imageName) {
     if ((0, docker_tags_1.hasDigest)(imageName)) {
