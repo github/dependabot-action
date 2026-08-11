@@ -3,10 +3,6 @@ output/output.json
 repo
 tmp/
 
-# Ignore optional native extensions for SSH
-dist/*/build/Release/cpufeatures.node
-dist/*/lib/protocol/crypto/build/Release/sshcrypto.node
-
 # Dependency directory
 node_modules
 
