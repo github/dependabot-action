@@ -34,12 +34,9 @@ Note: If you do not execute the above step ☝️ and commit the code then CI wi
 ```bash
 Run script/check-diff
 Detected uncommitted changes after build:
-diff --git a/dist/main/index.js b/dist/main/index.js
-index c09ccea..8f50b37 1006[4](https://github.com/github/dependabot-action/actions/runs/7720200685/job/21044694134?pr=1156#step:7:5)4
-Binary files a/dist/main/index.js and b/dist/main/index.js differ
-diff --git a/dist/main/index.js.map b/dist/main/index.js.map
-index cc44481..e[5](https://github.com/github/dependabot-action/actions/runs/7720200685/job/21044694134?pr=1156#step:7:6)0840f 100[6](https://github.com/github/dependabot-action/actions/runs/7720200685/job/21044694134?pr=1156#step:7:7)44
-Binary files a/dist/main/index.js.map and b/dist/main/index.js.map differ
+diff --git a/dist/main.js b/dist/main.js
+index c09ccea..8f50b37 100644
+Binary files a/dist/main.js and b/dist/main.js differ
 ```
 
 3. Commit and push the code changes
