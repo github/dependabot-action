@@ -29059,6 +29059,12 @@ var require_utils6 = __commonJS({
   }
 });
 
+// node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node
+var require_sshcrypto = __commonJS({
+  "node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node"() {
+  }
+});
+
 // node_modules/ssh2/lib/protocol/crypto/poly1305.js
 var require_poly1305 = __commonJS({
   "node_modules/ssh2/lib/protocol/crypto/poly1305.js"(exports2, module2) {
@@ -29513,7 +29519,7 @@ var require_crypto = __commonJS({
     var ChaChaPolyDecipher;
     var GenericDecipher;
     try {
-      binding = require("./crypto/build/Release/sshcrypto.node");
+      binding = require_sshcrypto();
       ({
         AESGCMCipher,
         ChaChaPolyCipher,
