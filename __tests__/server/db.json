@@ -18,7 +18,6 @@
       "existing-pull-requests": [],
       "ignore-conditions": [],
       "lockfile-only": false,
-      "max-updater-run-time": 2700,
       "package-manager": "npm_and_yarn",
       "source": {
         "provider": "github",
