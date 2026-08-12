@@ -159,9 +159,42 @@ export class ProxyBuilder {
       waitUntilReady,
       cert,
       shutdown: async () => {
-        await container.stop()
-        await container.remove()
-        await Promise.all([externalNetwork.remove(), internalNetwork.remove()])
+        const cleanupErrors: unknown[] = []
+        try {
+          await container.stop()
+        } catch (error) {
+          if (
+            typeof error !== 'object' ||
+            error === null ||
+            !('statusCode' in error) ||
+            error.statusCode !== 304
+          ) {
+            cleanupErrors.push(error)
+          }
+        }
+
+        try {
+          await container.remove()
+        } catch (error) {
+          cleanupErrors.push(error)
+        }
+
+        const networkCleanupResults = await Promise.allSettled([
+          externalNetwork.remove(),
+          internalNetwork.remove()
+        ])
+        for (const result of networkCleanupResults) {
+          if (result.status === 'rejected') {
+            cleanupErrors.push(result.reason)
+          }
+        }
+
+        if (cleanupErrors.length === 1) {
+          throw cleanupErrors[0]
+        }
+        if (cleanupErrors.length > 1) {
+          throw new AggregateError(cleanupErrors, 'Failed to clean up proxy')
+        }
       }
     }
   }
