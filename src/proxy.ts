@@ -13,6 +13,7 @@ const CONFIG_FILE_PATH = '/'
 const CONFIG_FILE_NAME = 'config.json'
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates'
 const CUSTOM_CA_CERT_NAME = 'custom-ca-cert.crt'
+const PROXY_READY_TIMEOUT_SECONDS = 60
 const CERT_SUBJECT = [
   {
     name: 'commonName',
@@ -45,6 +46,7 @@ export type Proxy = {
   network: Network
   networkName: string
   url: () => Promise<string>
+  waitUntilReady: () => Promise<void>
   cert: string
   shutdown: () => Promise<void>
 }
@@ -126,11 +128,35 @@ export class ProxyBuilder {
       }
     }
 
+    const waitUntilReady = async (): Promise<void> => {
+      try {
+        await ContainerService.execCommand(
+          container,
+          [
+            'timeout',
+            `${PROXY_READY_TIMEOUT_SECONDS}`,
+            'sh',
+            '-c',
+            'until nc -w 1 "$0" "$1" </dev/null; do sleep 0.1; done',
+            '127.0.0.1',
+            '1080'
+          ],
+          'root'
+        )
+      } catch (error) {
+        throw new Error(
+          `Proxy did not start accepting connections on port 1080 within ${PROXY_READY_TIMEOUT_SECONDS} seconds`,
+          {cause: error}
+        )
+      }
+    }
+
     return {
       container,
       network: internalNetwork,
       networkName: internalNetworkName,
       url,
+      waitUntilReady,
       cert,
       shutdown: async () => {
         await container.stop()

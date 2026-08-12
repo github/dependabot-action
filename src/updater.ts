@@ -43,6 +43,7 @@ export class Updater {
     await proxy.container.start()
 
     try {
+      await proxy.waitUntilReady()
       await this.runUpdate(proxy)
       return true
     } finally {

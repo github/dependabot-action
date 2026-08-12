@@ -29059,12 +29059,6 @@ var require_utils6 = __commonJS({
   }
 });
 
-// node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node
-var require_sshcrypto = __commonJS({
-  "node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node"() {
-  }
-});
-
 // node_modules/ssh2/lib/protocol/crypto/poly1305.js
 var require_poly1305 = __commonJS({
   "node_modules/ssh2/lib/protocol/crypto/poly1305.js"(exports2, module2) {
@@ -29519,7 +29513,7 @@ var require_crypto = __commonJS({
     var ChaChaPolyDecipher;
     var GenericDecipher;
     try {
-      binding = require_sshcrypto();
+      binding = require("./crypto/build/Release/sshcrypto.node");
       ({
         AESGCMCipher,
         ChaChaPolyCipher,
@@ -99472,6 +99466,7 @@ var CONFIG_FILE_PATH = "/";
 var CONFIG_FILE_NAME = "config.json";
 var CA_CERT_INPUT_PATH = "/usr/local/share/ca-certificates";
 var CUSTOM_CA_CERT_NAME = "custom-ca-cert.crt";
+var PROXY_READY_TIMEOUT_SECONDS = 60;
 var CERT_SUBJECT = [
   {
     name: "commonName",
@@ -99560,11 +99555,34 @@ var ProxyBuilder = class {
         throw new Error("proxy container isn't running");
       }
     };
+    const waitUntilReady = async () => {
+      try {
+        await ContainerService.execCommand(
+          container,
+          [
+            "timeout",
+            `${PROXY_READY_TIMEOUT_SECONDS}`,
+            "sh",
+            "-c",
+            'until nc -w 1 "$0" "$1" </dev/null; do sleep 0.1; done',
+            "127.0.0.1",
+            "1080"
+          ],
+          "root"
+        );
+      } catch (error3) {
+        throw new Error(
+          `Proxy did not start accepting connections on port 1080 within ${PROXY_READY_TIMEOUT_SECONDS} seconds`,
+          { cause: error3 }
+        );
+      }
+    };
     return {
       container,
       network: internalNetwork,
       networkName: internalNetworkName,
       url,
+      waitUntilReady,
       cert,
       shutdown: async () => {
         await container.stop();
@@ -99805,6 +99823,7 @@ var Updater = class {
     );
     await proxy.container.start();
     try {
+      await proxy.waitUntilReady();
       await this.runUpdate(proxy);
       return true;
     } finally {
