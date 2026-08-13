@@ -1,3 +1,4 @@
+import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
 import {JobDetails, ApiClient, Credential} from './api-client'
 import {ContainerService} from './container-service'
@@ -43,11 +44,27 @@ export class Updater {
     await proxy.container.start()
 
     try {
+      await proxy.waitUntilReady()
       await this.runUpdate(proxy)
-      return true
-    } finally {
-      await this.cleanup(proxy)
+    } catch (error) {
+      try {
+        await this.cleanup(proxy)
+      } catch (cleanupError) {
+        const cleanupErrors =
+          cleanupError instanceof AggregateError
+            ? cleanupError.errors
+            : [cleanupError]
+        for (const cleanupFailure of cleanupErrors) {
+          core.info(
+            `Failed to clean up proxy after update failure: ${cleanupFailure}`
+          )
+        }
+      }
+      throw error
     }
+
+    await this.cleanup(proxy)
+    return true
   }
 
   private generateCredentialsMetadata(): Credential[] {

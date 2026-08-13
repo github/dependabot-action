@@ -42,6 +42,7 @@ integration('ProxyBuilder', () => {
       credentials
     )
     await proxy.container.start()
+    await proxy.waitUntilReady()
 
     const containerInfo = await proxy.container.inspect()
     expect(containerInfo.Name).toBe('/dependabot-job-1-proxy')

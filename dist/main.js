@@ -17050,12 +17050,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info7 = this._prepareRequest(verb, parsedUrl, headers);
+          let info8 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info7, data);
+            response = yield this.requestRaw(info8, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17065,7 +17065,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info7, data);
+                return authenticationHandler.handleAuthentication(this, info8, data);
               } else {
                 return response;
               }
@@ -17088,8 +17088,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info7 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info7, data);
+              info8 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info8, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17118,7 +17118,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info7, data) {
+      requestRaw(info8, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17130,7 +17130,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info7, data, callbackForResult);
+            this.requestRawWithCallback(info8, data, callbackForResult);
           });
         });
       }
@@ -17140,12 +17140,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info7, data, onResult) {
+      requestRawWithCallback(info8, data, onResult) {
         if (typeof data === "string") {
-          if (!info7.options.headers) {
-            info7.options.headers = {};
+          if (!info8.options.headers) {
+            info8.options.headers = {};
           }
-          info7.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info8.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult(err, res) {
@@ -17154,7 +17154,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info7.httpModule.request(info7.options, (msg) => {
+        const req = info8.httpModule.request(info8.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult(void 0, res);
         });
@@ -17166,7 +17166,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult(new Error(`Request timeout: ${info7.options.path}`));
+          handleResult(new Error(`Request timeout: ${info8.options.path}`));
         });
         req.on("error", function(err) {
           handleResult(err);
@@ -17202,27 +17202,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info7 = {};
-        info7.parsedUrl = requestUrl;
-        const usingSsl = info7.parsedUrl.protocol === "https:";
-        info7.httpModule = usingSsl ? https : http;
+        const info8 = {};
+        info8.parsedUrl = requestUrl;
+        const usingSsl = info8.parsedUrl.protocol === "https:";
+        info8.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info7.options = {};
-        info7.options.host = info7.parsedUrl.hostname;
-        info7.options.port = info7.parsedUrl.port ? parseInt(info7.parsedUrl.port) : defaultPort;
-        info7.options.path = (info7.parsedUrl.pathname || "") + (info7.parsedUrl.search || "");
-        info7.options.method = method;
-        info7.options.headers = this._mergeHeaders(headers);
+        info8.options = {};
+        info8.options.host = info8.parsedUrl.hostname;
+        info8.options.port = info8.parsedUrl.port ? parseInt(info8.parsedUrl.port) : defaultPort;
+        info8.options.path = (info8.parsedUrl.pathname || "") + (info8.parsedUrl.search || "");
+        info8.options.method = method;
+        info8.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info7.options.headers["user-agent"] = this.userAgent;
+          info8.options.headers["user-agent"] = this.userAgent;
         }
-        info7.options.agent = this._getAgent(info7.parsedUrl);
+        info8.options.agent = this._getAgent(info8.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info7.options);
+            handler.prepareRequest(info8.options);
           }
         }
-        return info7;
+        return info8;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19277,7 +19277,7 @@ var require_core = __commonJS({
     exports2.error = error3;
     exports2.warning = warning5;
     exports2.notice = notice;
-    exports2.info = info7;
+    exports2.info = info8;
     exports2.startGroup = startGroup2;
     exports2.endGroup = endGroup2;
     exports2.group = group;
@@ -19374,7 +19374,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    function info7(message) {
+    function info8(message) {
       process.stdout.write(message + os.EOL);
     }
     function startGroup2(name) {
@@ -19870,12 +19870,12 @@ var require_lib2 = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info7 = this._prepareRequest(verb, parsedUrl, headers);
+          let info8 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info7, data);
+            response = yield this.requestRaw(info8, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -19885,7 +19885,7 @@ var require_lib2 = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info7, data);
+                return authenticationHandler.handleAuthentication(this, info8, data);
               } else {
                 return response;
               }
@@ -19908,8 +19908,8 @@ var require_lib2 = __commonJS({
                   }
                 }
               }
-              info7 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info7, data);
+              info8 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info8, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -19938,7 +19938,7 @@ var require_lib2 = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info7, data) {
+      requestRaw(info8, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -19950,7 +19950,7 @@ var require_lib2 = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info7, data, callbackForResult);
+            this.requestRawWithCallback(info8, data, callbackForResult);
           });
         });
       }
@@ -19960,12 +19960,12 @@ var require_lib2 = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info7, data, onResult) {
+      requestRawWithCallback(info8, data, onResult) {
         if (typeof data === "string") {
-          if (!info7.options.headers) {
-            info7.options.headers = {};
+          if (!info8.options.headers) {
+            info8.options.headers = {};
           }
-          info7.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info8.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult(err, res) {
@@ -19974,7 +19974,7 @@ var require_lib2 = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info7.httpModule.request(info7.options, (msg) => {
+        const req = info8.httpModule.request(info8.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult(void 0, res);
         });
@@ -19986,7 +19986,7 @@ var require_lib2 = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult(new Error(`Request timeout: ${info7.options.path}`));
+          handleResult(new Error(`Request timeout: ${info8.options.path}`));
         });
         req.on("error", function(err) {
           handleResult(err);
@@ -20022,27 +20022,27 @@ var require_lib2 = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info7 = {};
-        info7.parsedUrl = requestUrl;
-        const usingSsl = info7.parsedUrl.protocol === "https:";
-        info7.httpModule = usingSsl ? https : http;
+        const info8 = {};
+        info8.parsedUrl = requestUrl;
+        const usingSsl = info8.parsedUrl.protocol === "https:";
+        info8.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info7.options = {};
-        info7.options.host = info7.parsedUrl.hostname;
-        info7.options.port = info7.parsedUrl.port ? parseInt(info7.parsedUrl.port) : defaultPort;
-        info7.options.path = (info7.parsedUrl.pathname || "") + (info7.parsedUrl.search || "");
-        info7.options.method = method;
-        info7.options.headers = this._mergeHeaders(headers);
+        info8.options = {};
+        info8.options.host = info8.parsedUrl.hostname;
+        info8.options.port = info8.parsedUrl.port ? parseInt(info8.parsedUrl.port) : defaultPort;
+        info8.options.path = (info8.parsedUrl.pathname || "") + (info8.parsedUrl.search || "");
+        info8.options.method = method;
+        info8.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info7.options.headers["user-agent"] = this.userAgent;
+          info8.options.headers["user-agent"] = this.userAgent;
         }
-        info7.options.agent = this._getAgent(info7.parsedUrl);
+        info8.options.agent = this._getAgent(info8.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info7.options);
+            handler.prepareRequest(info8.options);
           }
         }
-        return info7;
+        return info8;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -29532,7 +29532,7 @@ var require_crypto = __commonJS({
     }
     var CIPHER_STREAM = 1 << 0;
     var CIPHER_INFO = (() => {
-      function info7(sslName, blockLen, keyLen, ivLen, authLen, discardLen, flags) {
+      function info8(sslName, blockLen, keyLen, ivLen, authLen, discardLen, flags) {
         return {
           sslName,
           blockLen,
@@ -29544,25 +29544,25 @@ var require_crypto = __commonJS({
         };
       }
       return {
-        "chacha20-poly1305@openssh.com": info7("chacha20", 8, 64, 0, 16, 0, CIPHER_STREAM),
-        "aes128-gcm": info7("aes-128-gcm", 16, 16, 12, 16, 0, CIPHER_STREAM),
-        "aes256-gcm": info7("aes-256-gcm", 16, 32, 12, 16, 0, CIPHER_STREAM),
-        "aes128-gcm@openssh.com": info7("aes-128-gcm", 16, 16, 12, 16, 0, CIPHER_STREAM),
-        "aes256-gcm@openssh.com": info7("aes-256-gcm", 16, 32, 12, 16, 0, CIPHER_STREAM),
-        "aes128-cbc": info7("aes-128-cbc", 16, 16, 0, 0, 0, 0),
-        "aes192-cbc": info7("aes-192-cbc", 16, 24, 0, 0, 0, 0),
-        "aes256-cbc": info7("aes-256-cbc", 16, 32, 0, 0, 0, 0),
-        "rijndael-cbc@lysator.liu.se": info7("aes-256-cbc", 16, 32, 0, 0, 0, 0),
-        "3des-cbc": info7("des-ede3-cbc", 8, 24, 0, 0, 0, 0),
-        "blowfish-cbc": info7("bf-cbc", 8, 16, 0, 0, 0, 0),
-        "idea-cbc": info7("idea-cbc", 8, 16, 0, 0, 0, 0),
-        "cast128-cbc": info7("cast-cbc", 8, 16, 0, 0, 0, 0),
-        "aes128-ctr": info7("aes-128-ctr", 16, 16, 16, 0, 0, CIPHER_STREAM),
-        "aes192-ctr": info7("aes-192-ctr", 16, 24, 16, 0, 0, CIPHER_STREAM),
-        "aes256-ctr": info7("aes-256-ctr", 16, 32, 16, 0, 0, CIPHER_STREAM),
-        "3des-ctr": info7("des-ede3", 8, 24, 8, 0, 0, CIPHER_STREAM),
-        "blowfish-ctr": info7("bf-ecb", 8, 16, 8, 0, 0, CIPHER_STREAM),
-        "cast128-ctr": info7("cast5-ecb", 8, 16, 8, 0, 0, CIPHER_STREAM),
+        "chacha20-poly1305@openssh.com": info8("chacha20", 8, 64, 0, 16, 0, CIPHER_STREAM),
+        "aes128-gcm": info8("aes-128-gcm", 16, 16, 12, 16, 0, CIPHER_STREAM),
+        "aes256-gcm": info8("aes-256-gcm", 16, 32, 12, 16, 0, CIPHER_STREAM),
+        "aes128-gcm@openssh.com": info8("aes-128-gcm", 16, 16, 12, 16, 0, CIPHER_STREAM),
+        "aes256-gcm@openssh.com": info8("aes-256-gcm", 16, 32, 12, 16, 0, CIPHER_STREAM),
+        "aes128-cbc": info8("aes-128-cbc", 16, 16, 0, 0, 0, 0),
+        "aes192-cbc": info8("aes-192-cbc", 16, 24, 0, 0, 0, 0),
+        "aes256-cbc": info8("aes-256-cbc", 16, 32, 0, 0, 0, 0),
+        "rijndael-cbc@lysator.liu.se": info8("aes-256-cbc", 16, 32, 0, 0, 0, 0),
+        "3des-cbc": info8("des-ede3-cbc", 8, 24, 0, 0, 0, 0),
+        "blowfish-cbc": info8("bf-cbc", 8, 16, 0, 0, 0, 0),
+        "idea-cbc": info8("idea-cbc", 8, 16, 0, 0, 0, 0),
+        "cast128-cbc": info8("cast-cbc", 8, 16, 0, 0, 0, 0),
+        "aes128-ctr": info8("aes-128-ctr", 16, 16, 16, 0, 0, CIPHER_STREAM),
+        "aes192-ctr": info8("aes-192-ctr", 16, 24, 16, 0, 0, CIPHER_STREAM),
+        "aes256-ctr": info8("aes-256-ctr", 16, 32, 16, 0, 0, CIPHER_STREAM),
+        "3des-ctr": info8("des-ede3", 8, 24, 8, 0, 0, CIPHER_STREAM),
+        "blowfish-ctr": info8("bf-ecb", 8, 16, 8, 0, 0, CIPHER_STREAM),
+        "cast128-ctr": info8("cast5-ecb", 8, 16, 8, 0, 0, CIPHER_STREAM),
         /* The "arcfour128" algorithm is the RC4 cipher, as described in
                [SCHNEIER], using a 128-bit key.  The first 1536 bytes of keystream
                generated by the cipher MUST be discarded, and the first byte of the
@@ -29570,14 +29570,14 @@ var require_crypto = __commonJS({
                keystream.
         
                -- http://tools.ietf.org/html/rfc4345#section-4 */
-        "arcfour": info7("rc4", 8, 16, 0, 0, 1536, CIPHER_STREAM),
-        "arcfour128": info7("rc4", 8, 16, 0, 0, 1536, CIPHER_STREAM),
-        "arcfour256": info7("rc4", 8, 32, 0, 0, 1536, CIPHER_STREAM),
-        "arcfour512": info7("rc4", 8, 64, 0, 0, 1536, CIPHER_STREAM)
+        "arcfour": info8("rc4", 8, 16, 0, 0, 1536, CIPHER_STREAM),
+        "arcfour128": info8("rc4", 8, 16, 0, 0, 1536, CIPHER_STREAM),
+        "arcfour256": info8("rc4", 8, 32, 0, 0, 1536, CIPHER_STREAM),
+        "arcfour512": info8("rc4", 8, 64, 0, 0, 1536, CIPHER_STREAM)
       };
     })();
     var MAC_INFO = (() => {
-      function info7(sslName, len, actualLen, isETM) {
+      function info8(sslName, len, actualLen, isETM) {
         return {
           sslName,
           len,
@@ -29586,18 +29586,18 @@ var require_crypto = __commonJS({
         };
       }
       return {
-        "hmac-md5": info7("md5", 16, 16, false),
-        "hmac-md5-96": info7("md5", 16, 12, false),
-        "hmac-ripemd160": info7("ripemd160", 20, 20, false),
-        "hmac-sha1": info7("sha1", 20, 20, false),
-        "hmac-sha1-etm@openssh.com": info7("sha1", 20, 20, true),
-        "hmac-sha1-96": info7("sha1", 20, 12, false),
-        "hmac-sha2-256": info7("sha256", 32, 32, false),
-        "hmac-sha2-256-etm@openssh.com": info7("sha256", 32, 32, true),
-        "hmac-sha2-256-96": info7("sha256", 32, 12, false),
-        "hmac-sha2-512": info7("sha512", 64, 64, false),
-        "hmac-sha2-512-etm@openssh.com": info7("sha512", 64, 64, true),
-        "hmac-sha2-512-96": info7("sha512", 64, 12, false)
+        "hmac-md5": info8("md5", 16, 16, false),
+        "hmac-md5-96": info8("md5", 16, 12, false),
+        "hmac-ripemd160": info8("ripemd160", 20, 20, false),
+        "hmac-sha1": info8("sha1", 20, 20, false),
+        "hmac-sha1-etm@openssh.com": info8("sha1", 20, 20, true),
+        "hmac-sha1-96": info8("sha1", 20, 12, false),
+        "hmac-sha2-256": info8("sha256", 32, 32, false),
+        "hmac-sha2-256-etm@openssh.com": info8("sha256", 32, 32, true),
+        "hmac-sha2-256-96": info8("sha256", 32, 12, false),
+        "hmac-sha2-512": info8("sha512", 64, 64, false),
+        "hmac-sha2-512-etm@openssh.com": info8("sha512", 64, 64, true),
+        "hmac-sha2-512-96": info8("sha512", 64, 12, false)
       };
     })();
     var NullCipher = class {
@@ -40467,7 +40467,7 @@ var require_Channel = __commonJS({
       }
     };
     var Channel = class extends DuplexStream {
-      constructor(client, info7, opts) {
+      constructor(client, info8, opts) {
         const streamOpts = {
           highWaterMark: MAX_WINDOW,
           allowHalfOpen: !opts || opts && opts.allowHalfOpen !== false,
@@ -40477,10 +40477,10 @@ var require_Channel = __commonJS({
         this.allowHalfOpen = streamOpts.allowHalfOpen;
         const server = !!(opts && opts.server);
         this.server = server;
-        this.type = info7.type;
+        this.type = info8.type;
         this.subtype = void 0;
-        this.incoming = info7.incoming;
-        this.outgoing = info7.outgoing;
+        this.incoming = info8.incoming;
+        this.outgoing = info8.outgoing;
         this._callbacks = [];
         this._client = client;
         this._hasX11 = false;
@@ -40636,16 +40636,16 @@ var require_utils7 = __commonJS({
     "use strict";
     var { SFTP } = require_SFTP();
     var MAX_CHANNEL = 2 ** 32 - 1;
-    function onChannelOpenFailure(self2, recipient, info7, cb) {
+    function onChannelOpenFailure(self2, recipient, info8, cb) {
       self2._chanMgr.remove(recipient);
       if (typeof cb !== "function")
         return;
       let err;
-      if (info7 instanceof Error) {
-        err = info7;
-      } else if (typeof info7 === "object" && info7 !== null) {
-        err = new Error(`(SSH) Channel open failure: ${info7.description}`);
-        err.reason = info7.reason;
+      if (info8 instanceof Error) {
+        err = info8;
+      } else if (typeof info8 === "object" && info8 !== null) {
+        err = new Error(`(SSH) Channel open failure: ${info8.description}`);
+        err.reason = info8.reason;
       } else {
         err = new Error(
           "(SSH) Channel open failure: server closed channel unexpectedly"
@@ -41364,11 +41364,11 @@ var require_client2 = __commonJS({
                     proto.requestFailure();
               }
             },
-            CHANNEL_OPEN: (p, info7) => {
-              onCHANNEL_OPEN(this, info7);
+            CHANNEL_OPEN: (p, info8) => {
+              onCHANNEL_OPEN(this, info8);
             },
-            CHANNEL_OPEN_CONFIRMATION: (p, info7) => {
-              const channel = this._chanMgr.get(info7.recipient);
+            CHANNEL_OPEN_CONFIRMATION: (p, info8) => {
+              const channel = this._chanMgr.get(info8.recipient);
               if (typeof channel !== "function")
                 return;
               const isSFTP = channel.type === "sftp";
@@ -41376,28 +41376,28 @@ var require_client2 = __commonJS({
               const chanInfo = {
                 type,
                 incoming: {
-                  id: info7.recipient,
+                  id: info8.recipient,
                   window: MAX_WINDOW,
                   packetSize: PACKET_SIZE,
                   state: "open"
                 },
                 outgoing: {
-                  id: info7.sender,
-                  window: info7.window,
-                  packetSize: info7.packetSize,
+                  id: info8.sender,
+                  window: info8.window,
+                  packetSize: info8.packetSize,
                   state: "open"
                 }
               };
               const instance = isSFTP ? new SFTP(this, chanInfo, { debug: debug2 }) : new Channel(this, chanInfo);
-              this._chanMgr.update(info7.recipient, instance);
+              this._chanMgr.update(info8.recipient, instance);
               channel(void 0, instance);
             },
             CHANNEL_OPEN_FAILURE: (p, recipient, reason, description) => {
               const channel = this._chanMgr.get(recipient);
               if (typeof channel !== "function")
                 return;
-              const info7 = { reason, description };
-              onChannelOpenFailure(this, recipient, info7, channel);
+              const info8 = { reason, description };
+              onChannelOpenFailure(this, recipient, info8, channel);
             },
             CHANNEL_DATA: (p, recipient, data) => {
               const channel = this._chanMgr.get(recipient);
@@ -42494,12 +42494,12 @@ var require_client2 = __commonJS({
       });
       chan._client._protocol.subsystem(chan.outgoing.id, name, true);
     }
-    function onCHANNEL_OPEN(self2, info7) {
+    function onCHANNEL_OPEN(self2, info8) {
       let localChan = -1;
       let reason;
       const accept = () => {
         const chanInfo = {
-          type: info7.type,
+          type: info8.type,
           incoming: {
             id: localChan,
             window: MAX_WINDOW,
@@ -42507,16 +42507,16 @@ var require_client2 = __commonJS({
             state: "open"
           },
           outgoing: {
-            id: info7.sender,
-            window: info7.window,
-            packetSize: info7.packetSize,
+            id: info8.sender,
+            window: info8.window,
+            packetSize: info8.packetSize,
             state: "open"
           }
         };
         const stream2 = new Channel(self2, chanInfo);
         self2._chanMgr.update(localChan, stream2);
         self2._protocol.channelOpenConfirm(
-          info7.sender,
+          info8.sender,
           localChan,
           MAX_WINDOW,
           PACKET_SIZE
@@ -42532,7 +42532,7 @@ var require_client2 = __commonJS({
         }
         if (localChan !== -1)
           self2._chanMgr.remove(localChan);
-        self2._protocol.channelOpenFail(info7.sender, reason, "");
+        self2._protocol.channelOpenFail(info8.sender, reason, "");
       };
       const reserveChannel = () => {
         localChan = self2._chanMgr.add();
@@ -42546,8 +42546,8 @@ var require_client2 = __commonJS({
         }
         return localChan !== -1;
       };
-      const data = info7.data;
-      switch (info7.type) {
+      const data = info8.data;
+      switch (info8.type) {
         case "forwarded-tcpip": {
           const val = self2._forwarding[`${data.destIP}:${data.destPort}`];
           if (val !== void 0 && reserveChannel()) {
@@ -42585,7 +42585,7 @@ var require_client2 = __commonJS({
           reason = CHANNEL_OPEN_FAILURE.UNKNOWN_CHANNEL_TYPE;
           if (self2.config.debug) {
             self2.config.debug(
-              `Client: Automatic rejection of unsupported incoming channel open type: ${info7.type}`
+              `Client: Automatic rejection of unsupported incoming channel open type: ${info8.type}`
             );
           }
       }
@@ -42593,7 +42593,7 @@ var require_client2 = __commonJS({
         reason = CHANNEL_OPEN_FAILURE.ADMINISTRATIVELY_PROHIBITED;
         if (self2.config.debug) {
           self2.config.debug(
-            "Client: Automatic rejection of unexpected incoming channel open for: " + info7.type
+            "Client: Automatic rejection of unexpected incoming channel open for: " + info8.type
           );
         }
       }
@@ -42950,7 +42950,7 @@ var require_server = __commonJS({
       }
     };
     var Session = class extends EventEmitter {
-      constructor(client, info7, localChan) {
+      constructor(client, info8, localChan) {
         super();
         this.type = "session";
         this.subtype = void 0;
@@ -42966,9 +42966,9 @@ var require_server = __commonJS({
             state: "open"
           },
           outgoing: {
-            id: info7.sender,
-            window: info7.window,
-            packetSize: info7.packetSize,
+            id: info8.sender,
+            window: info8.window,
+            packetSize: info8.packetSize,
             state: "open"
           }
         };
@@ -43192,13 +43192,13 @@ var require_server = __commonJS({
           },
           onHeader: (header) => {
             this.removeListener("error", onClientPreHeaderError);
-            const info7 = {
+            const info8 = {
               ip: socket.remoteAddress,
               family: socket.remoteFamily,
               port: socket.remotePort,
               header
             };
-            if (!server.emit("connection", this, info7)) {
+            if (!server.emit("connection", this, info8)) {
               proto.disconnect(DISCONNECT_REASON.BY_APPLICATION);
               socket.end();
               return;
@@ -43227,10 +43227,10 @@ var require_server = __commonJS({
               }
               socket.end();
             },
-            CHANNEL_OPEN: (p, info7) => {
-              if (info7.type === "session" && this.noMoreSessions || !this.authenticated) {
+            CHANNEL_OPEN: (p, info8) => {
+              if (info8.type === "session" && this.noMoreSessions || !this.authenticated) {
                 const reasonCode = CHANNEL_OPEN_FAILURE.ADMINISTRATIVELY_PROHIBITED;
-                return proto.channelOpenFail(info7.sender, reasonCode);
+                return proto.channelOpenFail(info8.sender, reasonCode);
               }
               let localChan = -1;
               let reason;
@@ -43248,7 +43248,7 @@ var require_server = __commonJS({
                 }
                 if (localChan !== -1)
                   this._chanMgr.remove(localChan);
-                proto.channelOpenFail(info7.sender, reason, "");
+                proto.channelOpenFail(info8.sender, reason, "");
               };
               const reserveChannel = () => {
                 localChan = this._chanMgr.add();
@@ -43260,18 +43260,18 @@ var require_server = __commonJS({
                 }
                 return localChan !== -1;
               };
-              const data = info7.data;
-              switch (info7.type) {
+              const data = info8.data;
+              switch (info8.type) {
                 case "session":
                   if (listenerCount(this, "session") && reserveChannel()) {
                     accept = () => {
                       if (replied)
                         return;
                       replied = true;
-                      const instance = new Session(this, info7, localChan);
+                      const instance = new Session(this, info8, localChan);
                       this._chanMgr.update(localChan, instance);
                       proto.channelOpenConfirm(
-                        info7.sender,
+                        info8.sender,
                         localChan,
                         MAX_WINDOW,
                         PACKET_SIZE
@@ -43297,16 +43297,16 @@ var require_server = __commonJS({
                           state: "open"
                         },
                         outgoing: {
-                          id: info7.sender,
-                          window: info7.window,
-                          packetSize: info7.packetSize,
+                          id: info8.sender,
+                          window: info8.window,
+                          packetSize: info8.packetSize,
                           state: "open"
                         }
                       };
                       const stream2 = new Channel(this, chanInfo, { server: true });
                       this._chanMgr.update(localChan, stream2);
                       proto.channelOpenConfirm(
-                        info7.sender,
+                        info8.sender,
                         localChan,
                         MAX_WINDOW,
                         PACKET_SIZE
@@ -43332,16 +43332,16 @@ var require_server = __commonJS({
                           state: "open"
                         },
                         outgoing: {
-                          id: info7.sender,
-                          window: info7.window,
-                          packetSize: info7.packetSize,
+                          id: info8.sender,
+                          window: info8.window,
+                          packetSize: info8.packetSize,
                           state: "open"
                         }
                       };
                       const stream2 = new Channel(this, chanInfo, { server: true });
                       this._chanMgr.update(localChan, stream2);
                       proto.channelOpenConfirm(
-                        info7.sender,
+                        info8.sender,
                         localChan,
                         MAX_WINDOW,
                         PACKET_SIZE
@@ -43355,46 +43355,46 @@ var require_server = __commonJS({
                 default:
                   reason = CHANNEL_OPEN_FAILURE.UNKNOWN_CHANNEL_TYPE;
                   if (debug2) {
-                    debug2(`Automatic rejection of unsupported incoming channel open type: ${info7.type}`);
+                    debug2(`Automatic rejection of unsupported incoming channel open type: ${info8.type}`);
                   }
               }
               if (reason === void 0) {
                 reason = CHANNEL_OPEN_FAILURE.ADMINISTRATIVELY_PROHIBITED;
                 if (debug2) {
-                  debug2(`Automatic rejection of unexpected incoming channel open for: ${info7.type}`);
+                  debug2(`Automatic rejection of unexpected incoming channel open for: ${info8.type}`);
                 }
               }
               reject();
             },
-            CHANNEL_OPEN_CONFIRMATION: (p, info7) => {
-              const channel = this._chanMgr.get(info7.recipient);
+            CHANNEL_OPEN_CONFIRMATION: (p, info8) => {
+              const channel = this._chanMgr.get(info8.recipient);
               if (typeof channel !== "function")
                 return;
               const chanInfo = {
                 type: channel.type,
                 incoming: {
-                  id: info7.recipient,
+                  id: info8.recipient,
                   window: MAX_WINDOW,
                   packetSize: PACKET_SIZE,
                   state: "open"
                 },
                 outgoing: {
-                  id: info7.sender,
-                  window: info7.window,
-                  packetSize: info7.packetSize,
+                  id: info8.sender,
+                  window: info8.window,
+                  packetSize: info8.packetSize,
                   state: "open"
                 }
               };
               const instance = new Channel(this, chanInfo, { server: true });
-              this._chanMgr.update(info7.recipient, instance);
+              this._chanMgr.update(info8.recipient, instance);
               channel(void 0, instance);
             },
             CHANNEL_OPEN_FAILURE: (p, recipient, reason, description) => {
               const channel = this._chanMgr.get(recipient);
               if (typeof channel !== "function")
                 return;
-              const info7 = { reason, description };
-              onChannelOpenFailure(this, recipient, info7, channel);
+              const info8 = { reason, description };
+              onChannelOpenFailure(this, recipient, info8, channel);
             },
             CHANNEL_DATA: (p, recipient, data) => {
               let channel = this._chanMgr.get(recipient);
@@ -46117,13 +46117,13 @@ var require_from = __commonJS({
     "use strict";
     function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
       try {
-        var info7 = gen[key](arg);
-        var value = info7.value;
+        var info8 = gen[key](arg);
+        var value = info8.value;
       } catch (error3) {
         reject(error3);
         return;
       }
-      if (info7.done) {
+      if (info8.done) {
         resolve(value);
       } else {
         Promise.resolve(value).then(_next, _throw);
@@ -98900,7 +98900,7 @@ __export(main_exports, {
   run: () => run
 });
 module.exports = __toCommonJS(main_exports);
-var core7 = __toESM(require_core());
+var core8 = __toESM(require_core());
 var github = __toESM(require_github());
 var httpClient2 = __toESM(require_lib());
 
@@ -99323,6 +99323,7 @@ function fromWorkflowInputs(ctx) {
 }
 
 // src/updater.ts
+var core7 = __toESM(require_core());
 var import_dockerode2 = __toESM(require_docker());
 
 // src/container-service.ts
@@ -99472,6 +99473,7 @@ var CONFIG_FILE_PATH = "/";
 var CONFIG_FILE_NAME = "config.json";
 var CA_CERT_INPUT_PATH = "/usr/local/share/ca-certificates";
 var CUSTOM_CA_CERT_NAME = "custom-ca-cert.crt";
+var PROXY_READY_TIMEOUT_SECONDS = 60;
 var CERT_SUBJECT = [
   {
     name: "commonName",
@@ -99560,16 +99562,64 @@ var ProxyBuilder = class {
         throw new Error("proxy container isn't running");
       }
     };
+    const waitUntilReady = async () => {
+      try {
+        await ContainerService.execCommand(
+          container,
+          [
+            "timeout",
+            `${PROXY_READY_TIMEOUT_SECONDS}`,
+            "sh",
+            "-c",
+            'until nc -w 1 "$0" "$1" </dev/null; do sleep 0.1; done',
+            "127.0.0.1",
+            "1080"
+          ],
+          "root"
+        );
+      } catch (error3) {
+        throw new Error(
+          `Proxy did not start accepting connections on port 1080 within ${PROXY_READY_TIMEOUT_SECONDS} seconds`,
+          { cause: error3 }
+        );
+      }
+    };
     return {
       container,
       network: internalNetwork,
       networkName: internalNetworkName,
       url,
+      waitUntilReady,
       cert,
       shutdown: async () => {
-        await container.stop();
-        await container.remove();
-        await Promise.all([externalNetwork.remove(), internalNetwork.remove()]);
+        const cleanupErrors = [];
+        try {
+          await container.stop();
+        } catch (error3) {
+          if (typeof error3 !== "object" || error3 === null || !("statusCode" in error3) || error3.statusCode !== 304) {
+            cleanupErrors.push(error3);
+          }
+        }
+        try {
+          await container.remove();
+        } catch (error3) {
+          cleanupErrors.push(error3);
+        }
+        const networkCleanupResults = await Promise.allSettled([
+          externalNetwork.remove(),
+          internalNetwork.remove()
+        ]);
+        for (const result of networkCleanupResults) {
+          if (result.status === "rejected") {
+            cleanupErrors.push(result.reason);
+          }
+        }
+        if (cleanupErrors.length === 1) {
+          throw cleanupErrors[0];
+        }
+        if (cleanupErrors.length > 1) {
+          throw new AggregateError(cleanupErrors, "Failed to clean up proxy");
+        }
       }
     };
   }
@@ -99805,11 +99855,23 @@ var Updater = class {
     );
     await proxy.container.start();
     try {
+      await proxy.waitUntilReady();
       await this.runUpdate(proxy);
-      return true;
-    } finally {
-      await this.cleanup(proxy);
+    } catch (error3) {
+      try {
+        await this.cleanup(proxy);
+      } catch (cleanupError) {
+        const cleanupErrors = cleanupError instanceof AggregateError ? cleanupError.errors : [cleanupError];
+        for (const cleanupFailure of cleanupErrors) {
+          core7.info(
+            `Failed to clean up proxy after update failure: ${cleanupFailure}`
+          );
+        }
+      }
+      throw error3;
     }
+    await this.cleanup(proxy);
+    return true;
   }
   generateCredentialsMetadata() {
     const unique = /* @__PURE__ */ new Set();
@@ -99938,21 +100000,21 @@ async function run(context2) {
     if (!jobToken) {
       const errorMessage = "Github Dependabot job token is not set";
       botSay(`finished: ${errorMessage}`);
-      core7.setFailed(errorMessage);
+      core8.setFailed(errorMessage);
       return;
     }
     if (!credentialsToken) {
       const errorMessage = "Github Dependabot credentials token is not set";
       botSay(`finished: ${errorMessage}`);
-      core7.setFailed(errorMessage);
+      core8.setFailed(errorMessage);
       return;
     }
     jobId = params.jobId;
-    core7.setSecret(jobToken);
-    core7.setSecret(credentialsToken);
+    core8.setSecret(jobToken);
+    core8.setSecret(credentialsToken);
     const client = new httpClient2.HttpClient("github/dependabot-action");
     const apiClient = new ApiClient(client, params, jobToken, credentialsToken);
-    core7.info("Fetching job details");
+    core8.info("Fetching job details");
     const details = await apiClient.getJobDetails();
     let updaterImage = params.updaterImage || updaterImageName(details["package-manager"]);
     let proxyImage = PROXY_IMAGE_NAME;
@@ -99963,7 +100025,7 @@ async function run(context2) {
           ...additionalTags
         });
       } catch (error3) {
-        core7.warning(
+        core8.warning(
           `Metric sending failed for ${name}: ${error3.message}`
         );
       }
@@ -99974,10 +100036,10 @@ async function run(context2) {
       credentials.push(...registryCredentials);
       const packagesCred = getPackagesCredential(details, context2.actor);
       if (packagesCred !== null) {
-        core7.info("Adding GitHub Packages credential");
+        core8.info("Adding GitHub Packages credential");
         credentials.push(packagesCred);
       }
-      core7.startGroup("Pulling updater images");
+      core8.startGroup("Pulling updater images");
       let imagesPulled = false;
       let pullError = new Error("No image source was configured");
       const experiments = details?.experiments || {};
@@ -99993,7 +100055,7 @@ async function run(context2) {
         }
       }
       if (!imagesPulled && experiments[FEATURE_PULL_FROM_AZURE]) {
-        core7.warning("Primary image pull failed, attempting fallback");
+        core8.warning("Primary image pull failed, attempting fallback");
         updaterImage = `${FALLBACK_CONTAINER_REGISTRY}/${updaterImage}`;
         proxyImage = `${FALLBACK_CONTAINER_REGISTRY}/${proxyImage}`;
         try {
@@ -100015,9 +100077,9 @@ async function run(context2) {
         );
         return;
       }
-      core7.endGroup();
+      core8.endGroup();
       try {
-        core7.info("Starting update process");
+        core8.info("Starting update process");
         const updater = new Updater(
           updaterImage,
           proxyImage,
@@ -100072,12 +100134,12 @@ function getPackagesCredential(jobDetails, actor) {
   }
   const githubToken = process.env.GITHUB_TOKEN;
   if (!githubToken) {
-    core7.warning(
+    core8.warning(
       "GITHUB_TOKEN is not set; cannot create GitHub Packages credential"
     );
     return null;
   }
-  core7.setSecret(githubToken);
+  core8.setSecret(githubToken);
   let credential = null;
   switch (jobDetails["package-manager"]) {
     case "bundler":
@@ -100188,13 +100250,13 @@ async function failJob(apiClient, message, error3, errorType = "actions_workflow
   botSay("finished: error reported to Dependabot");
 }
 function botSay(message) {
-  core7.info(`\u{1F916} ~ ${message} ~`);
+  core8.info(`\u{1F916} ~ ${message} ~`);
 }
 function setFailed2(message, error3) {
   if (jobId) {
     message = [message, error3, dependabotJobHelp()].filter(Boolean).join("\n\n");
   }
-  core7.setFailed(message);
+  core8.setFailed(message);
 }
 function dependabotJobHelp() {
   if (jobId) {
@@ -100240,7 +100302,7 @@ function credentialsFromEnv() {
   for (const e of parsed) {
     for (const key of Object.keys(e)) {
       if (!nonSecrets.includes(key)) {
-        core7.setSecret(e[key]);
+        core8.setSecret(e[key]);
       }
     }
   }
