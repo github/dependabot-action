@@ -35,6 +35,7 @@ describe('Updater', () => {
     container: {
       start: jest.fn()
     },
+    waitUntilReady: jest.fn(),
     network: jest.fn(),
     networkName: 'mockNetworkName',
     url: () => {
@@ -67,15 +68,44 @@ describe('Updater', () => {
         .mockResolvedValue(mockContainer)
 
       jest.spyOn(ProxyBuilder.prototype, 'run').mockResolvedValue(mockProxy)
-      jest.spyOn(ContainerService, 'run').mockImplementationOnce(
-        jest.fn(async () => {
-          return true
-        })
-      )
+      mockProxy.waitUntilReady.mockResolvedValue(undefined)
+      jest
+        .spyOn(ContainerService, 'run')
+        .mockImplementation(jest.fn(async () => true))
     })
 
     it('should be successful', async () => {
       expect(await updater.runUpdater()).toBe(true)
+    })
+
+    it('does not start the updater until the proxy is ready', async () => {
+      const {promise, resolve} = Promise.withResolvers<void>()
+      mockProxy.waitUntilReady.mockReturnValueOnce(promise)
+
+      const runPromise = updater.runUpdater()
+      await new Promise<void>(resolveImmediate =>
+        setImmediate(resolveImmediate)
+      )
+
+      try {
+        expect(jest.mocked(ContainerService).run.mock.calls).toHaveLength(0)
+      } finally {
+        resolve()
+      }
+
+      await expect(runPromise).resolves.toBe(true)
+    })
+
+    it('cleans up when the proxy does not become ready', async () => {
+      mockProxy.waitUntilReady.mockRejectedValueOnce(
+        new Error('proxy readiness timed out')
+      )
+
+      await expect(updater.runUpdater()).rejects.toThrow(
+        'proxy readiness timed out'
+      )
+      expect(jest.mocked(ContainerService).run.mock.calls).toHaveLength(0)
+      expect(mockProxy.shutdown.mock.calls).toHaveLength(1)
     })
   })
 
