@@ -21,20 +21,41 @@ export async function run(cutoff = '24h'): Promise<void> {
   try {
     const docker = new Docker()
     const untilFilter = {until: [cutoff]}
+
     core.info(`Pruning networks older than ${cutoff}`)
-    await docker.pruneNetworks({filters: untilFilter})
+    await attemptCleanup('pruning networks', async () =>
+      docker.pruneNetworks({filters: untilFilter})
+    )
+
     core.info(`Pruning containers older than ${cutoff}`)
-    await docker.pruneContainers({filters: untilFilter})
+    await attemptCleanup('pruning containers', async () =>
+      docker.pruneContainers({filters: untilFilter})
+    )
+
+    const images = [...updaterImages(), PROXY_IMAGE_NAME]
     await Promise.all(
-      updaterImages().map(async image => {
-        return cleanupOldImageVersions(docker, image)
+      images.map(async image => {
+        const repo = repositoryName(image)
+        return attemptCleanup(`cleaning up images for ${repo}`, async () =>
+          cleanupOldImageVersions(docker, image)
+        )
       })
     )
-    await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      core.error(`Error cleaning up: ${error.message}`)
-    }
+    const message = error instanceof Error ? error.message : String(error)
+    core.error(`Error cleaning up: ${message}`)
+  }
+}
+
+async function attemptCleanup(
+  description: string,
+  cleanup: () => Promise<unknown>
+): Promise<void> {
+  try {
+    await cleanup()
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    core.error(`Error ${description}: ${message}`)
   }
 }
 
@@ -49,34 +70,30 @@ export async function cleanupOldImageVersions(
 
   core.info(`Cleaning up images for ${repo}`)
 
-  docker.listImages(options, async function (err, imageInfoList) {
-    if (imageInfoList && imageInfoList.length > 0) {
-      for (const imageInfo of imageInfoList) {
-        // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
-        // we fail over to check for a match on just tags as well.
-        //
-        // This means we won't remove any image which matches an imageName of either of these notations:
-        // - dependabot/image:$TAG@sha256:$REF (current implementation)
-        // - dependabot/image:v1
-        //
-        // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
-        // this was the active version.
-        if (imageMatches(imageInfo, imageName)) {
-          core.info(`Skipping current image ${imageInfo.Id}`)
-          continue
-        }
-
-        core.info(`Removing image ${imageInfo.Id}`)
-        try {
-          await docker.getImage(imageInfo.Id).remove()
-        } catch (error: unknown) {
-          if (error instanceof Error) {
-            core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`)
-          }
-        }
-      }
+  const imageInfoList = await docker.listImages(options)
+  for (const imageInfo of imageInfoList) {
+    // The given imageName is expected to be a tag + digest, however to avoid any surprises in future
+    // we fail over to check for a match on just tags as well.
+    //
+    // This means we won't remove any image which matches an imageName of either of these notations:
+    // - dependabot/image:$TAG@sha256:$REF (current implementation)
+    // - dependabot/image:v1
+    //
+    // Without checking imageInfo.RepoTags for a match, we would actually remove the latter even if
+    // this was the active version.
+    if (imageMatches(imageInfo, imageName)) {
+      core.info(`Skipping current image ${imageInfo.Id}`)
+      continue
     }
-  })
+
+    core.info(`Removing image ${imageInfo.Id}`)
+    try {
+      await docker.getImage(imageInfo.Id).remove()
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      core.info(`Unable to remove ${imageInfo.Id} -- ${message}`)
+    }
+  }
 }
 
 function imageMatches(imageInfo: Docker.ImageInfo, imageName: string): boolean {

@@ -1,9 +1,19 @@
 import * as core from '@actions/core'
 import Docker from 'dockerode'
 import {ImageService} from '../src/image-service'
-import {integration, delay} from './helpers'
-import {run, cleanupOldImageVersions} from '../src/cleanup'
+import {integration} from './helpers'
 import {PROXY_IMAGE_NAME, digestName} from '../src/docker-tags'
+
+let run: typeof import('../src/cleanup').run
+let cleanupOldImageVersions: typeof import('../src/cleanup').cleanupOldImageVersions
+
+beforeAll(async () => {
+  process.env.DEPENDABOT_DISABLE_CLEANUP = '1'
+  const cleanup = await import('../src/cleanup')
+  run = cleanup.run
+  cleanupOldImageVersions = cleanup.cleanupOldImageVersions
+  delete process.env.DEPENDABOT_DISABLE_CLEANUP
+})
 
 integration('run', () => {
   beforeEach(async () => {
@@ -65,9 +75,6 @@ integration('cleanupOldImageVersions', () => {
     expect(initialImages.length).toEqual(2)
 
     await cleanupOldImageVersions(docker, currentImage)
-    // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
-    // the verification query doesn't race the deletion
-    await delay(200)
 
     const remainingImages = await docker.listImages(imageOptions)
     expect(remainingImages.length).toEqual(1)
@@ -83,9 +90,6 @@ integration('cleanupOldImageVersions', () => {
     expect(imageCount).toEqual(2)
 
     await run()
-    // The Docker API seems to ack the removal before it is carried out, so let's wait briefly to ensure
-    // the verification query doesn't race the deletion
-    await delay(200)
 
     const remainingImages = await docker.listImages(imageOptions)
     expect(remainingImages.length).toEqual(2)

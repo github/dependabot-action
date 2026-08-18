@@ -74194,19 +74194,36 @@ async function run(cutoff = "24h") {
     const docker = new import_dockerode.default();
     const untilFilter = { until: [cutoff] };
     core.info(`Pruning networks older than ${cutoff}`);
-    await docker.pruneNetworks({ filters: untilFilter });
+    await attemptCleanup(
+      "pruning networks",
+      async () => docker.pruneNetworks({ filters: untilFilter })
+    );
     core.info(`Pruning containers older than ${cutoff}`);
-    await docker.pruneContainers({ filters: untilFilter });
+    await attemptCleanup(
+      "pruning containers",
+      async () => docker.pruneContainers({ filters: untilFilter })
+    );
+    const images = [...updaterImages(), PROXY_IMAGE_NAME];
     await Promise.all(
-      updaterImages().map(async (image) => {
-        return cleanupOldImageVersions(docker, image);
+      images.map(async (image) => {
+        const repo = repositoryName(image);
+        return attemptCleanup(
+          `cleaning up images for ${repo}`,
+          async () => cleanupOldImageVersions(docker, image)
+        );
       })
     );
-    await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME);
   } catch (error2) {
-    if (error2 instanceof Error) {
-      core.error(`Error cleaning up: ${error2.message}`);
-    }
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core.error(`Error cleaning up: ${message}`);
+  }
+}
+async function attemptCleanup(description, cleanup) {
+  try {
+    await cleanup();
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core.error(`Error ${description}: ${message}`);
   }
 }
 async function cleanupOldImageVersions(docker, imageName) {
@@ -74215,24 +74232,20 @@ async function cleanupOldImageVersions(docker, imageName) {
     filters: `{"reference":["${repo}"]}`
   };
   core.info(`Cleaning up images for ${repo}`);
-  docker.listImages(options, async function(err, imageInfoList) {
-    if (imageInfoList && imageInfoList.length > 0) {
-      for (const imageInfo of imageInfoList) {
-        if (imageMatches(imageInfo, imageName)) {
-          core.info(`Skipping current image ${imageInfo.Id}`);
-          continue;
-        }
-        core.info(`Removing image ${imageInfo.Id}`);
-        try {
-          await docker.getImage(imageInfo.Id).remove();
-        } catch (error2) {
-          if (error2 instanceof Error) {
-            core.info(`Unable to remove ${imageInfo.Id} -- ${error2.message}`);
-          }
-        }
-      }
+  const imageInfoList = await docker.listImages(options);
+  for (const imageInfo of imageInfoList) {
+    if (imageMatches(imageInfo, imageName)) {
+      core.info(`Skipping current image ${imageInfo.Id}`);
+      continue;
     }
-  });
+    core.info(`Removing image ${imageInfo.Id}`);
+    try {
+      await docker.getImage(imageInfo.Id).remove();
+    } catch (error2) {
+      const message = error2 instanceof Error ? error2.message : String(error2);
+      core.info(`Unable to remove ${imageInfo.Id} -- ${message}`);
+    }
+  }
 }
 function imageMatches(imageInfo, imageName) {
   if (hasDigest(imageName)) {
