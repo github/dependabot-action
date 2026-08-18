@@ -94333,16 +94333,27 @@ async function run(cutoff = '24h') {
         const docker = new dockerode_1.default();
         const untilFilter = { until: [cutoff] };
         core.info(`Pruning networks older than ${cutoff}`);
-        await docker.pruneNetworks({ filters: untilFilter });
+        await attemptCleanup('pruning networks', async () => docker.pruneNetworks({ filters: untilFilter }));
         core.info(`Pruning containers older than ${cutoff}`);
-        await docker.pruneContainers({ filters: untilFilter });
-        await Promise.all((0, docker_tags_1.updaterImages)().map(async (image) => cleanupOldImageVersions(docker, image)));
-        await cleanupOldImageVersions(docker, docker_tags_1.PROXY_IMAGE_NAME);
+        await attemptCleanup('pruning containers', async () => docker.pruneContainers({ filters: untilFilter }));
+        const images = [...(0, docker_tags_1.updaterImages)(), docker_tags_1.PROXY_IMAGE_NAME];
+        await Promise.all(images.map(async (image) => {
+            const repo = (0, docker_tags_1.repositoryName)(image);
+            return attemptCleanup(`cleaning up images for ${repo}`, async () => cleanupOldImageVersions(docker, image));
+        }));
     }
     catch (error) {
-        if (error instanceof Error) {
-            core.error(`Error cleaning up: ${error.message}`);
-        }
+        const message = error instanceof Error ? error.message : String(error);
+        core.error(`Error cleaning up: ${message}`);
+    }
+}
+async function attemptCleanup(description, cleanup) {
+    try {
+        await cleanup();
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        core.error(`Error ${description}: ${message}`);
     }
 }
 async function cleanupOldImageVersions(docker, imageName) {
@@ -94371,9 +94382,8 @@ async function cleanupOldImageVersions(docker, imageName) {
             await docker.getImage(imageInfo.Id).remove();
         }
         catch (error) {
-            if (error instanceof Error) {
-                core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`);
-            }
+            const message = error instanceof Error ? error.message : String(error);
+            core.info(`Unable to remove ${imageInfo.Id} -- ${message}`);
         }
     }
 }

@@ -21,18 +21,41 @@ export async function run(cutoff = '24h'): Promise<void> {
   try {
     const docker = new Docker()
     const untilFilter = {until: [cutoff]}
+
     core.info(`Pruning networks older than ${cutoff}`)
-    await docker.pruneNetworks({filters: untilFilter})
-    core.info(`Pruning containers older than ${cutoff}`)
-    await docker.pruneContainers({filters: untilFilter})
-    await Promise.all(
-      updaterImages().map(async image => cleanupOldImageVersions(docker, image))
+    await attemptCleanup('pruning networks', async () =>
+      docker.pruneNetworks({filters: untilFilter})
     )
-    await cleanupOldImageVersions(docker, PROXY_IMAGE_NAME)
+
+    core.info(`Pruning containers older than ${cutoff}`)
+    await attemptCleanup('pruning containers', async () =>
+      docker.pruneContainers({filters: untilFilter})
+    )
+
+    const images = [...updaterImages(), PROXY_IMAGE_NAME]
+    await Promise.all(
+      images.map(async image => {
+        const repo = repositoryName(image)
+        return attemptCleanup(`cleaning up images for ${repo}`, async () =>
+          cleanupOldImageVersions(docker, image)
+        )
+      })
+    )
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      core.error(`Error cleaning up: ${error.message}`)
-    }
+    const message = error instanceof Error ? error.message : String(error)
+    core.error(`Error cleaning up: ${message}`)
+  }
+}
+
+async function attemptCleanup(
+  description: string,
+  cleanup: () => Promise<unknown>
+): Promise<void> {
+  try {
+    await cleanup()
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    core.error(`Error ${description}: ${message}`)
   }
 }
 
@@ -67,9 +90,8 @@ export async function cleanupOldImageVersions(
     try {
       await docker.getImage(imageInfo.Id).remove()
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        core.info(`Unable to remove ${imageInfo.Id} -- ${error.message}`)
-      }
+      const message = error instanceof Error ? error.message : String(error)
+      core.info(`Unable to remove ${imageInfo.Id} -- ${message}`)
     }
   }
 }

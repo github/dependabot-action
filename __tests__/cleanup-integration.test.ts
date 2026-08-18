@@ -2,8 +2,18 @@ import * as core from '@actions/core'
 import Docker from 'dockerode'
 import {ImageService} from '../src/image-service'
 import {integration} from './helpers'
-import {run, cleanupOldImageVersions} from '../src/cleanup'
 import {PROXY_IMAGE_NAME, digestName} from '../src/docker-tags'
+
+let run: typeof import('../src/cleanup').run
+let cleanupOldImageVersions: typeof import('../src/cleanup').cleanupOldImageVersions
+
+beforeAll(async () => {
+  process.env.DEPENDABOT_DISABLE_CLEANUP = '1'
+  const cleanup = await import('../src/cleanup')
+  run = cleanup.run
+  cleanupOldImageVersions = cleanup.cleanupOldImageVersions
+  delete process.env.DEPENDABOT_DISABLE_CLEANUP
+})
 
 integration('run', () => {
   beforeEach(async () => {
