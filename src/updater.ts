@@ -2,33 +2,17 @@ import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
 import {JobDetails, ApiClient, Credential} from './api-client'
 import {ContainerService, UpdaterPhase} from './container-service'
-import {
-  DependencyFile,
-  FetchedFiles,
-  FileUpdaterInput,
-  FileFetcherInput
-} from './config-types'
+import {FileFetcherInput} from './config-types'
 import {ProxyBuilder, Proxy} from './proxy'
 import {UpdaterBuilder} from './updater-builder'
-import {base64DecodeDependencyFile} from './utils'
 
 // Experiment which opts a job into running the fetch and update phases in
 // separate containers, each with its own proxy and credential set.
-const FEATURE_SPLIT_FETCH_UPDATE = 'split-fetch-update-containers'
+const FEATURE_SPLIT_FETCH_UPDATE = 'isolate_fetch_update'
 
-// Opt-in required alongside the experiment. The updater image does not yet
-// expose standalone phase entrypoints — `bin/run fetch_files` is a no-op kept
-// for backward compatibility, and `update_files` runs the file fetcher
-// in-process — so there is no handoff artifact for the update container to
-// consume. This keeps the split path unreachable for real jobs until an image
-// providing those entrypoints ships.
-const SPLIT_FETCH_UPDATE_ENV = 'DEPENDABOT_SPLIT_FETCH_UPDATE'
-
-export class UpdaterFetchError extends Error {
-  constructor(msg: string) {
-    super(msg)
-    Object.setPrototypeOf(this, UpdaterFetchError.prototype)
-  }
+type RepoVolume = {
+  name: string
+  remove: () => Promise<unknown>
 }
 
 export class Updater {
@@ -60,19 +44,7 @@ export class Updater {
     const experiments = (this.details.experiments || {}) as {
       [key: string]: unknown
     }
-
-    if (experiments[FEATURE_SPLIT_FETCH_UPDATE] !== true) {
-      return false
-    }
-
-    if (process.env[SPLIT_FETCH_UPDATE_ENV] !== '1') {
-      core.info(
-        `The ${FEATURE_SPLIT_FETCH_UPDATE} experiment is enabled but the updater image does not yet support split phases, running both phases in one container`
-      )
-      return false
-    }
-
-    return true
+    return experiments[FEATURE_SPLIT_FETCH_UPDATE] === true
   }
 
   private async runSingleContainerUpdate(): Promise<boolean> {
@@ -80,25 +52,53 @@ export class Updater {
 
     try {
       await this.runUpdate(proxy)
-      return true
-    } finally {
-      await this.cleanup(proxy)
+    } catch (error) {
+      await this.cleanupAfterFailure(proxy, error)
+      throw error
     }
-  }
 
-  /**
-   * Run the job as two sequential containers. The fetch container clones the
-   * repository behind a proxy holding the target-repo credential and hands off
-   * the file subset it selected. The update container then runs the package
-   * manager against only that subset, behind its own proxy.
-   */
-  private async runSplitPhaseUpdate(): Promise<boolean> {
-    const files = await this.runFetchPhase()
-    await this.runUpdatePhase(files)
+    await this.cleanup(proxy)
     return true
   }
 
-  private async runFetchPhase(): Promise<FetchedFiles> {
+  /**
+   * Run the job as two sequential containers, copying the fetched checkout
+   * from a fetch-only volume into the volume handed to the updater.
+   */
+  private async runSplitPhaseUpdate(): Promise<boolean> {
+    const cloneVolume = (await this.docker.createVolume({
+      Name: `dependabot-job-${this.apiClient.params.jobId}-clone`,
+      Labels: {'dependabot-job-id': String(this.apiClient.params.jobId)}
+    })) as unknown as RepoVolume
+    let handoffVolume: RepoVolume
+
+    try {
+      handoffVolume = (await this.docker.createVolume({
+        Name: `dependabot-job-${this.apiClient.params.jobId}-handoff`,
+        Labels: {'dependabot-job-id': String(this.apiClient.params.jobId)}
+      })) as unknown as RepoVolume
+    } catch (error) {
+      await this.removeRepoVolumes([cloneVolume], true)
+      throw error
+    }
+
+    const repoVolumes = [cloneVolume, handoffVolume]
+    try {
+      await this.runFetchPhase(cloneVolume.name, handoffVolume.name)
+      await this.runUpdatePhase(handoffVolume.name)
+    } catch (error) {
+      await this.removeRepoVolumes(repoVolumes, true)
+      throw error
+    }
+
+    await this.removeRepoVolumes(repoVolumes, false)
+    return true
+  }
+
+  private async runFetchPhase(
+    cloneVolume: string,
+    handoffVolume: string
+  ): Promise<void> {
     core.info(`Fetching files for job ${this.apiClient.params.jobId}`)
 
     const proxy = await this.startProxy(this.credentials, 'fetch')
@@ -109,90 +109,42 @@ export class Updater {
         proxy,
         name,
         {job: this.details},
-        'fetch'
+        'fetch',
+        cloneVolume,
+        handoffVolume
       )
 
-      const output = await ContainerService.runFileFetcher(container)
-      if (!output) {
-        throw new UpdaterFetchError(
-          'No output.json created by the fetcher container'
-        )
-      }
-
-      const fileFetcherOutput = JSON.parse(output)
-
-      return {
-        base_commit_sha: fileFetcherOutput.base_commit_sha,
-        base64_dependency_files: fileFetcherOutput.base64_dependency_files,
-        dependency_files: fileFetcherOutput.base64_dependency_files.map(
-          (file: DependencyFile) => base64DecodeDependencyFile(file)
-        )
-      }
-    } finally {
-      // Tear the fetch proxy and its networks down before the update phase
-      // starts, so the two phases never share a proxy or a network.
-      await this.cleanup(proxy)
+      await ContainerService.runFileFetcher(container)
+    } catch (error) {
+      await this.cleanupAfterFailure(proxy, error)
+      throw error
     }
+
+    await this.cleanup(proxy)
   }
 
-  private async runUpdatePhase(files: FetchedFiles): Promise<void> {
+  private async runUpdatePhase(repoVolume: string): Promise<void> {
     core.info(`Running update job ${this.apiClient.params.jobId}`)
 
-    const proxy = await this.startProxy(this.updatePhaseCredentials(), 'update')
+    const proxy = await this.startProxy(this.credentials, 'update')
 
     try {
       const name = `dependabot-job-${this.apiClient.params.jobId}-updater`
-      const input: FileUpdaterInput = {
-        base_commit_sha: files.base_commit_sha,
-        base64_dependency_files: files.base64_dependency_files,
-        dependency_files: files.dependency_files,
-        job: this.details
-      }
-      const container = await this.createContainer(proxy, name, input, 'update')
+      const container = await this.createContainer(
+        proxy,
+        name,
+        {job: this.details},
+        'update',
+        repoVolume
+      )
 
       await ContainerService.runFileUpdater(container, this.details.command)
-    } finally {
-      await this.cleanup(proxy)
-    }
-  }
-
-  /**
-   * The credential set handed to the update phase's proxy. Credentials which
-   * resolve to the target repository are dropped, since the update phase works
-   * from the file subset handed over by the fetch phase rather than the repo.
-   */
-  private updatePhaseCredentials(): Credential[] {
-    const targetRepo = this.details.source?.repo
-
-    const credentials = this.credentials.filter(
-      credential => !this.canReadTargetRepo(credential, targetRepo)
-    )
-
-    const dropped = this.credentials.length - credentials.length
-    if (dropped > 0) {
-      core.info(
-        `Excluding ${dropped} target-repo credential(s) from the update phase proxy`
-      )
+    } catch (error) {
+      await this.cleanupAfterFailure(proxy, error)
+      throw error
     }
 
-    return credentials
-  }
-
-  private canReadTargetRepo(
-    credential: Credential,
-    targetRepo: string | undefined
-  ): boolean {
-    if (credential.type !== 'git_source') {
-      return false
-    }
-
-    // A git_source credential scoped to a different repository does not resolve
-    // to the target repo, so it is kept for git-sourced dependencies.
-    if (credential.repo && targetRepo && credential.repo !== targetRepo) {
-      return false
-    }
-
-    return true
+    await this.cleanup(proxy)
   }
 
   private async startProxy(
@@ -218,7 +170,12 @@ export class Updater {
       phase
     )
     await proxy.container.start()
-    await proxy.waitUntilReady()
+    try {
+      await proxy.waitUntilReady()
+    } catch (error) {
+      await this.cleanupAfterFailure(proxy, error)
+      throw error
+    }
 
     return proxy
   }
@@ -327,8 +284,10 @@ export class Updater {
   private async createContainer(
     proxy: Proxy,
     containerName: string,
-    input: FileFetcherInput | FileUpdaterInput,
-    phase: UpdaterPhase = 'all'
+    input: FileFetcherInput,
+    phase: UpdaterPhase = 'all',
+    repoVolume?: string,
+    handoffVolume?: string
   ): Promise<Container> {
     return new UpdaterBuilder(
       this.docker,
@@ -336,11 +295,64 @@ export class Updater {
       input,
       proxy,
       this.updaterImage,
-      phase
+      phase,
+      repoVolume,
+      handoffVolume
     ).run(containerName)
   }
 
   private async cleanup(proxy: Proxy): Promise<void> {
     await proxy.shutdown()
+  }
+
+  private async cleanupAfterFailure(
+    proxy: Proxy,
+    originalError: unknown
+  ): Promise<void> {
+    try {
+      await this.cleanup(proxy)
+    } catch (cleanupError) {
+      const cleanupErrors =
+        cleanupError instanceof AggregateError
+          ? cleanupError.errors
+          : [cleanupError]
+      for (const cleanupFailure of cleanupErrors) {
+        core.info(
+          `Failed to clean up proxy after update failure: ${cleanupFailure}`
+        )
+      }
+      core.debug(`Original updater failure: ${originalError}`)
+    }
+  }
+
+  private async removeRepoVolumes(
+    volumes: RepoVolume[],
+    afterFailure: boolean
+  ): Promise<void> {
+    const results = await Promise.allSettled(
+      volumes.map(async volume => volume.remove())
+    )
+    const errors = results
+      .filter(result => result.status === 'rejected')
+      .map(result => result.reason)
+
+    if (errors.length === 0) {
+      return
+    }
+
+    if (afterFailure) {
+      for (const error of errors) {
+        core.info(
+          `Failed to clean up repository volume after update failure: ${error}`
+        )
+      }
+      return
+    }
+
+    if (errors.length === 1) {
+      throw errors[0]
+    }
+
+    throw new AggregateError(errors, 'Failed to clean up repository volumes')
   }
 }

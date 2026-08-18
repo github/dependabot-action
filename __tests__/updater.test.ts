@@ -494,7 +494,7 @@ describe('Updater', () => {
   describe('when the split fetch/update experiment is enabled', () => {
     const splitJobDetails: any = {
       ...mockJobDetails,
-      experiments: {'split-fetch-update-containers': true},
+      experiments: {isolate_fetch_update: true},
       source: {repo: 'dependabot/example'}
     }
 
@@ -519,23 +519,14 @@ describe('Updater', () => {
       }
     ]
 
-    const fetcherOutput = JSON.stringify({
-      base_commit_sha: 'sha',
-      base64_dependency_files: [
-        {
-          name: 'package.json',
-          content: Buffer.from('{}').toString('base64'),
-          directory: '/'
-        }
-      ]
-    })
-
     let proxyRun: jest.SpyInstance
     let runFileFetcher: jest.SpyInstance
     let runFileUpdater: jest.SpyInstance
     let runSingleContainer: jest.SpyInstance
     let storeInput: jest.SpyInstance
     let createContainer: jest.SpyInstance
+    let removeCloneVolume: jest.Mock
+    let removeHandoffVolume: jest.Mock
 
     const updater = new Updater(
       'MOCK_UPDATER_IMAGE_NAME',
@@ -546,7 +537,18 @@ describe('Updater', () => {
     )
 
     beforeEach(async () => {
-      process.env.DEPENDABOT_SPLIT_FETCH_UPDATE = '1'
+      removeCloneVolume = jest.fn().mockResolvedValue(undefined)
+      removeHandoffVolume = jest.fn().mockResolvedValue(undefined)
+      jest
+        .spyOn(Docker.prototype, 'createVolume')
+        .mockResolvedValueOnce({
+          name: 'dependabot-job-1-clone',
+          remove: removeCloneVolume
+        } as any)
+        .mockResolvedValueOnce({
+          name: 'dependabot-job-1-handoff',
+          remove: removeHandoffVolume
+        } as any)
 
       createContainer = jest
         .spyOn(Docker.prototype, 'createContainer')
@@ -558,7 +560,7 @@ describe('Updater', () => {
 
       runFileFetcher = jest
         .spyOn(ContainerService, 'runFileFetcher')
-        .mockResolvedValue(fetcherOutput)
+        .mockResolvedValue()
       runFileUpdater = jest
         .spyOn(ContainerService, 'runFileUpdater')
         .mockResolvedValue()
@@ -566,10 +568,6 @@ describe('Updater', () => {
         .spyOn(ContainerService, 'run')
         .mockResolvedValue(true)
       storeInput = jest.spyOn(ContainerService, 'storeInput')
-    })
-
-    afterEach(() => {
-      delete process.env.DEPENDABOT_SPLIT_FETCH_UPDATE
     })
 
     it('runs the fetch and update phases in separate containers', async () => {
@@ -588,14 +586,11 @@ describe('Updater', () => {
       expect(proxyRun.mock.calls[1][4]).toBe('update')
     })
 
-    it('excludes target-repo credentials from the update phase proxy', async () => {
+    it('passes the full credential set to both phase proxies', async () => {
       await updater.runUpdater()
 
       expect(proxyRun.mock.calls[0][3]).toEqual(credentials)
-      expect(proxyRun.mock.calls[1][3]).toEqual([
-        credentials[1],
-        credentials[2]
-      ])
+      expect(proxyRun.mock.calls[1][3]).toEqual(credentials)
     })
 
     it('shuts the fetch proxy down before the update phase starts', async () => {
@@ -612,14 +607,6 @@ describe('Updater', () => {
       expect(order).toEqual(['shutdown', 'update', 'shutdown'])
     })
 
-    it('raises an error when the fetcher produces no output', async () => {
-      runFileFetcher.mockResolvedValue(undefined)
-
-      await expect(updater.runUpdater()).rejects.toThrow(
-        'No output.json created by the fetcher container'
-      )
-    })
-
     it('gives each phase its own container name', async () => {
       await updater.runUpdater()
 
@@ -631,24 +618,52 @@ describe('Updater', () => {
       )
     })
 
-    it('hands the decoded file subset off to the update container', async () => {
+    it('gives both phases the normal job input', async () => {
       await updater.runUpdater()
 
       expect(storeInput.mock.calls[0][3]).toEqual({job: splitJobDetails})
-      expect(storeInput.mock.calls[1][3]).toEqual({
-        job: splitJobDetails,
-        base_commit_sha: 'sha',
-        base64_dependency_files: [
-          {
-            name: 'package.json',
-            content: Buffer.from('{}').toString('base64'),
-            directory: '/'
-          }
-        ],
-        dependency_files: [
-          {name: 'package.json', content: '{}', directory: '/'}
-        ]
-      })
+      expect(storeInput.mock.calls[1][3]).toEqual({job: splitJobDetails})
+    })
+
+    it('hands the fetched checkout to the update phase in a separate volume', async () => {
+      await updater.runUpdater()
+
+      expect(createContainer.mock.calls[0][0].HostConfig.Mounts).toEqual([
+        {
+          Type: 'volume',
+          Source: 'dependabot-job-1-clone',
+          Target: '/home/dependabot/dependabot-updater/repo'
+        },
+        {
+          Type: 'volume',
+          Source: 'dependabot-job-1-handoff',
+          Target: '/home/dependabot/dependabot-updater/repo-handoff'
+        }
+      ])
+      expect(createContainer.mock.calls[1][0].HostConfig.Mounts).toEqual([
+        {
+          Type: 'volume',
+          Source: 'dependabot-job-1-handoff',
+          Target: '/home/dependabot/dependabot-updater/repo'
+        }
+      ])
+      expect(removeCloneVolume).toHaveBeenCalledTimes(1)
+      expect(removeHandoffVolume).toHaveBeenCalledTimes(1)
+    })
+
+    it('reports a repository volume cleanup failure after a successful run', async () => {
+      removeCloneVolume.mockRejectedValue(new Error('volume cleanup failed'))
+
+      await expect(updater.runUpdater()).rejects.toThrow(
+        'volume cleanup failed'
+      )
+    })
+
+    it('does not mask a fetch failure with a volume cleanup failure', async () => {
+      runFileFetcher.mockRejectedValue(new Error('fetch failed'))
+      removeCloneVolume.mockRejectedValue(new Error('volume cleanup failed'))
+
+      await expect(updater.runUpdater()).rejects.toThrow('fetch failed')
     })
 
     it('does not clean up the update phase proxy until the update fails', async () => {
@@ -658,6 +673,8 @@ describe('Updater', () => {
 
       // One shutdown for the fetch proxy, one for the update proxy.
       expect(mockProxy.shutdown).toHaveBeenCalledTimes(2)
+      expect(removeCloneVolume).toHaveBeenCalledTimes(1)
+      expect(removeHandoffVolume).toHaveBeenCalledTimes(1)
     })
 
     it('does not start the update phase when the fetch phase fails', async () => {
@@ -668,6 +685,8 @@ describe('Updater', () => {
       expect(runFileUpdater).not.toHaveBeenCalled()
       expect(proxyRun).toHaveBeenCalledTimes(1)
       expect(mockProxy.shutdown).toHaveBeenCalledTimes(1)
+      expect(removeCloneVolume).toHaveBeenCalledTimes(1)
+      expect(removeHandoffVolume).toHaveBeenCalledTimes(1)
     })
 
     it('forwards the graph command to the update phase', async () => {
@@ -686,7 +705,7 @@ describe('Updater', () => {
 
     it.each([
       ['the experiment is absent', {}],
-      ['the experiment is disabled', {'split-fetch-update-containers': false}]
+      ['the experiment is disabled', {isolate_fetch_update: false}]
     ])('uses the single container path when %s', async (_name, experiments) => {
       const legacyUpdater = new Updater(
         'MOCK_UPDATER_IMAGE_NAME',
@@ -705,16 +724,6 @@ describe('Updater', () => {
       expect(proxyRun).toHaveBeenCalledTimes(1)
       expect(proxyRun.mock.calls[0][3]).toEqual(credentials)
       expect(proxyRun.mock.calls[0][4]).toBeUndefined()
-    })
-
-    it('stays on the single container path without the opt-in', async () => {
-      delete process.env.DEPENDABOT_SPLIT_FETCH_UPDATE
-
-      expect(await updater.runUpdater()).toBe(true)
-
-      expect(runSingleContainer).toHaveBeenCalledTimes(1)
-      expect(runFileFetcher).not.toHaveBeenCalled()
-      expect(runFileUpdater).not.toHaveBeenCalled()
     })
   })
 })

@@ -418,7 +418,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug2("making CONNECT request");
+      debug3("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -438,7 +438,7 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug2(
+          debug3(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
@@ -450,7 +450,7 @@ var require_tunnel = __commonJS({
           return;
         }
         if (head.length > 0) {
-          debug2("got illegal response body from proxy");
+          debug3("got illegal response body from proxy");
           socket.destroy();
           var error3 = new Error("got illegal response body from proxy");
           error3.code = "ECONNRESET";
@@ -458,13 +458,13 @@ var require_tunnel = __commonJS({
           self2.removeSocket(placeholder);
           return;
         }
-        debug2("tunneling connection has established");
+        debug3("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug2(
+        debug3(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
@@ -526,9 +526,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug2;
+    var debug3;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug2 = function() {
+      debug3 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -538,10 +538,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug2 = function() {
+      debug3 = function() {
       };
     }
-    exports2.debug = debug2;
+    exports2.debug = debug3;
   }
 });
 
@@ -19273,7 +19273,7 @@ var require_core = __commonJS({
     exports2.setCommandEcho = setCommandEcho;
     exports2.setFailed = setFailed3;
     exports2.isDebug = isDebug;
-    exports2.debug = debug2;
+    exports2.debug = debug3;
     exports2.error = error3;
     exports2.warning = warning5;
     exports2.notice = notice;
@@ -19362,7 +19362,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
-    function debug2(message) {
+    function debug3(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
     function error3(message, properties = {}) {
@@ -34184,10 +34184,10 @@ var require_kex = __commonJS({
       let clientList;
       let serverList;
       let i;
-      const debug2 = self2._debug;
-      debug2 && debug2("Inbound: Handshake in progress");
-      debug2 && debug2(`Handshake: (local) KEX method: ${localKex}`);
-      debug2 && debug2(`Handshake: (remote) KEX method: ${remote.kex}`);
+      const debug3 = self2._debug;
+      debug3 && debug3("Inbound: Handshake in progress");
+      debug3 && debug3(`Handshake: (local) KEX method: ${localKex}`);
+      debug3 && debug3(`Handshake: (remote) KEX method: ${remote.kex}`);
       let remoteExtInfoEnabled;
       if (self2._server) {
         serverList = localKex;
@@ -34205,10 +34205,10 @@ var require_kex = __commonJS({
           self2._strictMode = serverList.indexOf("kex-strict-s-v00@openssh.com") !== -1;
         }
         if (self2._strictMode) {
-          debug2 && debug2("Handshake: strict KEX mode enabled");
+          debug3 && debug3("Handshake: strict KEX mode enabled");
           if (self2._decipher.inSeqno !== 1) {
-            if (debug2)
-              debug2("Handshake: KEXINIT not first packet in strict KEX mode");
+            if (debug3)
+              debug3("Handshake: KEXINIT not first packet in strict KEX mode");
             return doFatalError(
               self2,
               "Handshake failed: KEXINIT not first packet in strict KEX mode",
@@ -34220,7 +34220,7 @@ var require_kex = __commonJS({
       }
       for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
       if (i === clientList.length) {
-        debug2 && debug2("Handshake: no matching key exchange algorithm");
+        debug3 && debug3("Handshake: no matching key exchange algorithm");
         return doFatalError(
           self2,
           "Handshake failed: no matching key exchange algorithm",
@@ -34229,13 +34229,13 @@ var require_kex = __commonJS({
         );
       }
       init.kex = clientList[i];
-      debug2 && debug2(`Handshake: KEX algorithm: ${clientList[i]}`);
+      debug3 && debug3(`Handshake: KEX algorithm: ${clientList[i]}`);
       if (firstFollows && (!remote.kex.length || clientList[i] !== remote.kex[0])) {
         self2._skipNextInboundPacket = true;
       }
       const localSrvHostKey = local.lists.serverHostKey.array;
-      debug2 && debug2(`Handshake: (local) Host key format: ${localSrvHostKey}`);
-      debug2 && debug2(
+      debug3 && debug3(`Handshake: (local) Host key format: ${localSrvHostKey}`);
+      debug3 && debug3(
         `Handshake: (remote) Host key format: ${remote.serverHostKey}`
       );
       if (self2._server) {
@@ -34247,7 +34247,7 @@ var require_kex = __commonJS({
       }
       for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
       if (i === clientList.length) {
-        debug2 && debug2("Handshake: No matching host key format");
+        debug3 && debug3("Handshake: No matching host key format");
         return doFatalError(
           self2,
           "Handshake failed: no matching host key format",
@@ -34256,10 +34256,10 @@ var require_kex = __commonJS({
         );
       }
       init.serverHostKey = clientList[i];
-      debug2 && debug2(`Handshake: Host key format: ${clientList[i]}`);
+      debug3 && debug3(`Handshake: Host key format: ${clientList[i]}`);
       const localCSCipher = local.lists.cs.cipher.array;
-      debug2 && debug2(`Handshake: (local) C->S cipher: ${localCSCipher}`);
-      debug2 && debug2(`Handshake: (remote) C->S cipher: ${remote.cs.cipher}`);
+      debug3 && debug3(`Handshake: (local) C->S cipher: ${localCSCipher}`);
+      debug3 && debug3(`Handshake: (remote) C->S cipher: ${remote.cs.cipher}`);
       if (self2._server) {
         serverList = localCSCipher;
         clientList = remote.cs.cipher;
@@ -34269,7 +34269,7 @@ var require_kex = __commonJS({
       }
       for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
       if (i === clientList.length) {
-        debug2 && debug2("Handshake: No matching C->S cipher");
+        debug3 && debug3("Handshake: No matching C->S cipher");
         return doFatalError(
           self2,
           "Handshake failed: no matching C->S cipher",
@@ -34278,10 +34278,10 @@ var require_kex = __commonJS({
         );
       }
       init.cs.cipher = clientList[i];
-      debug2 && debug2(`Handshake: C->S Cipher: ${clientList[i]}`);
+      debug3 && debug3(`Handshake: C->S Cipher: ${clientList[i]}`);
       const localSCCipher = local.lists.sc.cipher.array;
-      debug2 && debug2(`Handshake: (local) S->C cipher: ${localSCCipher}`);
-      debug2 && debug2(`Handshake: (remote) S->C cipher: ${remote.sc.cipher}`);
+      debug3 && debug3(`Handshake: (local) S->C cipher: ${localSCCipher}`);
+      debug3 && debug3(`Handshake: (remote) S->C cipher: ${remote.sc.cipher}`);
       if (self2._server) {
         serverList = localSCCipher;
         clientList = remote.sc.cipher;
@@ -34291,7 +34291,7 @@ var require_kex = __commonJS({
       }
       for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
       if (i === clientList.length) {
-        debug2 && debug2("Handshake: No matching S->C cipher");
+        debug3 && debug3("Handshake: No matching S->C cipher");
         return doFatalError(
           self2,
           "Handshake failed: no matching S->C cipher",
@@ -34300,13 +34300,13 @@ var require_kex = __commonJS({
         );
       }
       init.sc.cipher = clientList[i];
-      debug2 && debug2(`Handshake: S->C cipher: ${clientList[i]}`);
+      debug3 && debug3(`Handshake: S->C cipher: ${clientList[i]}`);
       const localCSMAC = local.lists.cs.mac.array;
-      debug2 && debug2(`Handshake: (local) C->S MAC: ${localCSMAC}`);
-      debug2 && debug2(`Handshake: (remote) C->S MAC: ${remote.cs.mac}`);
+      debug3 && debug3(`Handshake: (local) C->S MAC: ${localCSMAC}`);
+      debug3 && debug3(`Handshake: (remote) C->S MAC: ${remote.cs.mac}`);
       if (CIPHER_INFO[init.cs.cipher].authLen > 0) {
         init.cs.mac = "";
-        debug2 && debug2("Handshake: C->S MAC: <implicit>");
+        debug3 && debug3("Handshake: C->S MAC: <implicit>");
       } else {
         if (self2._server) {
           serverList = localCSMAC;
@@ -34317,7 +34317,7 @@ var require_kex = __commonJS({
         }
         for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
         if (i === clientList.length) {
-          debug2 && debug2("Handshake: No matching C->S MAC");
+          debug3 && debug3("Handshake: No matching C->S MAC");
           return doFatalError(
             self2,
             "Handshake failed: no matching C->S MAC",
@@ -34326,14 +34326,14 @@ var require_kex = __commonJS({
           );
         }
         init.cs.mac = clientList[i];
-        debug2 && debug2(`Handshake: C->S MAC: ${clientList[i]}`);
+        debug3 && debug3(`Handshake: C->S MAC: ${clientList[i]}`);
       }
       const localSCMAC = local.lists.sc.mac.array;
-      debug2 && debug2(`Handshake: (local) S->C MAC: ${localSCMAC}`);
-      debug2 && debug2(`Handshake: (remote) S->C MAC: ${remote.sc.mac}`);
+      debug3 && debug3(`Handshake: (local) S->C MAC: ${localSCMAC}`);
+      debug3 && debug3(`Handshake: (remote) S->C MAC: ${remote.sc.mac}`);
       if (CIPHER_INFO[init.sc.cipher].authLen > 0) {
         init.sc.mac = "";
-        debug2 && debug2("Handshake: S->C MAC: <implicit>");
+        debug3 && debug3("Handshake: S->C MAC: <implicit>");
       } else {
         if (self2._server) {
           serverList = localSCMAC;
@@ -34344,7 +34344,7 @@ var require_kex = __commonJS({
         }
         for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
         if (i === clientList.length) {
-          debug2 && debug2("Handshake: No matching S->C MAC");
+          debug3 && debug3("Handshake: No matching S->C MAC");
           return doFatalError(
             self2,
             "Handshake failed: no matching S->C MAC",
@@ -34353,11 +34353,11 @@ var require_kex = __commonJS({
           );
         }
         init.sc.mac = clientList[i];
-        debug2 && debug2(`Handshake: S->C MAC: ${clientList[i]}`);
+        debug3 && debug3(`Handshake: S->C MAC: ${clientList[i]}`);
       }
       const localCSCompress = local.lists.cs.compress.array;
-      debug2 && debug2(`Handshake: (local) C->S compression: ${localCSCompress}`);
-      debug2 && debug2(`Handshake: (remote) C->S compression: ${remote.cs.compress}`);
+      debug3 && debug3(`Handshake: (local) C->S compression: ${localCSCompress}`);
+      debug3 && debug3(`Handshake: (remote) C->S compression: ${remote.cs.compress}`);
       if (self2._server) {
         serverList = localCSCompress;
         clientList = remote.cs.compress;
@@ -34367,7 +34367,7 @@ var require_kex = __commonJS({
       }
       for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
       if (i === clientList.length) {
-        debug2 && debug2("Handshake: No matching C->S compression");
+        debug3 && debug3("Handshake: No matching C->S compression");
         return doFatalError(
           self2,
           "Handshake failed: no matching C->S compression",
@@ -34376,10 +34376,10 @@ var require_kex = __commonJS({
         );
       }
       init.cs.compress = clientList[i];
-      debug2 && debug2(`Handshake: C->S compression: ${clientList[i]}`);
+      debug3 && debug3(`Handshake: C->S compression: ${clientList[i]}`);
       const localSCCompress = local.lists.sc.compress.array;
-      debug2 && debug2(`Handshake: (local) S->C compression: ${localSCCompress}`);
-      debug2 && debug2(`Handshake: (remote) S->C compression: ${remote.sc.compress}`);
+      debug3 && debug3(`Handshake: (local) S->C compression: ${localSCCompress}`);
+      debug3 && debug3(`Handshake: (remote) S->C compression: ${remote.sc.compress}`);
       if (self2._server) {
         serverList = localSCCompress;
         clientList = remote.sc.compress;
@@ -34389,7 +34389,7 @@ var require_kex = __commonJS({
       }
       for (i = 0; i < clientList.length && serverList.indexOf(clientList[i]) === -1; ++i) ;
       if (i === clientList.length) {
-        debug2 && debug2("Handshake: No matching S->C compression");
+        debug3 && debug3("Handshake: No matching S->C compression");
         return doFatalError(
           self2,
           "Handshake failed: no matching S->C compression",
@@ -34398,7 +34398,7 @@ var require_kex = __commonJS({
         );
       }
       init.sc.compress = clientList[i];
-      debug2 && debug2(`Handshake: S->C compression: ${clientList[i]}`);
+      debug3 && debug3(`Handshake: S->C compression: ${clientList[i]}`);
       init.cs.lang = "";
       init.sc.lang = "";
       if (self2._kex) {
@@ -35774,9 +35774,9 @@ var require_Protocol = __commonJS({
         this._onError = (err) => {
           onError(err);
         };
-        const debug2 = config.debug;
-        this._debug = typeof debug2 === "function" ? (msg) => {
-          debug2(msg);
+        const debug3 = config.debug;
+        this._debug = typeof debug3 === "function" ? (msg) => {
+          debug3(msg);
         } : void 0;
         const onHeader = config.onHeader;
         this._onHeader = typeof onHeader === "function" ? (...args) => {
@@ -41100,7 +41100,7 @@ var require_client2 = __commonJS({
         this.config.allowAgentFwd = cfg.agentForward === true && this.config.agent !== void 0;
         let authHandler = this.config.authHandler = typeof cfg.authHandler === "function" || Array.isArray(cfg.authHandler) ? cfg.authHandler : void 0;
         this.config.strictVendor = typeof cfg.strictVendor === "boolean" ? cfg.strictVendor : true;
-        const debug2 = this.config.debug = typeof cfg.debug === "function" ? cfg.debug : void 0;
+        const debug3 = this.config.debug = typeof cfg.debug === "function" ? cfg.debug : void 0;
         if (cfg.agentForward === true && !this.config.allowAgentFwd) {
           throw new Error(
             "You must set a valid agent path to allow agent forwarding"
@@ -41148,8 +41148,8 @@ var require_client2 = __commonJS({
         let sawHeader = false;
         if (this._protocol)
           this._protocol.cleanup();
-        const DEBUG_HANDLER = !debug2 ? void 0 : (p, display, msg) => {
-          debug2(`Debug output from server: ${JSON.stringify(msg)}`);
+        const DEBUG_HANDLER = !debug3 ? void 0 : (p, display, msg) => {
+          debug3(`Debug output from server: ${JSON.stringify(msg)}`);
         };
         let serverSigAlgs;
         const proto = this._protocol = new Protocol({
@@ -41183,7 +41183,7 @@ var require_client2 = __commonJS({
               proto.service("ssh-userauth");
             }
           },
-          debug: debug2,
+          debug: debug3,
           hostVerifier,
           messageHandlers: {
             DEBUG: DEBUG_HANDLER,
@@ -41226,8 +41226,8 @@ var require_client2 = __commonJS({
             USERAUTH_FAILURE: (p, authMethods, partialSuccess) => {
               if (curAuth.keyAlgos) {
                 const oldKeyAlgo = curAuth.keyAlgos[0][0];
-                if (debug2)
-                  debug2(`Client: ${curAuth.type} (${oldKeyAlgo}) auth failed`);
+                if (debug3)
+                  debug3(`Client: ${curAuth.type} (${oldKeyAlgo}) auth failed`);
                 curAuth.keyAlgos.shift();
                 if (curAuth.keyAlgos.length) {
                   const [keyAlgo, hashAlgo] = curAuth.keyAlgos[0];
@@ -41268,10 +41268,10 @@ var require_client2 = __commonJS({
               }
               if (curAuth.type === "agent") {
                 const pos = curAuth.agentCtx.pos();
-                debug2 && debug2(`Client: Agent key #${pos + 1} failed`);
+                debug3 && debug3(`Client: Agent key #${pos + 1} failed`);
                 return tryNextAgentKey();
               }
-              debug2 && debug2(`Client: ${curAuth.type} auth failed`);
+              debug3 && debug3(`Client: ${curAuth.type} auth failed`);
               curPartial = partialSuccess;
               curAuthsLeft = authMethods;
               tryNextAuth();
@@ -41323,7 +41323,7 @@ var require_client2 = __commonJS({
               if (curAuth.type === "keyboard-interactive") {
                 const nprompts = Array.isArray(prompts) ? prompts.length : 0;
                 if (nprompts === 0) {
-                  debug2 && debug2(
+                  debug3 && debug3(
                     "Client: Sending automatic USERAUTH_INFO_RESPONSE"
                   );
                   proto.authInfoRes();
@@ -41388,7 +41388,7 @@ var require_client2 = __commonJS({
                   state: "open"
                 }
               };
-              const instance = isSFTP ? new SFTP(this, chanInfo, { debug: debug2 }) : new Channel(this, chanInfo);
+              const instance = isSFTP ? new SFTP(this, chanInfo, { debug: debug3 }) : new Channel(this, chanInfo);
               this._chanMgr.update(info8.recipient, instance);
               channel(void 0, instance);
             },
@@ -41559,7 +41559,7 @@ var require_client2 = __commonJS({
               return;
             called = true;
             wasConnected = true;
-            debug2 && debug2("Socket connected");
+            debug3 && debug3("Socket connected");
             this.emit("connect");
             cryptoInit.then(() => {
               proto.start();
@@ -41592,19 +41592,19 @@ var require_client2 = __commonJS({
         sock.on("connect", onConnect).on("timeout", () => {
           this.emit("timeout");
         }).on("error", (err) => {
-          debug2 && debug2(`Socket error: ${err.message}`);
+          debug3 && debug3(`Socket error: ${err.message}`);
           clearTimeout(this._readyTimeout);
           err.level = "client-socket";
           this.emit("error", err);
         }).on("end", () => {
-          debug2 && debug2("Socket ended");
+          debug3 && debug3("Socket ended");
           onDone();
           proto.cleanup();
           clearTimeout(this._readyTimeout);
           clearInterval(katimer);
           this.emit("end");
         }).on("close", () => {
-          debug2 && debug2("Socket closed");
+          debug3 && debug3("Socket closed");
           onDone();
           proto.cleanup();
           clearTimeout(this._readyTimeout);
@@ -41838,7 +41838,7 @@ var require_client2 = __commonJS({
           }
         };
         function skipAuth(msg) {
-          debug2 && debug2(msg);
+          debug3 && debug3(msg);
           process.nextTick(tryNextAuth);
         }
         function tryNextAuth() {
@@ -41852,8 +41852,8 @@ var require_client2 = __commonJS({
           if (curAuth.type === "agent") {
             const key = curAuth.agentCtx.nextKey();
             if (key === false) {
-              debug2 && debug2("Agent: No more keys left to try");
-              debug2 && debug2("Client: agent auth failed");
+              debug3 && debug3("Agent: No more keys left to try");
+              debug3 && debug3("Client: agent auth failed");
               tryNextAuth();
             } else {
               const pos = curAuth.agentCtx.pos();
@@ -41863,14 +41863,14 @@ var require_client2 = __commonJS({
                 if (curAuth.keyAlgos.length) {
                   keyAlgo = curAuth.keyAlgos[0][0];
                 } else {
-                  debug2 && debug2(
+                  debug3 && debug3(
                     `Agent: Skipping key #${pos + 1} (no mutual hash algorithm)`
                   );
                   tryNextAgentKey();
                   return;
                 }
               }
-              debug2 && debug2(`Agent: Trying key #${pos + 1}`);
+              debug3 && debug3(`Agent: Trying key #${pos + 1}`);
               proto.authPK(curAuth.username, key, keyAlgo);
             }
           }
@@ -41889,7 +41889,7 @@ var require_client2 = __commonJS({
           let host = this.config.host;
           const forceIPv4 = this.config.forceIPv4;
           const forceIPv6 = this.config.forceIPv6;
-          debug2 && debug2(`Client: Trying ${host} on port ${this.config.port} ...`);
+          debug3 && debug3(`Client: Trying ${host} on port ${this.config.port} ...`);
           const doConnect = () => {
             startTimeout();
             sock.connect({
@@ -43075,14 +43075,14 @@ var require_server = __commonJS({
           socket.once("close", () => {
             --this._connections;
           });
-          let debug2;
+          let debug3;
           if (origDebug) {
             const debugPrefix = `[${process.hrtime().join(".")}] `;
-            debug2 = (msg) => {
+            debug3 = (msg) => {
               origDebug(`${debugPrefix}${msg}`);
             };
           }
-          new Client(socket, hostKeys, ident, offer, debug2, this, cfg);
+          new Client(socket, hostKeys, ident, offer, debug3, this, cfg);
         }).on("error", (err) => {
           this.emit("error", err);
         }).on("listening", () => {
@@ -43123,7 +43123,7 @@ var require_server = __commonJS({
     Server.KEEPALIVE_CLIENT_INTERVAL = 15e3;
     Server.KEEPALIVE_CLIENT_COUNT_MAX = 3;
     var Client = class extends EventEmitter {
-      constructor(socket, hostKeys, ident, offer, debug2, server, srvCfg) {
+      constructor(socket, hostKeys, ident, offer, debug3, server, srvCfg) {
         super();
         let exchanges = 0;
         let acceptedAuthSvc = false;
@@ -43134,14 +43134,14 @@ var require_server = __commonJS({
         const unsentGlobalRequestsReplies = [];
         this._sock = socket;
         this._chanMgr = new ChannelManager(this);
-        this._debug = debug2;
+        this._debug = debug3;
         this.noMoreSessions = false;
         this.authenticated = false;
         function onClientPreHeaderError(err) {
         }
         this.on("error", onClientPreHeaderError);
-        const DEBUG_HANDLER = !debug2 ? void 0 : (p, display, msg) => {
-          debug2(`Debug output from client: ${JSON.stringify(msg)}`);
+        const DEBUG_HANDLER = !debug3 ? void 0 : (p, display, msg) => {
+          debug3(`Debug output from client: ${JSON.stringify(msg)}`);
         };
         const kaIntvl = typeof srvCfg.keepaliveInterval === "number" && isFinite(srvCfg.keepaliveInterval) && srvCfg.keepaliveInterval > 0 ? srvCfg.keepaliveInterval : typeof Server.KEEPALIVE_CLIENT_INTERVAL === "number" && isFinite(Server.KEEPALIVE_CLIENT_INTERVAL) && Server.KEEPALIVE_CLIENT_INTERVAL > 0 ? Server.KEEPALIVE_CLIENT_INTERVAL : -1;
         const kaCountMax = typeof srvCfg.keepaliveCountMax === "number" && isFinite(srvCfg.keepaliveCountMax) && srvCfg.keepaliveCountMax >= 0 ? srvCfg.keepaliveCountMax : typeof Server.KEEPALIVE_CLIENT_COUNT_MAX === "number" && isFinite(Server.KEEPALIVE_CLIENT_COUNT_MAX) && Server.KEEPALIVE_CLIENT_COUNT_MAX >= 0 ? Server.KEEPALIVE_CLIENT_COUNT_MAX : -1;
@@ -43211,7 +43211,7 @@ var require_server = __commonJS({
               this.emit("rekey");
             this.emit("handshake", negotiated);
           },
-          debug: debug2,
+          debug: debug3,
           messageHandlers: {
             DEBUG: DEBUG_HANDLER,
             DISCONNECT: (p, reason, desc) => {
@@ -43254,8 +43254,8 @@ var require_server = __commonJS({
                 localChan = this._chanMgr.add();
                 if (localChan === -1) {
                   reason = CHANNEL_OPEN_FAILURE.RESOURCE_SHORTAGE;
-                  if (debug2) {
-                    debug2("Automatic rejection of incoming channel open: no channels available");
+                  if (debug3) {
+                    debug3("Automatic rejection of incoming channel open: no channels available");
                   }
                 }
                 return localChan !== -1;
@@ -43354,14 +43354,14 @@ var require_server = __commonJS({
                   break;
                 default:
                   reason = CHANNEL_OPEN_FAILURE.UNKNOWN_CHANNEL_TYPE;
-                  if (debug2) {
-                    debug2(`Automatic rejection of unsupported incoming channel open type: ${info8.type}`);
+                  if (debug3) {
+                    debug3(`Automatic rejection of unsupported incoming channel open type: ${info8.type}`);
                   }
               }
               if (reason === void 0) {
                 reason = CHANNEL_OPEN_FAILURE.ADMINISTRATIVELY_PROHIBITED;
-                if (debug2) {
-                  debug2(`Automatic rejection of unexpected incoming channel open for: ${info8.type}`);
+                if (debug3) {
+                  debug3(`Automatic rejection of unexpected incoming channel open for: ${info8.type}`);
                 }
               }
               reject();
@@ -43603,7 +43603,7 @@ var require_server = __commonJS({
                     if (useSFTP) {
                       instance = new SFTP(this, session._chanInfo, {
                         server: true,
-                        debug: debug2
+                        debug: debug3
                       });
                     } else {
                       instance = new Channel(
@@ -43632,7 +43632,7 @@ var require_server = __commonJS({
                   break;
                 }
               }
-              debug2 && debug2(
+              debug3 && debug3(
                 `Automatic rejection of incoming channel request: ${type}`
               );
               reject && reject();
@@ -43842,11 +43842,11 @@ var require_server = __commonJS({
           err.level = "socket";
           this.emit("error", err);
         }).once("end", () => {
-          debug2 && debug2("Socket ended");
+          debug3 && debug3("Socket ended");
           proto.cleanup();
           this.emit("end");
         }).once("close", () => {
-          debug2 && debug2("Socket closed");
+          debug3 && debug3("Socket closed");
           proto.cleanup();
           this.emit("close");
           const err = new Error("No response from server");
@@ -46246,11 +46246,11 @@ var require_stream_readable = __commonJS({
       return Buffer2.isBuffer(obj) || obj instanceof OurUint8Array;
     }
     var debugUtil = require("util");
-    var debug2;
+    var debug3;
     if (debugUtil && debugUtil.debuglog) {
-      debug2 = debugUtil.debuglog("stream");
+      debug3 = debugUtil.debuglog("stream");
     } else {
-      debug2 = function debug3() {
+      debug3 = function debug4() {
       };
     }
     var BufferList = require_buffer_list();
@@ -46365,7 +46365,7 @@ var require_stream_readable = __commonJS({
       return readableAddChunk(this, chunk, null, true, false);
     };
     function readableAddChunk(stream2, chunk, encoding, addToFront, skipChunkCheck) {
-      debug2("readableAddChunk", chunk);
+      debug3("readableAddChunk", chunk);
       var state = stream2._readableState;
       if (chunk === null) {
         state.reading = false;
@@ -46472,13 +46472,13 @@ var require_stream_readable = __commonJS({
       return state.length;
     }
     Readable2.prototype.read = function(n) {
-      debug2("read", n);
+      debug3("read", n);
       n = parseInt(n, 10);
       var state = this._readableState;
       var nOrig = n;
       if (n !== 0) state.emittedReadable = false;
       if (n === 0 && state.needReadable && ((state.highWaterMark !== 0 ? state.length >= state.highWaterMark : state.length > 0) || state.ended)) {
-        debug2("read: emitReadable", state.length, state.ended);
+        debug3("read: emitReadable", state.length, state.ended);
         if (state.length === 0 && state.ended) endReadable(this);
         else emitReadable(this);
         return null;
@@ -46489,16 +46489,16 @@ var require_stream_readable = __commonJS({
         return null;
       }
       var doRead = state.needReadable;
-      debug2("need readable", doRead);
+      debug3("need readable", doRead);
       if (state.length === 0 || state.length - n < state.highWaterMark) {
         doRead = true;
-        debug2("length less than watermark", doRead);
+        debug3("length less than watermark", doRead);
       }
       if (state.ended || state.reading) {
         doRead = false;
-        debug2("reading or ended", doRead);
+        debug3("reading or ended", doRead);
       } else if (doRead) {
-        debug2("do read");
+        debug3("do read");
         state.reading = true;
         state.sync = true;
         if (state.length === 0) state.needReadable = true;
@@ -46524,7 +46524,7 @@ var require_stream_readable = __commonJS({
       return ret;
     };
     function onEofChunk(stream2, state) {
-      debug2("onEofChunk");
+      debug3("onEofChunk");
       if (state.ended) return;
       if (state.decoder) {
         var chunk = state.decoder.end();
@@ -46546,17 +46546,17 @@ var require_stream_readable = __commonJS({
     }
     function emitReadable(stream2) {
       var state = stream2._readableState;
-      debug2("emitReadable", state.needReadable, state.emittedReadable);
+      debug3("emitReadable", state.needReadable, state.emittedReadable);
       state.needReadable = false;
       if (!state.emittedReadable) {
-        debug2("emitReadable", state.flowing);
+        debug3("emitReadable", state.flowing);
         state.emittedReadable = true;
         process.nextTick(emitReadable_, stream2);
       }
     }
     function emitReadable_(stream2) {
       var state = stream2._readableState;
-      debug2("emitReadable_", state.destroyed, state.length, state.ended);
+      debug3("emitReadable_", state.destroyed, state.length, state.ended);
       if (!state.destroyed && (state.length || state.ended)) {
         stream2.emit("readable");
         state.emittedReadable = false;
@@ -46573,7 +46573,7 @@ var require_stream_readable = __commonJS({
     function maybeReadMore_(stream2, state) {
       while (!state.reading && !state.ended && (state.length < state.highWaterMark || state.flowing && state.length === 0)) {
         var len = state.length;
-        debug2("maybeReadMore read 0");
+        debug3("maybeReadMore read 0");
         stream2.read(0);
         if (len === state.length)
           break;
@@ -46598,14 +46598,14 @@ var require_stream_readable = __commonJS({
           break;
       }
       state.pipesCount += 1;
-      debug2("pipe count=%d opts=%j", state.pipesCount, pipeOpts);
+      debug3("pipe count=%d opts=%j", state.pipesCount, pipeOpts);
       var doEnd = (!pipeOpts || pipeOpts.end !== false) && dest !== process.stdout && dest !== process.stderr;
       var endFn = doEnd ? onend : unpipe;
       if (state.endEmitted) process.nextTick(endFn);
       else src.once("end", endFn);
       dest.on("unpipe", onunpipe);
       function onunpipe(readable, unpipeInfo) {
-        debug2("onunpipe");
+        debug3("onunpipe");
         if (readable === src) {
           if (unpipeInfo && unpipeInfo.hasUnpiped === false) {
             unpipeInfo.hasUnpiped = true;
@@ -46614,14 +46614,14 @@ var require_stream_readable = __commonJS({
         }
       }
       function onend() {
-        debug2("onend");
+        debug3("onend");
         dest.end();
       }
       var ondrain = pipeOnDrain(src);
       dest.on("drain", ondrain);
       var cleanedUp = false;
       function cleanup() {
-        debug2("cleanup");
+        debug3("cleanup");
         dest.removeListener("close", onclose);
         dest.removeListener("finish", onfinish);
         dest.removeListener("drain", ondrain);
@@ -46635,19 +46635,19 @@ var require_stream_readable = __commonJS({
       }
       src.on("data", ondata);
       function ondata(chunk) {
-        debug2("ondata");
+        debug3("ondata");
         var ret = dest.write(chunk);
-        debug2("dest.write", ret);
+        debug3("dest.write", ret);
         if (ret === false) {
           if ((state.pipesCount === 1 && state.pipes === dest || state.pipesCount > 1 && indexOf(state.pipes, dest) !== -1) && !cleanedUp) {
-            debug2("false write response, pause", state.awaitDrain);
+            debug3("false write response, pause", state.awaitDrain);
             state.awaitDrain++;
           }
           src.pause();
         }
       }
       function onerror(er) {
-        debug2("onerror", er);
+        debug3("onerror", er);
         unpipe();
         dest.removeListener("error", onerror);
         if (EElistenerCount(dest, "error") === 0) errorOrDestroy(dest, er);
@@ -46659,18 +46659,18 @@ var require_stream_readable = __commonJS({
       }
       dest.once("close", onclose);
       function onfinish() {
-        debug2("onfinish");
+        debug3("onfinish");
         dest.removeListener("close", onclose);
         unpipe();
       }
       dest.once("finish", onfinish);
       function unpipe() {
-        debug2("unpipe");
+        debug3("unpipe");
         src.unpipe(dest);
       }
       dest.emit("pipe", src);
       if (!state.flowing) {
-        debug2("pipe resume");
+        debug3("pipe resume");
         src.resume();
       }
       return dest;
@@ -46678,7 +46678,7 @@ var require_stream_readable = __commonJS({
     function pipeOnDrain(src) {
       return function pipeOnDrainFunctionResult() {
         var state = src._readableState;
-        debug2("pipeOnDrain", state.awaitDrain);
+        debug3("pipeOnDrain", state.awaitDrain);
         if (state.awaitDrain) state.awaitDrain--;
         if (state.awaitDrain === 0 && EElistenerCount(src, "data")) {
           state.flowing = true;
@@ -46733,7 +46733,7 @@ var require_stream_readable = __commonJS({
           state.readableListening = state.needReadable = true;
           state.flowing = false;
           state.emittedReadable = false;
-          debug2("on readable", state.length, state.reading);
+          debug3("on readable", state.length, state.reading);
           if (state.length) {
             emitReadable(this);
           } else if (!state.reading) {
@@ -46768,13 +46768,13 @@ var require_stream_readable = __commonJS({
       }
     }
     function nReadingNextTick(self2) {
-      debug2("readable nexttick read 0");
+      debug3("readable nexttick read 0");
       self2.read(0);
     }
     Readable2.prototype.resume = function() {
       var state = this._readableState;
       if (!state.flowing) {
-        debug2("resume");
+        debug3("resume");
         state.flowing = !state.readableListening;
         resume(this, state);
       }
@@ -46788,7 +46788,7 @@ var require_stream_readable = __commonJS({
       }
     }
     function resume_(stream2, state) {
-      debug2("resume", state.reading);
+      debug3("resume", state.reading);
       if (!state.reading) {
         stream2.read(0);
       }
@@ -46798,9 +46798,9 @@ var require_stream_readable = __commonJS({
       if (state.flowing && !state.reading) stream2.read(0);
     }
     Readable2.prototype.pause = function() {
-      debug2("call pause flowing=%j", this._readableState.flowing);
+      debug3("call pause flowing=%j", this._readableState.flowing);
       if (this._readableState.flowing !== false) {
-        debug2("pause");
+        debug3("pause");
         this._readableState.flowing = false;
         this.emit("pause");
       }
@@ -46809,7 +46809,7 @@ var require_stream_readable = __commonJS({
     };
     function flow(stream2) {
       var state = stream2._readableState;
-      debug2("flow", state.flowing);
+      debug3("flow", state.flowing);
       while (state.flowing && stream2.read() !== null) {
         ;
       }
@@ -46819,7 +46819,7 @@ var require_stream_readable = __commonJS({
       var state = this._readableState;
       var paused = false;
       stream2.on("end", function() {
-        debug2("wrapped end");
+        debug3("wrapped end");
         if (state.decoder && !state.ended) {
           var chunk = state.decoder.end();
           if (chunk && chunk.length) _this.push(chunk);
@@ -46827,7 +46827,7 @@ var require_stream_readable = __commonJS({
         _this.push(null);
       });
       stream2.on("data", function(chunk) {
-        debug2("wrapped data");
+        debug3("wrapped data");
         if (state.decoder) chunk = state.decoder.write(chunk);
         if (state.objectMode && (chunk === null || chunk === void 0)) return;
         else if (!state.objectMode && (!chunk || !chunk.length)) return;
@@ -46850,7 +46850,7 @@ var require_stream_readable = __commonJS({
         stream2.on(kProxyEvents[n], this.emit.bind(this, kProxyEvents[n]));
       }
       this._read = function(n2) {
-        debug2("wrapped _read", n2);
+        debug3("wrapped _read", n2);
         if (paused) {
           paused = false;
           stream2.resume();
@@ -46924,14 +46924,14 @@ var require_stream_readable = __commonJS({
     }
     function endReadable(stream2) {
       var state = stream2._readableState;
-      debug2("endReadable", state.endEmitted);
+      debug3("endReadable", state.endEmitted);
       if (!state.endEmitted) {
         state.ended = true;
         process.nextTick(endReadableNT, state, stream2);
       }
     }
     function endReadableNT(state, stream2) {
-      debug2("endReadableNT", state.endEmitted, state.length);
+      debug3("endReadableNT", state.endEmitted, state.length);
       if (!state.endEmitted && state.length === 0) {
         state.endEmitted = true;
         stream2.readable = false;
@@ -47382,11 +47382,11 @@ var require_common = __commonJS({
         let enableOverride = null;
         let namespacesCache;
         let enabledCache;
-        function debug2(...args) {
-          if (!debug2.enabled) {
+        function debug3(...args) {
+          if (!debug3.enabled) {
             return;
           }
-          const self2 = debug2;
+          const self2 = debug3;
           const curr = Number(/* @__PURE__ */ new Date());
           const ms = curr - (prevTime || curr);
           self2.diff = ms;
@@ -47416,12 +47416,12 @@ var require_common = __commonJS({
           const logFn = self2.log || createDebug.log;
           logFn.apply(self2, args);
         }
-        debug2.namespace = namespace;
-        debug2.useColors = createDebug.useColors();
-        debug2.color = createDebug.selectColor(namespace);
-        debug2.extend = extend;
-        debug2.destroy = createDebug.destroy;
-        Object.defineProperty(debug2, "enabled", {
+        debug3.namespace = namespace;
+        debug3.useColors = createDebug.useColors();
+        debug3.color = createDebug.selectColor(namespace);
+        debug3.extend = extend;
+        debug3.destroy = createDebug.destroy;
+        Object.defineProperty(debug3, "enabled", {
           enumerable: true,
           configurable: false,
           get: () => {
@@ -47439,9 +47439,9 @@ var require_common = __commonJS({
           }
         });
         if (typeof createDebug.init === "function") {
-          createDebug.init(debug2);
+          createDebug.init(debug3);
         }
-        return debug2;
+        return debug3;
       }
       function extend(namespace, delimiter) {
         const newDebug = createDebug(this.namespace + (typeof delimiter === "undefined" ? ":" : delimiter) + namespace);
@@ -47966,11 +47966,11 @@ var require_node2 = __commonJS({
     function load() {
       return process.env.DEBUG;
     }
-    function init(debug2) {
-      debug2.inspectOpts = {};
+    function init(debug3) {
+      debug3.inspectOpts = {};
       const keys = Object.keys(exports2.inspectOpts);
       for (let i = 0; i < keys.length; i++) {
-        debug2.inspectOpts[keys[i]] = exports2.inspectOpts[keys[i]];
+        debug3.inspectOpts[keys[i]] = exports2.inspectOpts[keys[i]];
       }
     }
     module2.exports = require_common()(exports2);
@@ -48038,7 +48038,7 @@ var require_modem = __commonJS({
     var url = require("url");
     var ssh = require_ssh();
     var HttpDuplex = require_http_duplex();
-    var debug2 = require_src()("modem");
+    var debug3 = require_src()("modem");
     var utils = require_utils5();
     var util = require("util");
     var splitca = require_split_ca();
@@ -48258,20 +48258,20 @@ var require_modem = __commonJS({
         callback(e);
         return;
       }
-      debug2("Sending: %s", util.inspect(options, {
+      debug3("Sending: %s", util.inspect(options, {
         showHidden: true,
         depth: null
       }));
       if (self2.connectionTimeout) {
         connectionTimeoutTimer = setTimeout(function() {
-          debug2("Connection Timeout of %s ms exceeded", self2.connectionTimeout);
+          debug3("Connection Timeout of %s ms exceeded", self2.connectionTimeout);
           req.destroy();
         }, self2.connectionTimeout);
       }
       if (self2.timeout) {
         req.setTimeout(self2.timeout);
         req.on("timeout", function() {
-          debug2("Timeout of %s ms exceeded", self2.timeout);
+          debug3("Timeout of %s ms exceeded", self2.timeout);
           req.destroy();
         });
       }
@@ -48311,7 +48311,7 @@ var require_modem = __commonJS({
           res.on("end", function() {
             var buffer = Buffer.concat(chunks);
             var result = buffer.toString();
-            debug2("Received: %s", result);
+            debug3("Received: %s", result);
             var json = utils.parseJSON(result) || buffer;
             if (finished === false) {
               finished = true;
@@ -99333,6 +99333,10 @@ var import_tar_stream = __toESM(require_tar_stream2());
 var ContainerRuntimeError = class extends Error {
 };
 var RWX_ALL = 511;
+var OUTPUT_PATH = "/home/dependabot/dependabot-updater/output";
+var REPO_CONTENTS_PATH = "/home/dependabot/dependabot-updater/repo";
+var REPO_HANDOFF_PATH = "/home/dependabot/dependabot-updater/repo-handoff";
+var SUMMARY_FILE_PATH = `${OUTPUT_PATH}/summary.md`;
 var ContainerService = {
   async storeInput(name, path, container, input) {
     const tar = (0, import_tar_stream.pack)();
@@ -99347,6 +99351,29 @@ var ContainerService = {
     await container.putArchive(tar, { path });
   },
   async run(container, command) {
+    await this.runPhase(container, "all", command);
+    return true;
+  },
+  async runFileFetcher(container) {
+    await this.runPhase(container, "fetch");
+  },
+  async runFileUpdater(container, command) {
+    await this.runPhase(container, "update", command);
+  },
+  updaterCommands(phase, command) {
+    const commands = [`mkdir -p ${OUTPUT_PATH}`];
+    if (phase === "fetch") {
+      commands.push("$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files");
+      commands.push(`cp -a ${REPO_CONTENTS_PATH}/. ${REPO_HANDOFF_PATH}/`);
+    }
+    if (phase === "all" || phase === "update") {
+      commands.push(
+        command === "graph" ? "$DEPENDABOT_HOME/dependabot-updater/bin/run update_graph" : "$DEPENDABOT_HOME/dependabot-updater/bin/run update_files"
+      );
+    }
+    return commands;
+  },
+  async runPhase(container, phase, command) {
     try {
       await container.start();
       core4.info(`Started container ${container.id}`);
@@ -99354,40 +99381,31 @@ var ContainerService = {
       const isDependabotContainer = containerInfo.Config?.Env?.some(
         (env) => env.startsWith("DEPENDABOT_JOB_ID=")
       );
-      if (isDependabotContainer) {
-        await this.execCommand(
-          container,
-          ["/usr/sbin/update-ca-certificates"],
-          "root"
-        );
-        const dependabotCommands = [
-          "mkdir -p /home/dependabot/dependabot-updater/output",
-          "$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files"
-        ];
-        if (command === "graph") {
-          dependabotCommands.push(
-            "$DEPENDABOT_HOME/dependabot-updater/bin/run update_graph"
-          );
-        } else {
-          dependabotCommands.push(
-            "$DEPENDABOT_HOME/dependabot-updater/bin/run update_files"
-          );
-        }
-        for (const cmd of dependabotCommands) {
-          await this.execCommand(
-            container,
-            ["/bin/sh", "-c", cmd],
-            "dependabot"
-          );
-        }
-        await this.extractJobSummary(container);
-      } else {
+      if (!isDependabotContainer) {
         const outcome = await container.wait();
         if (outcome.StatusCode !== 0) {
           throw new Error(`Container exited with code ${outcome.StatusCode}`);
         }
+        return;
       }
-      return true;
+      await this.execCommand(
+        container,
+        ["/usr/sbin/update-ca-certificates"],
+        "root"
+      );
+      if (phase === "fetch") {
+        await this.execCommand(
+          container,
+          ["chown", "dependabot", REPO_CONTENTS_PATH, REPO_HANDOFF_PATH],
+          "root"
+        );
+      }
+      for (const cmd of this.updaterCommands(phase, command)) {
+        await this.execCommand(container, ["/bin/sh", "-c", cmd], "dependabot");
+      }
+      if (phase !== "fetch") {
+        await this.extractJobSummary(container);
+      }
     } catch (error3) {
       core4.info(`Failure running container ${container.id}: ${error3}`);
       throw new ContainerRuntimeError(
@@ -99431,15 +99449,10 @@ var ContainerService = {
       );
     }
   },
-  async extractJobSummary(container) {
-    const summaryPath = "/home/dependabot/dependabot-updater/output/summary.md";
-    const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
-    if (!stepSummaryPath) {
-      return;
-    }
+  async readFile(container, path) {
     try {
-      const archiveStream = await container.getArchive({ path: summaryPath });
-      const content = await new Promise((resolve, reject) => {
+      const archiveStream = await container.getArchive({ path });
+      return await new Promise((resolve, reject) => {
         const extractor = (0, import_tar_stream.extract)();
         let data = "";
         extractor.on("entry", (header, stream2, next) => {
@@ -99453,12 +99466,20 @@ var ContainerService = {
         extractor.on("error", (err) => reject(err));
         archiveStream.pipe(extractor);
       });
-      if (content.length > 0) {
-        fs.appendFileSync(stepSummaryPath, content);
-        core4.info("Job summary written to GITHUB_STEP_SUMMARY");
-      }
     } catch {
-      core4.debug("No job summary file found in container");
+      core4.debug(`No file found in container at ${path}`);
+      return void 0;
+    }
+  },
+  async extractJobSummary(container) {
+    const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
+    if (!stepSummaryPath) {
+      return;
+    }
+    const content = await this.readFile(container, SUMMARY_FILE_PATH);
+    if (content && content.length > 0) {
+      fs.appendFileSync(stepSummaryPath, content);
+      core4.info("Job summary written to GITHUB_STEP_SUMMARY");
     }
   }
 };
@@ -99509,13 +99530,14 @@ var ProxyBuilder = class {
   docker;
   proxyImage;
   cachedMode;
-  async run(jobId2, jobToken, dependabotApiUrl, credentials) {
-    const name = `dependabot-job-${jobId2}-proxy`;
+  async run(jobId2, jobToken, dependabotApiUrl, credentials, phase) {
+    const prefix = phase ? `dependabot-job-${jobId2}-${phase}` : `dependabot-job-${jobId2}`;
+    const name = `${prefix}-proxy`;
     const config = this.buildProxyConfig(credentials);
     const cert = config.ca.cert;
-    const externalNetworkName = `dependabot-job-${jobId2}-external-network`;
+    const externalNetworkName = `${prefix}-external-network`;
     const externalNetwork = await this.ensureNetwork(externalNetworkName, false);
-    const internalNetworkName = `dependabot-job-${jobId2}-internal-network`;
+    const internalNetworkName = `${prefix}-internal-network`;
     const internalNetwork = await this.ensureNetwork(internalNetworkName, true);
     const container = await this.createContainer(
       jobId2,
@@ -99733,23 +99755,30 @@ var JOB_OUTPUT_FILENAME = "output.json";
 var JOB_OUTPUT_PATH = "/home/dependabot/dependabot-updater/output";
 var JOB_INPUT_FILENAME = "job.json";
 var JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`;
-var REPO_CONTENTS_PATH = "/home/dependabot/dependabot-updater/repo";
+var REPO_CONTENTS_PATH2 = "/home/dependabot/dependabot-updater/repo";
+var REPO_HANDOFF_PATH2 = "/home/dependabot/dependabot-updater/repo-handoff";
 var CA_CERT_INPUT_PATH2 = "/usr/local/share/ca-certificates";
 var CA_CERT_FILENAME = "dbot-ca.crt";
 var UPDATER_MAX_MEMORY = 8 * 1024 * 1024 * 1024;
 var UpdaterBuilder = class {
-  constructor(docker, jobParams, input, proxy, updaterImage) {
+  constructor(docker, jobParams, input, proxy, updaterImage, phase = "all", repoVolume, handoffVolume) {
     this.docker = docker;
     this.jobParams = jobParams;
     this.input = input;
     this.proxy = proxy;
     this.updaterImage = updaterImage;
+    this.phase = phase;
+    this.repoVolume = repoVolume;
+    this.handoffVolume = handoffVolume;
   }
   docker;
   jobParams;
   input;
   proxy;
   updaterImage;
+  phase;
+  repoVolume;
+  handoffVolume;
   async run(containerName) {
     const proxyUrl = await this.proxy.url();
     const updaterSha = extractUpdaterSha(this.updaterImage);
@@ -99760,14 +99789,13 @@ var UpdaterBuilder = class {
       `DEPENDABOT_JOB_PATH=${JOB_INPUT_PATH}/${JOB_INPUT_FILENAME}`,
       `DEPENDABOT_OPEN_TIMEOUT_IN_SECONDS=15`,
       `DEPENDABOT_OUTPUT_PATH=${JOB_OUTPUT_PATH}/${JOB_OUTPUT_FILENAME}`,
-      `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH}`,
+      `DEPENDABOT_REPO_CONTENTS_PATH=${REPO_CONTENTS_PATH2}`,
       `DEPENDABOT_API_URL=${this.jobParams.dependabotApiDockerUrl}`,
       `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`,
       `http_proxy=${proxyUrl}`,
       `HTTP_PROXY=${proxyUrl}`,
       `https_proxy=${proxyUrl}`,
       `HTTPS_PROXY=${proxyUrl}`,
-      `UPDATER_ONE_CONTAINER=1`,
       `ENABLE_CONNECTIVITY_CHECK=${process.env.DEPENDABOT_ENABLE_CONNECTIVITY_CHECK || "1"}`,
       // Increase V8 heap size from the default ~2GB to 4GB.
       // The container memory limit (UPDATER_MAX_MEMORY) is 8GB, but Node.js
@@ -99778,6 +99806,12 @@ var UpdaterBuilder = class {
       // See: https://github.com/dependabot/dependabot-core/issues/14596
       `NODE_OPTIONS=--max-old-space-size=4096`
     ];
+    if (this.phase === "all") {
+      envVars.push(`UPDATER_ONE_CONTAINER=1`);
+    }
+    if (this.phase === "update") {
+      envVars.push("DEPENDABOT_LOCAL_CHECKOUT_ONLY=true");
+    }
     if (updaterSha !== null) {
       envVars.push(`DEPENDABOT_UPDATER_SHA=${updaterSha}`);
     }
@@ -99797,7 +99831,23 @@ var UpdaterBuilder = class {
       Tty: true,
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
-        NetworkMode: this.proxy.networkName
+        NetworkMode: this.proxy.networkName,
+        Mounts: [
+          ...this.repoVolume ? [
+            {
+              Type: "volume",
+              Source: this.repoVolume,
+              Target: REPO_CONTENTS_PATH2
+            }
+          ] : [],
+          ...this.handoffVolume ? [
+            {
+              Type: "volume",
+              Source: this.handoffVolume,
+              Target: REPO_HANDOFF_PATH2
+            }
+          ] : []
+        ]
       }
     });
     await ContainerService.storeCert(
@@ -99818,6 +99868,7 @@ var UpdaterBuilder = class {
 };
 
 // src/updater.ts
+var FEATURE_SPLIT_FETCH_UPDATE = "isolate_fetch_update";
 var Updater = class {
   constructor(updaterImage, proxyImage, apiClient, details, credentials) {
     this.updaterImage = updaterImage;
@@ -99838,6 +99889,96 @@ var Updater = class {
    * Execute an update job and report the result to Dependabot API.
    */
   async runUpdater() {
+    if (this.splitPhasesEnabled()) {
+      return await this.runSplitPhaseUpdate();
+    }
+    return await this.runSingleContainerUpdate();
+  }
+  splitPhasesEnabled() {
+    const experiments = this.details.experiments || {};
+    return experiments[FEATURE_SPLIT_FETCH_UPDATE] === true;
+  }
+  async runSingleContainerUpdate() {
+    const proxy = await this.startProxy(this.credentials);
+    try {
+      await this.runUpdate(proxy);
+    } catch (error3) {
+      await this.cleanupAfterFailure(proxy, error3);
+      throw error3;
+    }
+    await this.cleanup(proxy);
+    return true;
+  }
+  /**
+   * Run the job as two sequential containers, copying the fetched checkout
+   * from a fetch-only volume into the volume handed to the updater.
+   */
+  async runSplitPhaseUpdate() {
+    const cloneVolume = await this.docker.createVolume({
+      Name: `dependabot-job-${this.apiClient.params.jobId}-clone`,
+      Labels: { "dependabot-job-id": String(this.apiClient.params.jobId) }
+    });
+    let handoffVolume;
+    try {
+      handoffVolume = await this.docker.createVolume({
+        Name: `dependabot-job-${this.apiClient.params.jobId}-handoff`,
+        Labels: { "dependabot-job-id": String(this.apiClient.params.jobId) }
+      });
+    } catch (error3) {
+      await this.removeRepoVolumes([cloneVolume], true);
+      throw error3;
+    }
+    const repoVolumes = [cloneVolume, handoffVolume];
+    try {
+      await this.runFetchPhase(cloneVolume.name, handoffVolume.name);
+      await this.runUpdatePhase(handoffVolume.name);
+    } catch (error3) {
+      await this.removeRepoVolumes(repoVolumes, true);
+      throw error3;
+    }
+    await this.removeRepoVolumes(repoVolumes, false);
+    return true;
+  }
+  async runFetchPhase(cloneVolume, handoffVolume) {
+    core7.info(`Fetching files for job ${this.apiClient.params.jobId}`);
+    const proxy = await this.startProxy(this.credentials, "fetch");
+    try {
+      const name = `dependabot-job-${this.apiClient.params.jobId}-file-fetcher`;
+      const container = await this.createContainer(
+        proxy,
+        name,
+        { job: this.details },
+        "fetch",
+        cloneVolume,
+        handoffVolume
+      );
+      await ContainerService.runFileFetcher(container);
+    } catch (error3) {
+      await this.cleanupAfterFailure(proxy, error3);
+      throw error3;
+    }
+    await this.cleanup(proxy);
+  }
+  async runUpdatePhase(repoVolume) {
+    core7.info(`Running update job ${this.apiClient.params.jobId}`);
+    const proxy = await this.startProxy(this.credentials, "update");
+    try {
+      const name = `dependabot-job-${this.apiClient.params.jobId}-updater`;
+      const container = await this.createContainer(
+        proxy,
+        name,
+        { job: this.details },
+        "update",
+        repoVolume
+      );
+      await ContainerService.runFileUpdater(container, this.details.command);
+    } catch (error3) {
+      await this.cleanupAfterFailure(proxy, error3);
+      throw error3;
+    }
+    await this.cleanup(proxy);
+  }
+  async startProxy(credentials, phase) {
     const cachedMode = Object.hasOwn(
       this.details.experiments ?? {},
       "proxy-cached"
@@ -99851,27 +99992,17 @@ var Updater = class {
       this.apiClient.params.jobId,
       this.apiClient.getJobToken(),
       this.apiClient.params.dependabotApiUrl,
-      this.credentials
+      credentials,
+      phase
     );
     await proxy.container.start();
     try {
       await proxy.waitUntilReady();
-      await this.runUpdate(proxy);
     } catch (error3) {
-      try {
-        await this.cleanup(proxy);
-      } catch (cleanupError) {
-        const cleanupErrors = cleanupError instanceof AggregateError ? cleanupError.errors : [cleanupError];
-        for (const cleanupFailure of cleanupErrors) {
-          core7.info(
-            `Failed to clean up proxy after update failure: ${cleanupFailure}`
-          );
-        }
-      }
+      await this.cleanupAfterFailure(proxy, error3);
       throw error3;
     }
-    await this.cleanup(proxy);
-    return true;
+    return proxy;
   }
   generateCredentialsMetadata() {
     const unique = /* @__PURE__ */ new Set();
@@ -99962,17 +100093,54 @@ var Updater = class {
     });
     await ContainerService.run(container, this.details.command);
   }
-  async createContainer(proxy, containerName, input) {
+  async createContainer(proxy, containerName, input, phase = "all", repoVolume, handoffVolume) {
     return new UpdaterBuilder(
       this.docker,
       this.apiClient.params,
       input,
       proxy,
-      this.updaterImage
+      this.updaterImage,
+      phase,
+      repoVolume,
+      handoffVolume
     ).run(containerName);
   }
   async cleanup(proxy) {
     await proxy.shutdown();
+  }
+  async cleanupAfterFailure(proxy, originalError) {
+    try {
+      await this.cleanup(proxy);
+    } catch (cleanupError) {
+      const cleanupErrors = cleanupError instanceof AggregateError ? cleanupError.errors : [cleanupError];
+      for (const cleanupFailure of cleanupErrors) {
+        core7.info(
+          `Failed to clean up proxy after update failure: ${cleanupFailure}`
+        );
+      }
+      core7.debug(`Original updater failure: ${originalError}`);
+    }
+  }
+  async removeRepoVolumes(volumes, afterFailure) {
+    const results = await Promise.allSettled(
+      volumes.map(async (volume) => volume.remove())
+    );
+    const errors = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+    if (errors.length === 0) {
+      return;
+    }
+    if (afterFailure) {
+      for (const error3 of errors) {
+        core7.info(
+          `Failed to clean up repository volume after update failure: ${error3}`
+        );
+      }
+      return;
+    }
+    if (errors.length === 1) {
+      throw errors[0];
+    }
+    throw new AggregateError(errors, "Failed to clean up repository volumes");
   }
 };
 

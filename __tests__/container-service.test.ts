@@ -54,10 +54,11 @@ describe('ContainerService', () => {
   })
 
   describe('updaterCommands', () => {
-    test('the fetch phase only runs the file fetcher', () => {
+    test('the fetch phase clones and copies the checkout to the handoff volume', () => {
       expect(ContainerService.updaterCommands('fetch')).toEqual([
         'mkdir -p /home/dependabot/dependabot-updater/output',
-        '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files'
+        '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files',
+        'cp -a /home/dependabot/dependabot-updater/repo/. /home/dependabot/dependabot-updater/repo-handoff/'
       ])
     })
 
@@ -75,11 +76,69 @@ describe('ContainerService', () => {
       ])
     })
 
-    test('the all phase runs both halves in one container', () => {
+    test('the all phase lets update_files fetch in-process', () => {
       expect(ContainerService.updaterCommands('all')).toEqual([
         'mkdir -p /home/dependabot/dependabot-updater/output',
-        '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files',
         '$DEPENDABOT_HOME/dependabot-updater/bin/run update_files'
+      ])
+    })
+  })
+
+  describe('the fetch phase', () => {
+    test('prepares the repository volume for the dependabot user', async () => {
+      const dependabotContainer: any = {
+        id: 'fetch-container',
+        start: jest.fn().mockResolvedValue(undefined),
+        inspect: jest.fn().mockResolvedValue({
+          Config: {Env: ['DEPENDABOT_JOB_ID=1']}
+        }),
+        remove: jest.fn().mockResolvedValue(undefined)
+      }
+      const execCommand = jest
+        .spyOn(ContainerService, 'execCommand')
+        .mockResolvedValue(undefined)
+
+      await ContainerService.runFileFetcher(dependabotContainer)
+
+      expect(execCommand.mock.calls).toEqual([
+        [dependabotContainer, ['/usr/sbin/update-ca-certificates'], 'root'],
+        [
+          dependabotContainer,
+          [
+            'chown',
+            'dependabot',
+            '/home/dependabot/dependabot-updater/repo',
+            '/home/dependabot/dependabot-updater/repo-handoff'
+          ],
+          'root'
+        ],
+        [
+          dependabotContainer,
+          [
+            '/bin/sh',
+            '-c',
+            'mkdir -p /home/dependabot/dependabot-updater/output'
+          ],
+          'dependabot'
+        ],
+        [
+          dependabotContainer,
+          [
+            '/bin/sh',
+            '-c',
+            '$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files'
+          ],
+          'dependabot'
+        ],
+        [
+          dependabotContainer,
+          [
+            '/bin/sh',
+            '-c',
+            'cp -a /home/dependabot/dependabot-updater/repo/. /home/dependabot/dependabot-updater/repo-handoff/'
+          ],
+          'dependabot'
+        ]
       ])
     })
   })

@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as fs from 'fs'
 import {Container} from 'dockerode'
 import {pack, extract} from 'tar-stream'
-import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
+import {FileFetcherInput, ProxyConfig} from './config-types'
 import {outStream, errStream} from './utils'
 
 export class ContainerRuntimeError extends Error {}
@@ -10,12 +10,12 @@ export class ContainerRuntimeError extends Error {}
 const RWX_ALL = 0o777
 
 const OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
-const OUTPUT_FILE_PATH = `${OUTPUT_PATH}/output.json`
+const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
+const REPO_HANDOFF_PATH = '/home/dependabot/dependabot-updater/repo-handoff'
 const SUMMARY_FILE_PATH = `${OUTPUT_PATH}/summary.md`
 
-// 'fetch' clones the repo and writes the handoff artifact, 'update' runs the
-// package manager against that artifact. 'all' runs both in one container,
-// which is the legacy UPDATER_ONE_CONTAINER behaviour.
+// 'fetch' clones the repo into a shared volume, 'update' consumes that checkout,
+// and 'all' preserves the legacy single-container behaviour.
 export type UpdaterPhase = 'fetch' | 'update' | 'all'
 
 export const ContainerService = {
@@ -23,7 +23,7 @@ export const ContainerService = {
     name: string,
     path: string,
     container: Container,
-    input: FileFetcherInput | FileUpdaterInput | ProxyConfig
+    input: FileFetcherInput | ProxyConfig
   ): Promise<void> {
     const tar = pack()
     tar.entry({name, mode: RWX_ALL}, JSON.stringify(input))
@@ -48,12 +48,8 @@ export const ContainerService = {
     return true
   },
 
-  /**
-   * Run the fetch phase and return the raw contents of the handoff artifact
-   * written by the fetcher, or undefined if it produced no output.
-   */
-  async runFileFetcher(container: Container): Promise<string | undefined> {
-    return await this.runPhase(container, 'fetch')
+  async runFileFetcher(container: Container): Promise<void> {
+    await this.runPhase(container, 'fetch')
   },
 
   async runFileUpdater(container: Container, command?: string): Promise<void> {
@@ -63,8 +59,9 @@ export const ContainerService = {
   updaterCommands(phase: UpdaterPhase, command?: string): string[] {
     const commands = [`mkdir -p ${OUTPUT_PATH}`]
 
-    if (phase === 'all' || phase === 'fetch') {
+    if (phase === 'fetch') {
       commands.push('$DEPENDABOT_HOME/dependabot-updater/bin/run fetch_files')
+      commands.push(`cp -a ${REPO_CONTENTS_PATH}/. ${REPO_HANDOFF_PATH}/`)
     }
 
     if (phase === 'all' || phase === 'update') {
@@ -82,7 +79,7 @@ export const ContainerService = {
     container: Container,
     phase: UpdaterPhase,
     command?: string
-  ): Promise<string | undefined> {
+  ): Promise<void> {
     try {
       // Start the container
       await container.start()
@@ -100,7 +97,7 @@ export const ContainerService = {
         if (outcome.StatusCode !== 0) {
           throw new Error(`Container exited with code ${outcome.StatusCode}`)
         }
-        return undefined
+        return
       }
 
       // For dependabot containers, run CA certificates update as root first
@@ -110,24 +107,26 @@ export const ContainerService = {
         'root'
       )
 
+      if (phase === 'fetch') {
+        await this.execCommand(
+          container,
+          ['chown', 'dependabot', REPO_CONTENTS_PATH, REPO_HANDOFF_PATH],
+          'root'
+        )
+      }
+
       // Then run the dependabot commands as dependabot user
       for (const cmd of this.updaterCommands(phase, command)) {
         await this.execCommand(container, ['/bin/sh', '-c', cmd], 'dependabot')
       }
 
-      if (phase === 'fetch') {
-        // The fetch phase hands its file subset off to the update container, so
-        // read it out before this container is torn down.
-        return await this.readFile(container, OUTPUT_FILE_PATH)
+      if (phase !== 'fetch') {
+        // Extract job summary only after all commands have succeeded.
+        // This prevents malicious code executed during fetch_files from
+        // injecting content — our updater overwrites the file at the end
+        // of a successful run.
+        await this.extractJobSummary(container)
       }
-
-      // Extract job summary only after all commands have succeeded.
-      // This prevents malicious code executed during fetch_files from
-      // injecting content — our updater overwrites the file at the end
-      // of a successful run.
-      await this.extractJobSummary(container)
-
-      return undefined
     } catch (error) {
       core.info(`Failure running container ${container.id}: ${error}`)
       throw new ContainerRuntimeError(

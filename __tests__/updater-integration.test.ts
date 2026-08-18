@@ -81,43 +81,48 @@ integration('Updater', () => {
   })
 
   jest.setTimeout(120000)
-  // Skipped until the updater image supports running the phases separately.
-  // `bin/run fetch_files` is currently a no-op kept for backward compatibility
-  // ("fetch_files command is no longer used directly"), and `bin/update_files.rb`
-  // runs the file fetcher in-process and hands the files straight to
-  // UpdateFilesCommand, so no output.json is produced for the handoff. The same
-  // gap is why DEPENDABOT_SPLIT_FETCH_UPDATE is required alongside the
-  // experiment; both this test and that opt-in can go once an image ships with
-  // standalone phase entrypoints.
-  it.skip('should create the same pull request when the phases are split', async () => {
-    // Each test gets its own server, as afterEach tears the previous one down.
-    server = await runFakeDependabotApi(FAKE_SERVER_PORT)
-    process.env.DEPENDABOT_SPLIT_FETCH_UPDATE = '1'
+  const splitUpdaterImage = process.env.DEPENDABOT_SPLIT_TEST_UPDATER_IMAGE
+  const splitIntegration = splitUpdaterImage ? it : it.skip
 
-    const details = await apiClient.getJobDetails()
-    const credentials = await apiClient.getCredentials()
+  // Use a locally patched image until the pinned updater image contains the
+  // Core fetch_files entrypoint and local-checkout-only behavior.
+  splitIntegration(
+    'should create the same pull request when the phases are split',
+    async () => {
+      if (!splitUpdaterImage) {
+        throw new Error('DEPENDABOT_SPLIT_TEST_UPDATER_IMAGE is required')
+      }
 
-    const updater = new Updater(
-      updaterImageName('npm_and_yarn'),
-      PROXY_IMAGE_NAME,
-      apiClient,
-      {
-        ...details,
-        experiments: {
-          ...details.experiments,
-          'split-fetch-update-containers': true
-        }
-      },
-      credentials
-    )
+      // Each test gets its own server, as afterEach tears the previous one down.
+      server = await runFakeDependabotApi(FAKE_SERVER_PORT)
 
-    await updater.runUpdater()
+      const details = await apiClient.getJobDetails()
+      const credentials = await apiClient.getCredentials()
 
-    const res = await client.getJson<any>(`${dependabotApiUrl}/pull_requests/1`)
+      const updater = new Updater(
+        splitUpdaterImage,
+        PROXY_IMAGE_NAME,
+        apiClient,
+        {
+          ...details,
+          experiments: {
+            ...details.experiments,
+            isolate_fetch_update: true
+          }
+        },
+        credentials
+      )
 
-    expect(res.statusCode).toEqual(200)
-    expect(res.result['pr-title']).toEqual(
-      'Bump fetch-factory from 0.0.1 to 0.2.1'
-    )
-  })
+      await updater.runUpdater()
+
+      const res = await client.getJson<any>(
+        `${dependabotApiUrl}/pull_requests/1`
+      )
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.result['pr-title']).toEqual(
+        'Bump fetch-factory from 0.0.1 to 0.2.1'
+      )
+    }
+  )
 })

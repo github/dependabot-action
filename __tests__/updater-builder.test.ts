@@ -156,4 +156,89 @@ describe('UpdaterBuilder', () => {
       )
     }
   )
+
+  it('mounts clone and handoff volumes in the fetch phase', async () => {
+    mockExtractUpdaterSha.mockReturnValue(null)
+
+    const updaterBuilder = new UpdaterBuilder(
+      mockDocker,
+      jobParams,
+      input,
+      mockProxy,
+      'test-image',
+      'fetch',
+      'clone-volume',
+      'handoff-volume'
+    )
+
+    await updaterBuilder.run('test-container')
+
+    expect(mockCreateContainer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        HostConfig: expect.objectContaining({
+          Mounts: [
+            {
+              Type: 'volume',
+              Source: 'clone-volume',
+              Target: '/home/dependabot/dependabot-updater/repo'
+            },
+            {
+              Type: 'volume',
+              Source: 'handoff-volume',
+              Target: '/home/dependabot/dependabot-updater/repo-handoff'
+            }
+          ]
+        })
+      })
+    )
+  })
+
+  it('requires a local checkout only in the update phase', async () => {
+    mockExtractUpdaterSha.mockReturnValue(null)
+
+    const updaterBuilder = new UpdaterBuilder(
+      mockDocker,
+      jobParams,
+      input,
+      mockProxy,
+      'test-image',
+      'update',
+      'repo-volume'
+    )
+
+    await updaterBuilder.run('test-container')
+
+    expect(mockCreateContainer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Env: expect.arrayContaining(['DEPENDABOT_LOCAL_CHECKOUT_ONLY=true'])
+      })
+    )
+  })
+
+  it.each(['all', 'fetch'] as const)(
+    'does not require a local checkout in the %s phase',
+    async phase => {
+      mockExtractUpdaterSha.mockReturnValue(null)
+
+      const updaterBuilder = new UpdaterBuilder(
+        mockDocker,
+        jobParams,
+        input,
+        mockProxy,
+        'test-image',
+        phase,
+        phase === 'fetch' ? 'repo-volume' : undefined
+      )
+
+      await updaterBuilder.run('test-container')
+
+      expect(mockCreateContainer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Env: expect.not.arrayContaining([
+            'DEPENDABOT_LOCAL_CHECKOUT_ONLY=true'
+          ])
+        })
+      )
+    }
+  )
 })
