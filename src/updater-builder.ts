@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import Docker, {Container} from 'dockerode'
-import {ContainerService} from './container-service'
-import {FileFetcherInput, FileUpdaterInput} from './config-types'
+import {ContainerService, UpdaterPhase} from './container-service'
+import {FileFetcherInput} from './config-types'
 import {JobParameters} from './inputs'
 import {Proxy} from './proxy'
 import {extractUpdaterSha} from './utils'
@@ -11,6 +11,7 @@ const JOB_OUTPUT_PATH = '/home/dependabot/dependabot-updater/output'
 const JOB_INPUT_FILENAME = 'job.json'
 const JOB_INPUT_PATH = `/home/dependabot/dependabot-updater`
 const REPO_CONTENTS_PATH = '/home/dependabot/dependabot-updater/repo'
+const REPO_HANDOFF_PATH = '/home/dependabot/dependabot-updater/repo-handoff'
 const CA_CERT_INPUT_PATH = '/usr/local/share/ca-certificates'
 const CA_CERT_FILENAME = 'dbot-ca.crt'
 const UPDATER_MAX_MEMORY = 8 * 1024 * 1024 * 1024 // 8GB in bytes
@@ -19,10 +20,13 @@ export class UpdaterBuilder {
   constructor(
     private readonly docker: Docker,
     private readonly jobParams: JobParameters,
-    private readonly input: FileFetcherInput | FileUpdaterInput,
+    private readonly input: FileFetcherInput,
     private readonly proxy: Proxy,
 
-    private readonly updaterImage: string
+    private readonly updaterImage: string,
+    private readonly phase: UpdaterPhase = 'all',
+    private readonly repoVolume?: string,
+    private readonly handoffVolume?: string
   ) {}
 
   async run(containerName: string): Promise<Container> {
@@ -43,7 +47,6 @@ export class UpdaterBuilder {
       `HTTP_PROXY=${proxyUrl}`,
       `https_proxy=${proxyUrl}`,
       `HTTPS_PROXY=${proxyUrl}`,
-      `UPDATER_ONE_CONTAINER=1`,
       `ENABLE_CONNECTIVITY_CHECK=${
         process.env.DEPENDABOT_ENABLE_CONNECTIVITY_CHECK || '1'
       }`,
@@ -56,6 +59,16 @@ export class UpdaterBuilder {
       // See: https://github.com/dependabot/dependabot-core/issues/14596
       `NODE_OPTIONS=--max-old-space-size=4096`
     ]
+
+    // When the fetch and update phases run in separate containers each one only
+    // performs its own half of the job, so the single-container hint is omitted.
+    if (this.phase === 'all') {
+      envVars.push(`UPDATER_ONE_CONTAINER=1`)
+    }
+
+    if (this.phase === 'update') {
+      envVars.push('DEPENDABOT_LOCAL_CHECKOUT_ONLY=true')
+    }
 
     // Add DEPENDABOT_UPDATER_SHA if we successfully extracted a SHA
     if (updaterSha !== null) {
@@ -83,7 +96,27 @@ export class UpdaterBuilder {
       Tty: true,
       HostConfig: {
         Memory: UPDATER_MAX_MEMORY,
-        NetworkMode: this.proxy.networkName
+        NetworkMode: this.proxy.networkName,
+        Mounts: [
+          ...(this.repoVolume
+            ? [
+                {
+                  Type: 'volume' as const,
+                  Source: this.repoVolume,
+                  Target: REPO_CONTENTS_PATH
+                }
+              ]
+            : []),
+          ...(this.handoffVolume
+            ? [
+                {
+                  Type: 'volume' as const,
+                  Source: this.handoffVolume,
+                  Target: REPO_HANDOFF_PATH
+                }
+              ]
+            : [])
+        ]
       }
     })
 

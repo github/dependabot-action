@@ -83,6 +83,54 @@ integration('ProxyBuilder', () => {
   })
 
   jest.setTimeout(20000)
+  it('namespaces the container and networks per phase', async () => {
+    const fetchProxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      credentials,
+      'fetch'
+    )
+    await fetchProxy.container.start()
+
+    const updateProxy = await builder.run(
+      jobId,
+      jobToken,
+      dependabotApiUrl,
+      [],
+      'update'
+    )
+    await updateProxy.container.start()
+
+    const fetchInfo = await fetchProxy.container.inspect()
+    const updateInfo = await updateProxy.container.inspect()
+
+    expect(fetchInfo.Name).toBe('/dependabot-job-1-fetch-proxy')
+    expect(updateInfo.Name).toBe('/dependabot-job-1-update-proxy')
+
+    expect(fetchProxy.networkName).toBe(
+      'dependabot-job-1-fetch-internal-network'
+    )
+    expect(updateProxy.networkName).toBe(
+      'dependabot-job-1-update-internal-network'
+    )
+
+    // Each phase gets its own networks so that the two proxies are reachable
+    // only from their own phase's container.
+    expect(Object.keys(fetchInfo.NetworkSettings.Networks)).toEqual([
+      'dependabot-job-1-fetch-external-network',
+      'dependabot-job-1-fetch-internal-network'
+    ])
+    expect(Object.keys(updateInfo.NetworkSettings.Networks)).toEqual([
+      'dependabot-job-1-update-external-network',
+      'dependabot-job-1-update-internal-network'
+    ])
+
+    await updateProxy.shutdown()
+    await fetchProxy.shutdown()
+  })
+
+  jest.setTimeout(20000)
   it('copies in a custom root CA if configured', async () => {
     // make a tmp dir at the repo root unless it already exists
     const tmpDir = path.join(__dirname, '../tmp')

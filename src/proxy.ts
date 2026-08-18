@@ -62,16 +62,22 @@ export class ProxyBuilder {
     jobId: number,
     jobToken: string,
     dependabotApiUrl: string,
-    credentials: Credential[]
+    credentials: Credential[],
+    phase?: string
   ): Promise<Proxy> {
-    const name = `dependabot-job-${jobId}-proxy`
+    // When a phase is given, every Docker resource is namespaced by it so the
+    // fetch and update phases get their own proxy on their own networks.
+    const prefix = phase
+      ? `dependabot-job-${jobId}-${phase}`
+      : `dependabot-job-${jobId}`
+    const name = `${prefix}-proxy`
     const config = this.buildProxyConfig(credentials)
     const cert = config.ca.cert
 
-    const externalNetworkName = `dependabot-job-${jobId}-external-network`
+    const externalNetworkName = `${prefix}-external-network`
     const externalNetwork = await this.ensureNetwork(externalNetworkName, false)
 
-    const internalNetworkName = `dependabot-job-${jobId}-internal-network`
+    const internalNetworkName = `${prefix}-internal-network`
     const internalNetwork = await this.ensureNetwork(internalNetworkName, true)
 
     const container = await this.createContainer(

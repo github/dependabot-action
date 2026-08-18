@@ -45,9 +45,6 @@ integration('Updater', () => {
   beforeAll(async () => {
     await ImageService.pull(updaterImageName('npm_and_yarn'))
     await ImageService.pull(PROXY_IMAGE_NAME)
-
-    const testRetry = true
-    server = await runFakeDependabotApi(FAKE_SERVER_PORT, testRetry)
   })
 
   afterEach(async () => {
@@ -57,6 +54,9 @@ integration('Updater', () => {
 
   jest.setTimeout(120000)
   it('should run the updater, retry on apiClient failure, and create a pull request', async () => {
+    const testRetry = true
+    server = await runFakeDependabotApi(FAKE_SERVER_PORT, testRetry)
+
     const details = await apiClient.getJobDetails()
     const credentials = await apiClient.getCredentials()
 
@@ -79,4 +79,50 @@ integration('Updater', () => {
       'Bump fetch-factory from 0.0.1 to 0.2.1'
     )
   })
+
+  jest.setTimeout(120000)
+  const splitUpdaterImage = process.env.DEPENDABOT_SPLIT_TEST_UPDATER_IMAGE
+  const splitIntegration = splitUpdaterImage ? it : it.skip
+
+  // Use a locally patched image until the pinned updater image contains the
+  // Core fetch_files entrypoint and local-checkout-only behavior.
+  splitIntegration(
+    'should create the same pull request when the phases are split',
+    async () => {
+      if (!splitUpdaterImage) {
+        throw new Error('DEPENDABOT_SPLIT_TEST_UPDATER_IMAGE is required')
+      }
+
+      // Each test gets its own server, as afterEach tears the previous one down.
+      server = await runFakeDependabotApi(FAKE_SERVER_PORT)
+
+      const details = await apiClient.getJobDetails()
+      const credentials = await apiClient.getCredentials()
+
+      const updater = new Updater(
+        splitUpdaterImage,
+        PROXY_IMAGE_NAME,
+        apiClient,
+        {
+          ...details,
+          experiments: {
+            ...details.experiments,
+            isolate_fetch_update: true
+          }
+        },
+        credentials
+      )
+
+      await updater.runUpdater()
+
+      const res = await client.getJson<any>(
+        `${dependabotApiUrl}/pull_requests/1`
+      )
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.result['pr-title']).toEqual(
+        'Bump fetch-factory from 0.0.1 to 0.2.1'
+      )
+    }
+  )
 })
