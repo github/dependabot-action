@@ -9,6 +9,7 @@ import {Updater} from '../src/updater'
 type ProxyTestResources = {
   container: Container
   containerRemove: jest.Mock
+  createContainer: jest.Mock
   externalNetworkRemove: jest.Mock
   internalNetworkRemove: jest.Mock
   proxy: Proxy
@@ -20,7 +21,8 @@ const alreadyStoppedError = (): Error =>
 async function buildProxyWithStopError(
   stopError: Error,
   containerRemoveError?: Error,
-  containerRemoveOverride?: jest.Mock
+  containerRemoveOverride?: jest.Mock,
+  experiments: object = {}
 ): Promise<ProxyTestResources> {
   const containerRemove =
     containerRemoveOverride ??
@@ -48,15 +50,16 @@ async function buildProxyWithStopError(
   const internalNetwork = {
     remove: internalNetworkRemove
   } as unknown as Network
+  const createContainer = jest.fn().mockResolvedValue(container)
   const docker = {
     listNetworks: jest.fn().mockResolvedValue([]),
     createNetwork: jest
       .fn()
       .mockResolvedValueOnce(externalNetwork)
       .mockResolvedValueOnce(internalNetwork),
-    createContainer: jest.fn().mockResolvedValue(container)
+    createContainer
   } as unknown as Docker
-  const proxy = await new ProxyBuilder(docker, 'proxy-image', false).run(
+  const proxy = await new ProxyBuilder(docker, 'proxy-image', experiments).run(
     1,
     'job-token',
     'https://dependabot-api.example.com',
@@ -66,6 +69,7 @@ async function buildProxyWithStopError(
   return {
     container,
     containerRemove,
+    createContainer,
     externalNetworkRemove,
     internalNetworkRemove,
     proxy
@@ -106,6 +110,56 @@ function buildUpdaterWithProxy(proxy: Proxy): {
     restoreProxyBuilder: () => proxyBuilderRun.mockRestore()
   }
 }
+
+describe('Proxy config', () => {
+  it('forwards experiments without changing their names or values', async () => {
+    const experiments = {
+      'proxy-read-only-git-credentials': true,
+      disabled: false,
+      timeout: 30,
+      mode: 'strict',
+      configuration: {enabled: true}
+    }
+    const storeInput = jest
+      .spyOn(ContainerService, 'storeInput')
+      .mockResolvedValue(undefined)
+
+    try {
+      await buildProxyWithStopError(
+        alreadyStoppedError(),
+        undefined,
+        undefined,
+        experiments
+      )
+
+      expect(storeInput).toHaveBeenCalledWith(
+        'config.json',
+        '/',
+        expect.anything(),
+        expect.objectContaining({
+          all_credentials: [],
+          experiments
+        })
+      )
+    } finally {
+      storeInput.mockRestore()
+    }
+  })
+})
+
+describe('Proxy environment', () => {
+  it('always enables the proxy cache', async () => {
+    const {createContainer} = await buildProxyWithStopError(
+      alreadyStoppedError()
+    )
+
+    expect(createContainer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Env: expect.arrayContaining(['PROXY_CACHE=true'])
+      })
+    )
+  })
+})
 
 describe('Proxy readiness', () => {
   it('checks readiness inside the proxy container network namespace', async () => {

@@ -78,6 +78,31 @@ describe('Updater', () => {
       expect(await updater.runUpdater()).toBe(true)
     })
 
+    it('passes job experiments to the proxy builder', async () => {
+      const jobDetails = {
+        ...mockJobDetails,
+        experiments: {
+          'proxy-read-only-git-credentials': true,
+          'other-experiment': true
+        }
+      }
+      const updaterWithExperiment = new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        []
+      )
+
+      await updaterWithExperiment.runUpdater()
+
+      expect(ProxyBuilder).toHaveBeenCalledWith(
+        expect.any(Docker),
+        'MOCK_PROXY_IMAGE_NAME',
+        jobDetails.experiments
+      )
+    })
+
     it('does not start the updater until the proxy is ready', async () => {
       const {promise, resolve} = Promise.withResolvers<void>()
       mockProxy.waitUntilReady.mockReturnValueOnce(promise)

@@ -33,4 +33,5 @@ export type CertificateAuthority = {
 export type ProxyConfig = {
   all_credentials: Credential[]
   ca: CertificateAuthority
+  experiments: object
 }
