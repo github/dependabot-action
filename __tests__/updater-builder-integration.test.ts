@@ -41,8 +41,8 @@ integration('UpdaterBuilder', () => {
   it('createUpdaterContainer returns a container only connected to the internal network', async () => {
     const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
       1,
-      dependabotApiUrl,
       jobToken,
+      dependabotApiUrl,
       credentials
     )
     await proxy.container.start()
@@ -81,8 +81,8 @@ integration('UpdaterBuilder', () => {
 
     const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
       1,
-      dependabotApiUrl,
       jobToken,
+      dependabotApiUrl,
       credentials
     )
     await proxy.container.start()
@@ -118,8 +118,8 @@ integration('UpdaterBuilder', () => {
 
     const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
       1,
-      dependabotApiUrl,
       jobToken,
+      dependabotApiUrl,
       credentials
     )
     await proxy.container.start()
