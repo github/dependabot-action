@@ -99501,14 +99501,14 @@ var CERT_SUBJECT = [
   }
 ];
 var ProxyBuilder = class {
-  constructor(docker, proxyImage, cachedMode) {
+  constructor(docker, proxyImage, experiments = {}) {
     this.docker = docker;
     this.proxyImage = proxyImage;
-    this.cachedMode = cachedMode;
+    this.experiments = experiments;
   }
   docker;
   proxyImage;
-  cachedMode;
+  experiments;
   async run(jobId2, jobToken, dependabotApiUrl, credentials) {
     const name = `dependabot-job-${jobId2}-proxy`;
     const config = this.buildProxyConfig(credentials);
@@ -99635,7 +99635,11 @@ var ProxyBuilder = class {
   }
   buildProxyConfig(credentials) {
     const ca = this.generateCertificateAuthority();
-    const config = { all_credentials: credentials, ca };
+    const config = {
+      all_credentials: credentials,
+      ca,
+      experiments: this.experiments
+    };
     return config;
   }
   generateCertificateAuthority() {
@@ -99696,7 +99700,7 @@ var ProxyBuilder = class {
         `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ""}`,
         `JOB_ID=${jobId2}`,
         `JOB_TOKEN=${jobToken}`,
-        `PROXY_CACHE=${this.cachedMode ? "true" : "false"}`,
+        "PROXY_CACHE=true",
         `DEPENDABOT_API_URL=${dependabotApiUrl}`,
         `ACTIONS_ID_TOKEN_REQUEST_TOKEN=${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN || ""}`,
         `ACTIONS_ID_TOKEN_REQUEST_URL=${process.env.ACTIONS_ID_TOKEN_REQUEST_URL || ""}`,
@@ -99838,14 +99842,11 @@ var Updater = class {
    * Execute an update job and report the result to Dependabot API.
    */
   async runUpdater() {
-    const cachedMode = Object.hasOwn(
-      this.details.experiments ?? {},
-      "proxy-cached"
-    );
+    const experiments = this.details.experiments ?? {};
     const proxyBuilder = new ProxyBuilder(
       this.docker,
       this.proxyImage,
-      cachedMode
+      experiments
     );
     const proxy = await proxyBuilder.run(
       this.apiClient.params.jobId,

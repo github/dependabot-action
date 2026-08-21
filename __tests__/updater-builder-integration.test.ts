@@ -39,12 +39,12 @@ integration('UpdaterBuilder', () => {
   })
 
   it('createUpdaterContainer returns a container only connected to the internal network', async () => {
-    const cachedMode = true
-    const proxy = await new ProxyBuilder(
-      docker,
-      PROXY_IMAGE_NAME,
-      cachedMode
-    ).run(1, dependabotApiUrl, jobToken, credentials)
+    const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
+      1,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
     const input = {job: details}
     const params = new JobParameters(
@@ -79,12 +79,12 @@ integration('UpdaterBuilder', () => {
   it('passes through OPENSSL_FORCE_FIPS_MODE when set on host', async () => {
     process.env.OPENSSL_FORCE_FIPS_MODE = '0'
 
-    const cachedMode = true
-    const proxy = await new ProxyBuilder(
-      docker,
-      PROXY_IMAGE_NAME,
-      cachedMode
-    ).run(1, dependabotApiUrl, jobToken, credentials)
+    const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
+      1,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
     const input = {job: details}
     const params = new JobParameters(
@@ -116,12 +116,12 @@ integration('UpdaterBuilder', () => {
   it('does not set OPENSSL_FORCE_FIPS_MODE when not set on host', async () => {
     delete process.env.OPENSSL_FORCE_FIPS_MODE
 
-    const cachedMode = true
-    const proxy = await new ProxyBuilder(
-      docker,
-      PROXY_IMAGE_NAME,
-      cachedMode
-    ).run(1, dependabotApiUrl, jobToken, credentials)
+    const proxy = await new ProxyBuilder(docker, PROXY_IMAGE_NAME).run(
+      1,
+      jobToken,
+      dependabotApiUrl,
+      credentials
+    )
     await proxy.container.start()
     const input = {job: details}
     const params = new JobParameters(
