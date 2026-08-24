@@ -24,15 +24,12 @@ export class Updater {
    * Execute an update job and report the result to Dependabot API.
    */
   async runUpdater(): Promise<boolean> {
-    const cachedMode = Object.hasOwn(
-      this.details.experiments ?? {},
-      'proxy-cached'
-    )
+    const experiments = this.details.experiments ?? {}
 
     const proxyBuilder = new ProxyBuilder(
       this.docker,
       this.proxyImage,
-      cachedMode
+      experiments
     )
 
     const proxy = await proxyBuilder.run(
