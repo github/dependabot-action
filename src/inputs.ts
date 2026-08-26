@@ -1,6 +1,8 @@
 import * as core from '@actions/core'
-import {Context} from '@actions/github/lib/context'
+import {context as githubContext} from '@actions/github'
 import {WorkflowDispatchEvent} from '@octokit/webhooks-types'
+
+type Context = typeof githubContext
 
 const DYNAMIC = 'dynamic'
 const DEPENDABOT_ACTOR = 'dependabot[bot]'

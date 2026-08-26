@@ -1,6 +1,9 @@
-import {Context} from '@actions/github/lib/context'
+import {context as githubContext} from '@actions/github'
 import {getJobParameters} from '../src/inputs'
 import {eventFixturePath} from './helpers'
+
+type Context = typeof githubContext
+const Context = githubContext.constructor as new () => Context
 
 let context: Context
 

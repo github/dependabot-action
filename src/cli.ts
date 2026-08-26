@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
 import {Command} from 'commander'
-import {Context} from '@actions/github/lib/context'
+import {context as githubContext} from '@actions/github'
 import {run} from './main'
+
+type Context = typeof githubContext
+const Context = githubContext.constructor as new () => Context
 
 const cli = new Command()
 
