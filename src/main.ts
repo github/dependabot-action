@@ -1,6 +1,5 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import {Context} from '@actions/github/lib/context'
 import * as httpClient from '@actions/http-client'
 import {
   ApiClient,
@@ -12,6 +11,8 @@ import {PROXY_IMAGE_NAME, updaterImageName} from './docker-tags'
 import {ImageService, MetricReporter} from './image-service'
 import {getJobParameters} from './inputs'
 import {Updater} from './updater'
+
+type Context = typeof github.context
 
 export enum DependabotErrorType {
   Unknown = 'actions_workflow_unknown',

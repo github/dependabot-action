@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import {Context} from '@actions/github/lib/context'
+import {context as githubContext} from '@actions/github'
 import {
   ApiClient,
   Credential,
@@ -15,6 +15,9 @@ import * as inputs from '../src/inputs'
 import {run, credentialsFromEnv, getPackagesCredential} from '../src/main'
 
 import {eventFixturePath} from './helpers'
+
+type Context = typeof githubContext
+const Context = githubContext.constructor as new () => Context
 
 // We do not need to build actual containers or run updates for this test.
 jest.mock('../src/image-service')
