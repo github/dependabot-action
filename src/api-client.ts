@@ -1,7 +1,11 @@
 import * as core from '@actions/core'
 import * as httpClient from '@actions/http-client'
 import {JobParameters} from './inputs'
-import {TypedResponse} from '@actions/http-client/lib/interfaces'
+
+type TypedResponse<T> = {
+  statusCode: number
+  result: T | null
+}
 
 // JobDetails are information about the repository and dependencies to be updated
 export type JobDetails = {
