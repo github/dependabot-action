@@ -15,7 +15,7 @@
     "test-integration": "jest --detectOpenHandles 'integration'",
     "prepare": "husky install",
     "dependabot": "ts-node src/cli.ts",
-    "fetch-images": "ts-node src/fetch-images.ts",
+    "fetch-images": "esbuild src/fetch-images.ts --bundle --platform=node --target=node24 --loader:.node=empty --outfile=tmp/fetch-images.js && node tmp/fetch-images.js",
     "cleanup-docker": "ts-node src/cleanup.ts",
     "update-container-manifest": "ts-node src/update-containers.ts"
   },
