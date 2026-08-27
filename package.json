@@ -31,7 +31,7 @@
   "author": "GitHub",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^2.0.2",
+    "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
     "@actions/http-client": "^4.0.1",
     "@octokit/webhooks-types": "^7.6.1",
