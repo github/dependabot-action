@@ -24467,12 +24467,6 @@ var require_utils3 = __commonJS({
   }
 });
 
-// node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node
-var require_sshcrypto = __commonJS({
-  "node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node"() {
-  }
-});
-
 // node_modules/ssh2/lib/protocol/crypto/poly1305.js
 var require_poly1305 = __commonJS({
   "node_modules/ssh2/lib/protocol/crypto/poly1305.js"(exports2, module2) {
@@ -24927,7 +24921,7 @@ var require_crypto = __commonJS({
     var ChaChaPolyDecipher;
     var GenericDecipher;
     try {
-      binding = require_sshcrypto();
+      binding = require("./crypto/build/Release/sshcrypto.node");
       ({
         AESGCMCipher,
         ChaChaPolyCipher,
@@ -100514,7 +100508,7 @@ var Updater = class {
     const unique = /* @__PURE__ */ new Set();
     const result = [];
     for (const credential of this.credentials) {
-      if (credential.type === "jit_access") {
+      if (credential.type === "jit_access" || credential["proxy-only"] === true) {
         continue;
       }
       const obj = { type: credential.type };
@@ -100799,14 +100793,39 @@ function getPackagesCredential(jobDetails, actor) {
       credential = getNuGetPackagesCredential(jobDetails, actor, githubToken);
       break;
   }
+  if (credential !== null) {
+    credential["proxy-only"] = true;
+  }
   return credential;
+}
+function hasCredentialForHost(jobDetails, type, host) {
+  return jobDetails["credentials-metadata"].some(
+    (credential) => credential.type === type && (normalizeCredentialHost(credential.host) === host || [credential.url, credential.registry].some(
+      (value) => isHostWideCredentialLocation(value, host)
+    ))
+  );
+}
+function normalizeCredentialHost(value) {
+  if (!value) {
+    return null;
+  }
+  return value.toLowerCase().replace(/\/+$/, "");
+}
+function isHostWideCredentialLocation(value, host) {
+  if (!value) {
+    return false;
+  }
+  try {
+    const url = value.includes("://") ? value : `https://${value}`;
+    const parsedUrl = new URL(url);
+    return parsedUrl.hostname.toLowerCase() === host && parsedUrl.pathname.replace(/\/+$/, "") === "";
+  } catch {
+    return false;
+  }
 }
 function getRubyGemsPackagesCredential(jobDetails, actor, githubToken) {
   const host = "rubygems.pkg.github.com";
-  const existingIndex = jobDetails["credentials-metadata"].findIndex(
-    (c) => c.type === "rubygems_server" && (c.host || "").toLowerCase() === host
-  );
-  if (existingIndex !== -1) {
+  if (hasCredentialForHost(jobDetails, "rubygems_server", host)) {
     return null;
   }
   return {
@@ -100817,10 +100836,7 @@ function getRubyGemsPackagesCredential(jobDetails, actor, githubToken) {
 }
 function getDockerPackagesCredential(jobDetails, actor, githubToken) {
   const registry = "ghcr.io";
-  const existingIndex = jobDetails["credentials-metadata"].findIndex(
-    (c) => c.type === "docker_registry" && (c.registry || "").toLowerCase() === registry
-  );
-  if (existingIndex !== -1) {
+  if (hasCredentialForHost(jobDetails, "docker_registry", registry)) {
     return null;
   }
   return {
@@ -100831,26 +100847,20 @@ function getDockerPackagesCredential(jobDetails, actor, githubToken) {
   };
 }
 function getMavenPackagesCredential(jobDetails, actor, githubToken) {
-  const url = `https://maven.pkg.github.com/${jobDetails.source.repo.split("/")[0]}`;
-  const existingIndex = jobDetails["credentials-metadata"].findIndex(
-    (c) => c.type === "maven_repository" && (c.url || "").toLowerCase().replace(/\/$/, "") === url.toLowerCase()
-  );
-  if (existingIndex !== -1) {
+  const host = "maven.pkg.github.com";
+  if (hasCredentialForHost(jobDetails, "maven_repository", host)) {
     return null;
   }
   return {
     type: "maven_repository",
-    url,
+    host,
     username: actor,
     password: githubToken
   };
 }
 function getNpmPackagesCredential(jobDetails, actor, githubToken) {
   const registry = "npm.pkg.github.com";
-  const existingIndex = jobDetails["credentials-metadata"].findIndex(
-    (c) => c.type === "npm_registry" && (c.registry || "").toLowerCase() === registry
-  );
-  if (existingIndex !== -1) {
+  if (hasCredentialForHost(jobDetails, "npm_registry", registry)) {
     return null;
   }
   return {
@@ -100860,17 +100870,13 @@ function getNpmPackagesCredential(jobDetails, actor, githubToken) {
   };
 }
 function getNuGetPackagesCredential(jobDetails, actor, githubToken) {
-  const orgName = jobDetails.source.repo.split("/")[0];
-  const feedUrl = `https://nuget.pkg.github.com/${orgName}/index.json`;
-  const existingIndex = jobDetails["credentials-metadata"].findIndex(
-    (c) => c.type === "nuget_feed" && (c.url || "").toLowerCase() === feedUrl.toLowerCase()
-  );
-  if (existingIndex !== -1) {
+  const host = "nuget.pkg.github.com";
+  if (hasCredentialForHost(jobDetails, "nuget_feed", host)) {
     return null;
   }
   return {
     type: "nuget_feed",
-    url: feedUrl,
+    host,
     username: actor,
     password: githubToken
   };

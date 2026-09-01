@@ -261,7 +261,54 @@ export function getPackagesCredential(
       break
   }
 
+  if (credential !== null) {
+    credential['proxy-only'] = true
+  }
+
   return credential
+}
+
+function hasCredentialForHost(
+  jobDetails: JobDetails,
+  type: string,
+  host: string
+): boolean {
+  return jobDetails['credentials-metadata'].some(
+    credential =>
+      credential.type === type &&
+      (normalizeCredentialHost(credential.host) === host ||
+        [credential.url, credential.registry].some(value =>
+          isHostWideCredentialLocation(value, host)
+        ))
+  )
+}
+
+function normalizeCredentialHost(value: string | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  return value.toLowerCase().replace(/\/+$/, '')
+}
+
+function isHostWideCredentialLocation(
+  value: string | undefined,
+  host: string
+): boolean {
+  if (!value) {
+    return false
+  }
+
+  try {
+    const url = value.includes('://') ? value : `https://${value}`
+    const parsedUrl = new URL(url)
+    return (
+      parsedUrl.hostname.toLowerCase() === host &&
+      parsedUrl.pathname.replace(/\/+$/, '') === ''
+    )
+  } catch {
+    return false
+  }
 }
 
 function getRubyGemsPackagesCredential(
@@ -270,10 +317,7 @@ function getRubyGemsPackagesCredential(
   githubToken: string
 ): Credential | null {
   const host = 'rubygems.pkg.github.com'
-  const existingIndex = jobDetails['credentials-metadata'].findIndex(
-    c => c.type === 'rubygems_server' && (c.host || '').toLowerCase() === host
-  )
-  if (existingIndex !== -1) {
+  if (hasCredentialForHost(jobDetails, 'rubygems_server', host)) {
     return null
   }
 
@@ -291,12 +335,7 @@ function getDockerPackagesCredential(
   githubToken: string
 ): Credential | null {
   const registry = 'ghcr.io'
-  const existingIndex = jobDetails['credentials-metadata'].findIndex(
-    c =>
-      c.type === 'docker_registry' &&
-      (c.registry || '').toLowerCase() === registry
-  )
-  if (existingIndex !== -1) {
+  if (hasCredentialForHost(jobDetails, 'docker_registry', registry)) {
     return null
   }
 
@@ -314,20 +353,15 @@ function getMavenPackagesCredential(
   actor: string,
   githubToken: string
 ): Credential | null {
-  const url = `https://maven.pkg.github.com/${jobDetails.source.repo.split('/')[0]}`
-  const existingIndex = jobDetails['credentials-metadata'].findIndex(
-    c =>
-      c.type === 'maven_repository' &&
-      (c.url || '').toLowerCase().replace(/\/$/, '') === url.toLowerCase()
-  )
-  if (existingIndex !== -1) {
+  const host = 'maven.pkg.github.com'
+  if (hasCredentialForHost(jobDetails, 'maven_repository', host)) {
     return null
   }
 
-  // proxy expects `url`, `username`, and `password` fields
+  // proxy expects `host`, `username`, and `password` fields
   return {
     type: 'maven_repository',
-    url,
+    host,
     username: actor,
     password: githubToken
   }
@@ -339,11 +373,7 @@ function getNpmPackagesCredential(
   githubToken: string
 ): Credential | null {
   const registry = 'npm.pkg.github.com'
-  const existingIndex = jobDetails['credentials-metadata'].findIndex(
-    c =>
-      c.type === 'npm_registry' && (c.registry || '').toLowerCase() === registry
-  )
-  if (existingIndex !== -1) {
+  if (hasCredentialForHost(jobDetails, 'npm_registry', registry)) {
     return null
   }
 
@@ -360,21 +390,15 @@ function getNuGetPackagesCredential(
   actor: string,
   githubToken: string
 ): Credential | null {
-  const orgName = jobDetails.source.repo.split('/')[0]
-  const feedUrl = `https://nuget.pkg.github.com/${orgName}/index.json`
-  const existingIndex = jobDetails['credentials-metadata'].findIndex(
-    c =>
-      c.type === 'nuget_feed' &&
-      (c.url || '').toLowerCase() === feedUrl.toLowerCase()
-  )
-  if (existingIndex !== -1) {
+  const host = 'nuget.pkg.github.com'
+  if (hasCredentialForHost(jobDetails, 'nuget_feed', host)) {
     return null
   }
 
-  // proxy expects `url` and allows either `token` or `username` and `password` fields
+  // proxy expects `host` and allows either `token` or `username` and `password` fields
   return {
     type: 'nuget_feed',
-    url: feedUrl,
+    host,
     username: actor,
     password: githubToken
   }
