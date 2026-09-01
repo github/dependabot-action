@@ -132,6 +132,50 @@ describe('Updater', () => {
       expect(jest.mocked(ContainerService).run.mock.calls).toHaveLength(0)
       expect(mockProxy.shutdown.mock.calls).toHaveLength(1)
     })
+
+    it('omits proxy-only credentials from metadata but passes them to the proxy', async () => {
+      const proxyRun = jest.spyOn(ProxyBuilder.prototype, 'run')
+      const jobDetails = {...mockJobDetails}
+      const credentials = [
+        {
+          type: 'git_source',
+          host: 'github.com',
+          username: 'user',
+          password: 'pass'
+        },
+        {
+          type: 'maven_repository',
+          host: 'maven.pkg.github.com',
+          username: 'dependabot[bot]',
+          password: 'github-token',
+          'proxy-only': true
+        }
+      ]
+      const updaterWithProxyOnlyCredential = new Updater(
+        'MOCK_UPDATER_IMAGE_NAME',
+        'MOCK_PROXY_IMAGE_NAME',
+        mockApiClient,
+        jobDetails,
+        credentials
+      )
+
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'git_source',
+          host: 'github.com'
+        }
+      ])
+
+      mockApiClient.getJobToken.mockReturnValueOnce('job-token')
+      await updaterWithProxyOnlyCredential.runUpdater()
+
+      expect(proxyRun).toHaveBeenCalledWith(
+        mockApiClient.params.jobId,
+        'job-token',
+        mockApiClient.params.dependabotApiUrl,
+        credentials
+      )
+    })
   })
 
   describe('when the updater container fails', () => {

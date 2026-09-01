@@ -911,14 +911,15 @@ describe('getPackagesCredential', () => {
         expect(cred).toEqual({
           type: 'rubygems_server',
           host: 'rubygems.pkg.github.com',
-          token: 'test-actor:test-token'
+          token: 'test-actor:test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('preserves an explicit credential using a URL', () => {
         const existingCred: Credential = {
           type: 'rubygems_server',
-          host: 'rubygems.pkg.github.com',
+          url: 'https://RUBYGEMS.PKG.GITHUB.COM/',
           token: 'some-other-actor:some-other-token'
         }
         const details = createJobDetails('bundler', {[experimentName]: true}, [
@@ -939,14 +940,15 @@ describe('getPackagesCredential', () => {
           type: 'docker_registry',
           registry: 'ghcr.io',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('preserves an explicit credential using a host', () => {
         const existingCred: Credential = {
           type: 'docker_registry',
-          registry: 'ghcr.io',
+          host: 'GHCR.IO/',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -970,14 +972,15 @@ describe('getPackagesCredential', () => {
           type: 'docker_registry',
           registry: 'ghcr.io',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('creates a credential alongside an explicit path-scoped URL', () => {
         const existingCred: Credential = {
           type: 'docker_registry',
-          registry: 'ghcr.io',
+          url: 'https://GHCR.IO/other-owner/',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -987,7 +990,13 @@ describe('getPackagesCredential', () => {
           [existingCred]
         )
         const cred = getPackagesCredential(details, 'test-actor')
-        expect(cred).toBeNull()
+        expect(cred).toEqual({
+          type: 'docker_registry',
+          registry: 'ghcr.io',
+          username: 'test-actor',
+          password: 'test-token',
+          'proxy-only': true
+        })
       })
     })
   })
@@ -1003,14 +1012,15 @@ describe('getPackagesCredential', () => {
           type: 'docker_registry',
           registry: 'ghcr.io',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('preserves an explicit credential using a registry', () => {
         const existingCred: Credential = {
           type: 'docker_registry',
-          registry: 'ghcr.io',
+          registry: 'GHCR.IO/',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1032,16 +1042,17 @@ describe('getPackagesCredential', () => {
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'maven_repository',
-          url: 'https://maven.pkg.github.com/test-org',
+          host: 'maven.pkg.github.com',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential with no trailing slash', () => {
+      it('creates a credential alongside an explicit cross-owner URL', () => {
         const existingCred: Credential = {
           type: 'maven_repository',
-          url: 'https://maven.pkg.github.com/TEST-ORG',
+          url: 'https://MAVEN.PKG.GITHUB.COM/OTHER-ORG',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1049,13 +1060,19 @@ describe('getPackagesCredential', () => {
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
-        expect(cred).toBeNull()
+        expect(cred).toEqual({
+          type: 'maven_repository',
+          host: 'maven.pkg.github.com',
+          username: 'test-actor',
+          password: 'test-token',
+          'proxy-only': true
+        })
       })
 
-      it('does not create a duplicate credential with a trailing slash', () => {
+      it('creates a credential alongside an explicit path-scoped registry', () => {
         const existingCred: Credential = {
           type: 'maven_repository',
-          url: 'https://maven.pkg.github.com/TEST-ORG/',
+          registry: 'MAVEN.PKG.GITHUB.COM/OTHER-ORG/',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1063,7 +1080,13 @@ describe('getPackagesCredential', () => {
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
-        expect(cred).toBeNull()
+        expect(cred).toEqual({
+          type: 'maven_repository',
+          host: 'maven.pkg.github.com',
+          username: 'test-actor',
+          password: 'test-token',
+          'proxy-only': true
+        })
       })
     })
   })
@@ -1075,16 +1098,17 @@ describe('getPackagesCredential', () => {
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'maven_repository',
-          url: 'https://maven.pkg.github.com/test-org',
+          host: 'maven.pkg.github.com',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('preserves an explicit host-wide credential', () => {
         const existingCred: Credential = {
           type: 'maven_repository',
-          url: 'https://maven.pkg.github.com/TEST-ORG',
+          host: 'MAVEN.PKG.GITHUB.COM/',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1107,14 +1131,15 @@ describe('getPackagesCredential', () => {
         expect(cred).toEqual({
           type: 'npm_registry',
           registry: 'npm.pkg.github.com',
-          token: 'test-actor:test-token'
+          token: 'test-actor:test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('preserves an explicit credential using a URL', () => {
         const existingCred: Credential = {
           type: 'npm_registry',
-          registry: 'npm.pkg.github.com',
+          url: 'https://NPM.PKG.GITHUB.COM/',
           token: 'some-other-actor:some-other-token'
         }
         const details = createJobDetails(
@@ -1124,6 +1149,26 @@ describe('getPackagesCredential', () => {
         )
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toBeNull()
+      })
+
+      it('creates a credential alongside an explicit path-scoped URL', () => {
+        const existingCred: Credential = {
+          type: 'npm_registry',
+          url: 'https://NPM.PKG.GITHUB.COM/some-path/',
+          token: 'some-other-actor:some-other-token'
+        }
+        const details = createJobDetails(
+          'npm_and_yarn',
+          {[experimentName]: true},
+          [existingCred]
+        )
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'npm_registry',
+          registry: 'npm.pkg.github.com',
+          token: 'test-actor:test-token',
+          'proxy-only': true
+        })
       })
     })
   })
@@ -1136,14 +1181,15 @@ describe('getPackagesCredential', () => {
         expect(cred).toEqual({
           type: 'npm_registry',
           registry: 'npm.pkg.github.com',
-          token: 'test-actor:test-token'
+          token: 'test-actor:test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('preserves an explicit credential using a registry', () => {
         const existingCred: Credential = {
           type: 'npm_registry',
-          registry: 'npm.pkg.github.com',
+          registry: 'NPM.PKG.GITHUB.COM/',
           token: 'some-other-actor:some-other-token'
         }
         const details = createJobDetails('bun', {[experimentName]: true}, [
@@ -1187,9 +1233,10 @@ describe('getPackagesCredential', () => {
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'nuget_feed',
-          url: 'https://nuget.pkg.github.com/test-org/index.json',
+          host: 'nuget.pkg.github.com',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
@@ -1200,16 +1247,17 @@ describe('getPackagesCredential', () => {
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toEqual({
           type: 'nuget_feed',
-          url: 'https://nuget.pkg.github.com/test-org/index.json',
+          host: 'nuget.pkg.github.com',
           username: 'test-actor',
-          password: 'test-token'
+          password: 'test-token',
+          'proxy-only': true
         })
       })
 
-      it('does not create a duplicate credential', () => {
+      it('creates a credential alongside an explicit cross-owner URL', () => {
         const existingCred: Credential = {
           type: 'nuget_feed',
-          url: 'https://nuget.pkg.github.com/TEST-ORG/index.json',
+          url: 'https://NUGET.PKG.GITHUB.COM/OTHER-ORG/index.json/',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1217,7 +1265,13 @@ describe('getPackagesCredential', () => {
           existingCred
         ])
         const cred = getPackagesCredential(details, 'test-actor')
-        expect(cred).toBeNull()
+        expect(cred).toEqual({
+          type: 'nuget_feed',
+          host: 'nuget.pkg.github.com',
+          username: 'test-actor',
+          password: 'test-token',
+          'proxy-only': true
+        })
       })
     })
   })

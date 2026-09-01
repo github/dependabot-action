@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import Docker, {Container, Network} from 'dockerode'
 import {PassThrough} from 'node:stream'
-import {ApiClient, JobDetails} from '../src/api-client'
+import {ApiClient, Credential, JobDetails} from '../src/api-client'
 import {ContainerService} from '../src/container-service'
 import {Proxy, ProxyBuilder} from '../src/proxy'
 import {Updater} from '../src/updater'
@@ -22,7 +22,8 @@ async function buildProxyWithStopError(
   stopError: Error,
   containerRemoveError?: Error,
   containerRemoveOverride?: jest.Mock,
-  experiments: object = {}
+  experiments: object = {},
+  credentials: Credential[] = []
 ): Promise<ProxyTestResources> {
   const containerRemove =
     containerRemoveOverride ??
@@ -63,7 +64,7 @@ async function buildProxyWithStopError(
     1,
     'job-token',
     'https://dependabot-api.example.com',
-    []
+    credentials
   )
 
   return {
@@ -139,6 +140,42 @@ describe('Proxy config', () => {
         expect.objectContaining({
           all_credentials: [],
           experiments
+        })
+      )
+    } finally {
+      storeInput.mockRestore()
+    }
+  })
+
+  it('forwards proxy-only credentials in full', async () => {
+    const credentials: Credential[] = [
+      {
+        type: 'nuget_feed',
+        host: 'nuget.pkg.github.com',
+        username: 'dependabot[bot]',
+        password: 'github-token',
+        'proxy-only': true
+      }
+    ]
+    const storeInput = jest
+      .spyOn(ContainerService, 'storeInput')
+      .mockResolvedValue(undefined)
+
+    try {
+      await buildProxyWithStopError(
+        alreadyStoppedError(),
+        undefined,
+        undefined,
+        {},
+        credentials
+      )
+
+      expect(storeInput).toHaveBeenCalledWith(
+        'config.json',
+        '/',
+        expect.anything(),
+        expect.objectContaining({
+          all_credentials: credentials
         })
       )
     } finally {

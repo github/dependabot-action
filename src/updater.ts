@@ -68,7 +68,10 @@ export class Updater {
     const unique: Set<string> = new Set()
     const result: Credential[] = []
     for (const credential of this.credentials) {
-      if (credential.type === 'jit_access') {
+      if (
+        credential.type === 'jit_access' ||
+        credential['proxy-only'] === true
+      ) {
         continue
       }
 

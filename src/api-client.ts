@@ -51,6 +51,7 @@ export type Credential = {
   'auth-key'?: string
   'tenant-id'?: string
   'client-id'?: string
+  'proxy-only'?: boolean
 }
 
 export type Metric = {
