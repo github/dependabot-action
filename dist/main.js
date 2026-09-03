@@ -100805,17 +100805,17 @@ function getPackagesCredential(jobDetails, actor) {
   return credential;
 }
 function hasCredentialForHost(jobDetails, type, host) {
-  return jobDetails["credentials-metadata"].some(
-    (credential) => credential.type === type && (normalizeCredentialHost(credential.host) === host || [credential.url, credential.registry].some(
-      (value) => isHostWideCredentialLocation(value, host)
-    ))
-  );
-}
-function normalizeCredentialHost(value) {
-  if (!value) {
-    return null;
-  }
-  return value.toLowerCase().replace(/\/+$/, "");
+  return jobDetails["credentials-metadata"].some((credential) => {
+    if (credential.type !== type) {
+      return false;
+    }
+    const locations = [
+      credential.host,
+      credential.url,
+      credential.registry
+    ].filter((value) => value !== void 0);
+    return locations.length > 0 && locations.every((value) => isHostWideCredentialLocation(value, host));
+  });
 }
 function isHostWideCredentialLocation(value, host) {
   if (!value) {
@@ -100824,7 +100824,7 @@ function isHostWideCredentialLocation(value, host) {
   try {
     const url = value.includes("://") ? value : `https://${value}`;
     const parsedUrl = new URL(url);
-    return parsedUrl.hostname.toLowerCase() === host && parsedUrl.pathname.replace(/\/+$/, "") === "";
+    return parsedUrl.protocol === "https:" && parsedUrl.hostname.toLowerCase() === host && parsedUrl.port === "" && parsedUrl.pathname.replace(/\/+$/, "") === "";
   } catch {
     return false;
   }

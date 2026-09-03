@@ -273,22 +273,22 @@ function hasCredentialForHost(
   type: string,
   host: string
 ): boolean {
-  return jobDetails['credentials-metadata'].some(
-    credential =>
-      credential.type === type &&
-      (normalizeCredentialHost(credential.host) === host ||
-        [credential.url, credential.registry].some(value =>
-          isHostWideCredentialLocation(value, host)
-        ))
-  )
-}
+  return jobDetails['credentials-metadata'].some(credential => {
+    if (credential.type !== type) {
+      return false
+    }
 
-function normalizeCredentialHost(value: string | undefined): string | null {
-  if (!value) {
-    return null
-  }
+    const locations = [
+      credential.host,
+      credential.url,
+      credential.registry
+    ].filter((value): value is string => value !== undefined)
 
-  return value.toLowerCase().replace(/\/+$/, '')
+    return (
+      locations.length > 0 &&
+      locations.every(value => isHostWideCredentialLocation(value, host))
+    )
+  })
 }
 
 function isHostWideCredentialLocation(
@@ -303,7 +303,9 @@ function isHostWideCredentialLocation(
     const url = value.includes('://') ? value : `https://${value}`
     const parsedUrl = new URL(url)
     return (
+      parsedUrl.protocol === 'https:' &&
       parsedUrl.hostname.toLowerCase() === host &&
+      parsedUrl.port === '' &&
       parsedUrl.pathname.replace(/\/+$/, '') === ''
     )
   } catch {
