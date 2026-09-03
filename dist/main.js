@@ -100809,12 +100809,13 @@ function hasCredentialForHost(jobDetails, type, host) {
     if (credential.type !== type) {
       return false;
     }
-    const locations = [
-      credential.host,
-      credential.url,
-      credential.registry
-    ].filter((value) => value !== void 0);
-    return locations.length > 0 && locations.every((value) => isHostWideCredentialLocation(value, host));
+    if (credential.host !== void 0 && credential.host.toLowerCase() !== host) {
+      return false;
+    }
+    const locations = [credential.url, credential.registry].filter(
+      (value) => value !== void 0
+    );
+    return (credential.host !== void 0 || locations.length > 0) && locations.every((value) => isHostWideCredentialLocation(value, host));
   });
 }
 function isHostWideCredentialLocation(value, host) {

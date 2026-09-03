@@ -948,7 +948,7 @@ describe('getPackagesCredential', () => {
       it('preserves an explicit credential using a host', () => {
         const existingCred: Credential = {
           type: 'docker_registry',
-          host: 'GHCR.IO/',
+          host: 'GHCR.IO',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1131,7 +1131,7 @@ describe('getPackagesCredential', () => {
       it('preserves an explicit host-wide credential', () => {
         const existingCred: Credential = {
           type: 'maven_repository',
-          host: 'MAVEN.PKG.GITHUB.COM/',
+          host: 'MAVEN.PKG.GITHUB.COM',
           username: 'some-other-actor',
           password: 'some-other-token'
         }
@@ -1140,6 +1140,26 @@ describe('getPackagesCredential', () => {
         ])
         const cred = getPackagesCredential(details, 'test-actor')
         expect(cred).toBeNull()
+      })
+
+      it('creates a credential alongside a non-bare host', () => {
+        const existingCred: Credential = {
+          type: 'maven_repository',
+          host: 'MAVEN.PKG.GITHUB.COM/',
+          username: 'some-other-actor',
+          password: 'some-other-token'
+        }
+        const details = createJobDetails('gradle', {[experimentName]: true}, [
+          existingCred
+        ])
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'maven_repository',
+          host: 'maven.pkg.github.com',
+          username: 'test-actor',
+          password: 'test-token',
+          'proxy-only': true
+        })
       })
     })
   })

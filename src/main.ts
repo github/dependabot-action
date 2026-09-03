@@ -278,14 +278,19 @@ function hasCredentialForHost(
       return false
     }
 
-    const locations = [
-      credential.host,
-      credential.url,
-      credential.registry
-    ].filter((value): value is string => value !== undefined)
+    if (
+      credential.host !== undefined &&
+      credential.host.toLowerCase() !== host
+    ) {
+      return false
+    }
+
+    const locations = [credential.url, credential.registry].filter(
+      (value): value is string => value !== undefined
+    )
 
     return (
-      locations.length > 0 &&
+      (credential.host !== undefined || locations.length > 0) &&
       locations.every(value => isHostWideCredentialLocation(value, host))
     )
   })
