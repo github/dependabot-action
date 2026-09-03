@@ -998,6 +998,29 @@ describe('getPackagesCredential', () => {
           'proxy-only': true
         })
       })
+
+      it('creates a credential alongside mixed host-wide and path-scoped locations', () => {
+        const existingCred: Credential = {
+          type: 'docker_registry',
+          registry: 'ghcr.io',
+          url: 'https://GHCR.IO/other-owner/',
+          username: 'some-other-actor',
+          password: 'some-other-token'
+        }
+        const details = createJobDetails(
+          'docker_compose',
+          {[experimentName]: true},
+          [existingCred]
+        )
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'docker_registry',
+          registry: 'ghcr.io',
+          username: 'test-actor',
+          password: 'test-token',
+          'proxy-only': true
+        })
+      })
     })
   })
 
@@ -1155,6 +1178,26 @@ describe('getPackagesCredential', () => {
         const existingCred: Credential = {
           type: 'npm_registry',
           url: 'https://NPM.PKG.GITHUB.COM/some-path/',
+          token: 'some-other-actor:some-other-token'
+        }
+        const details = createJobDetails(
+          'npm_and_yarn',
+          {[experimentName]: true},
+          [existingCred]
+        )
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'npm_registry',
+          registry: 'npm.pkg.github.com',
+          token: 'test-actor:test-token',
+          'proxy-only': true
+        })
+      })
+
+      it('creates a credential alongside an explicit credential on another port', () => {
+        const existingCred: Credential = {
+          type: 'npm_registry',
+          url: 'https://NPM.PKG.GITHUB.COM:8443/',
           token: 'some-other-actor:some-other-token'
         }
         const details = createJobDetails(
