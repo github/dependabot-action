@@ -304,18 +304,19 @@ function isHostWideCredentialLocation(
     return false
   }
 
-  try {
-    const url = value.includes('://') ? value : `https://${value}`
-    const parsedUrl = new URL(url)
-    return (
-      parsedUrl.protocol === 'https:' &&
-      parsedUrl.hostname.toLowerCase() === host &&
-      parsedUrl.port === '' &&
-      parsedUrl.pathname.replace(/\/+$/, '') === ''
-    )
-  } catch {
+  // Inspect the raw value so URL normalization cannot hide dot segments or
+  // non-canonical ports that the proxy would reject.
+  const match = value.match(/^(?:https:\/\/)?([^/?#]+)(\/[^?#]*)?(?:[?#].*)?$/i)
+  if (!match) {
     return false
   }
+
+  const authority = match[1].toLowerCase()
+  const path = match[2] ?? ''
+  return (
+    (authority === host || authority === `${host}:443`) &&
+    path.replace(/\/+$/, '') === ''
+  )
 }
 
 function getRubyGemsPackagesCredential(

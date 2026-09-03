@@ -100822,13 +100822,13 @@ function isHostWideCredentialLocation(value, host) {
   if (!value) {
     return false;
   }
-  try {
-    const url = value.includes("://") ? value : `https://${value}`;
-    const parsedUrl = new URL(url);
-    return parsedUrl.protocol === "https:" && parsedUrl.hostname.toLowerCase() === host && parsedUrl.port === "" && parsedUrl.pathname.replace(/\/+$/, "") === "";
-  } catch {
+  const match = value.match(/^(?:https:\/\/)?([^/?#]+)(\/[^?#]*)?(?:[?#].*)?$/i);
+  if (!match) {
     return false;
   }
+  const authority = match[1].toLowerCase();
+  const path = match[2] ?? "";
+  return (authority === host || authority === `${host}:443`) && path.replace(/\/+$/, "") === "";
 }
 function getRubyGemsPackagesCredential(jobDetails, actor, githubToken) {
   const host = "rubygems.pkg.github.com";

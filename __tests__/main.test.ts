@@ -1021,6 +1021,31 @@ describe('getPackagesCredential', () => {
           'proxy-only': true
         })
       })
+
+      it.each(['https://GHCR.IO/owner/../', 'https://GHCR.IO/%2e%2e/'])(
+        'creates a credential alongside a dot-segment URL: %s',
+        url => {
+          const existingCred: Credential = {
+            type: 'docker_registry',
+            url,
+            username: 'some-other-actor',
+            password: 'some-other-token'
+          }
+          const details = createJobDetails(
+            'docker_compose',
+            {[experimentName]: true},
+            [existingCred]
+          )
+          const cred = getPackagesCredential(details, 'test-actor')
+          expect(cred).toEqual({
+            type: 'docker_registry',
+            registry: 'ghcr.io',
+            username: 'test-actor',
+            password: 'test-token',
+            'proxy-only': true
+          })
+        }
+      )
     })
   })
 
@@ -1194,6 +1219,21 @@ describe('getPackagesCredential', () => {
         expect(cred).toBeNull()
       })
 
+      it('preserves an explicit credential using canonical port 443', () => {
+        const existingCred: Credential = {
+          type: 'npm_registry',
+          url: 'https://NPM.PKG.GITHUB.COM:443/',
+          token: 'some-other-actor:some-other-token'
+        }
+        const details = createJobDetails(
+          'npm_and_yarn',
+          {[experimentName]: true},
+          [existingCred]
+        )
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toBeNull()
+      })
+
       it('creates a credential alongside an explicit path-scoped URL', () => {
         const existingCred: Credential = {
           type: 'npm_registry',
@@ -1218,6 +1258,26 @@ describe('getPackagesCredential', () => {
         const existingCred: Credential = {
           type: 'npm_registry',
           url: 'https://NPM.PKG.GITHUB.COM:8443/',
+          token: 'some-other-actor:some-other-token'
+        }
+        const details = createJobDetails(
+          'npm_and_yarn',
+          {[experimentName]: true},
+          [existingCred]
+        )
+        const cred = getPackagesCredential(details, 'test-actor')
+        expect(cred).toEqual({
+          type: 'npm_registry',
+          registry: 'npm.pkg.github.com',
+          token: 'test-actor:test-token',
+          'proxy-only': true
+        })
+      })
+
+      it('creates a credential alongside a non-canonical default port', () => {
+        const existingCred: Credential = {
+          type: 'npm_registry',
+          url: 'https://NPM.PKG.GITHUB.COM:0443/',
           token: 'some-other-actor:some-other-token'
         }
         const details = createJobDetails(
