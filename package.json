@@ -38,7 +38,7 @@
     "commander": "^15.0.0",
     "dockerode": "^5.0.1",
     "node-forge": "^1.4.0",
-    "tar-stream": "^3.2.0"
+    "tar-stream": "^3.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
