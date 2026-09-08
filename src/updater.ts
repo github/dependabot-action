@@ -36,7 +36,8 @@ export class Updater {
       this.apiClient.params.jobId,
       this.apiClient.getJobToken(),
       this.apiClient.params.dependabotApiUrl,
-      this.credentials
+      this.credentials,
+      this.details['package-manager']
     )
     await proxy.container.start()
 

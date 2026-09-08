@@ -100146,7 +100146,7 @@ var ProxyBuilder = class {
   docker;
   proxyImage;
   experiments;
-  async run(jobId2, jobToken, dependabotApiUrl, credentials) {
+  async run(jobId2, jobToken, dependabotApiUrl, credentials, packageManager) {
     const name = `dependabot-job-${jobId2}-proxy`;
     const config = this.buildProxyConfig(credentials);
     const cert = config.ca.cert;
@@ -100161,7 +100161,8 @@ var ProxyBuilder = class {
       name,
       externalNetwork,
       internalNetwork,
-      internalNetworkName
+      internalNetworkName,
+      packageManager
     );
     await ContainerService.storeInput(
       CONFIG_FILE_NAME,
@@ -100325,7 +100326,7 @@ var ProxyBuilder = class {
     const key = import_node_forge.pki.privateKeyToPem(keys.privateKey);
     return { cert: pem, key };
   }
-  async createContainer(jobId2, jobToken, dependabotApiUrl, containerName, externalNetwork, internalNetwork, internalNetworkName) {
+  async createContainer(jobId2, jobToken, dependabotApiUrl, containerName, externalNetwork, internalNetwork, internalNetworkName, packageManager) {
     const container = await this.docker.createContainer({
       Image: this.proxyImage,
       name: containerName,
@@ -100337,6 +100338,7 @@ var ProxyBuilder = class {
         `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ""}`,
         `JOB_ID=${jobId2}`,
         `JOB_TOKEN=${jobToken}`,
+        `PACKAGE_MANAGER=${packageManager}`,
         "PROXY_CACHE=true",
         `DEPENDABOT_API_URL=${dependabotApiUrl}`,
         `ACTIONS_ID_TOKEN_REQUEST_TOKEN=${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN || ""}`,
@@ -100488,7 +100490,8 @@ var Updater = class {
       this.apiClient.params.jobId,
       this.apiClient.getJobToken(),
       this.apiClient.params.dependabotApiUrl,
-      this.credentials
+      this.credentials,
+      this.details["package-manager"]
     );
     await proxy.container.start();
     try {

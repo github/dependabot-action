@@ -173,7 +173,8 @@ describe('Updater', () => {
         mockApiClient.params.jobId,
         'job-token',
         mockApiClient.params.dependabotApiUrl,
-        credentials
+        credentials,
+        mockJobDetails['package-manager']
       )
     })
   })

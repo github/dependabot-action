@@ -13,6 +13,7 @@ integration('ProxyBuilder', () => {
   const jobId = 1
   const jobToken = 'xxxyyyzzzz'
   const dependabotApiUrl = 'http://localhost:9000'
+  const packageManager = 'npm_and_yarn'
   const credentials: Credential[] = [
     {
       type: 'git_source',
@@ -38,7 +39,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
     await proxy.waitUntilReady()
@@ -96,7 +98,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -128,7 +131,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -154,7 +158,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -173,7 +178,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -193,7 +199,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -219,7 +226,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -244,7 +252,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 
@@ -270,7 +279,8 @@ integration('ProxyBuilder', () => {
       jobId,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      packageManager
     )
     await proxy.container.start()
 

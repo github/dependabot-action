@@ -43,7 +43,8 @@ integration('UpdaterBuilder', () => {
       1,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      details['package-manager']
     )
     await proxy.container.start()
     const input = {job: details}
@@ -83,7 +84,8 @@ integration('UpdaterBuilder', () => {
       1,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      details['package-manager']
     )
     await proxy.container.start()
     const input = {job: details}
@@ -120,7 +122,8 @@ integration('UpdaterBuilder', () => {
       1,
       jobToken,
       dependabotApiUrl,
-      credentials
+      credentials,
+      details['package-manager']
     )
     await proxy.container.start()
     const input = {job: details}

@@ -62,7 +62,8 @@ export class ProxyBuilder {
     jobId: number,
     jobToken: string,
     dependabotApiUrl: string,
-    credentials: Credential[]
+    credentials: Credential[],
+    packageManager: string
   ): Promise<Proxy> {
     const name = `dependabot-job-${jobId}-proxy`
     const config = this.buildProxyConfig(credentials)
@@ -81,7 +82,8 @@ export class ProxyBuilder {
       name,
       externalNetwork,
       internalNetwork,
-      internalNetworkName
+      internalNetworkName,
+      packageManager
     )
 
     await ContainerService.storeInput(
@@ -281,7 +283,8 @@ export class ProxyBuilder {
     containerName: string,
     externalNetwork: Network,
     internalNetwork: Network,
-    internalNetworkName: string
+    internalNetworkName: string,
+    packageManager: string
   ): Promise<Container> {
     const container = await this.docker.createContainer({
       Image: this.proxyImage,
@@ -296,6 +299,7 @@ export class ProxyBuilder {
         `no_proxy=${process.env.no_proxy || process.env.NO_PROXY || ''}`,
         `JOB_ID=${jobId}`,
         `JOB_TOKEN=${jobToken}`,
+        `PACKAGE_MANAGER=${packageManager}`,
         'PROXY_CACHE=true',
         `DEPENDABOT_API_URL=${dependabotApiUrl}`,
         `ACTIONS_ID_TOKEN_REQUEST_TOKEN=${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN || ''}`,

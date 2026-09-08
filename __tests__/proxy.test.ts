@@ -64,7 +64,8 @@ async function buildProxyWithStopError(
     1,
     'job-token',
     'https://dependabot-api.example.com',
-    credentials
+    credentials,
+    'npm_and_yarn'
   )
 
   return {
@@ -193,6 +194,18 @@ describe('Proxy environment', () => {
     expect(createContainer).toHaveBeenCalledWith(
       expect.objectContaining({
         Env: expect.arrayContaining(['PROXY_CACHE=true'])
+      })
+    )
+  })
+
+  it('sets the PACKAGE_MANAGER env variable on the proxy container', async () => {
+    const {createContainer} = await buildProxyWithStopError(
+      alreadyStoppedError()
+    )
+
+    expect(createContainer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Env: expect.arrayContaining(['PACKAGE_MANAGER=npm_and_yarn'])
       })
     )
   })
