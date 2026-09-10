@@ -25,6 +25,8 @@ updates:
       - dependencies
       - github_actions
       - Fanout
+    cooldown:
+      default-days: 7
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
