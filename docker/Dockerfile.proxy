@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/proxy:v2.0.20260903145023@sha256:8af3678da22d7f4d58ca4ecd6bc9fb5bc7a905540ed9fafeca0a5a82a8059489
+FROM ghcr.io/dependabot/proxy:v2.0.20260915170120@sha256:161723075b927f30a89ecc76ef5dfbca8a4714e57872d7a7da5e2b37396c1b73

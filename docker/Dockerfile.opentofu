@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-opentofu:v2.0.20260903091725@sha256:1cb48b7088243f5d8619f395169edf4fb55d7edcb408f40cb443050e52e87817
+FROM ghcr.io/dependabot/dependabot-updater-opentofu:v2.0.20260915180106@sha256:4f5ef0acca99b65c4a343cb5d2135ddedf2aa0422353bd05ccb224584796c827
