@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-conda:v2.0.20260915172101@sha256:915581fa0be1e8560e6e2168bf5282a20307af3d21e5a7e1ed4485a31bc316be
+FROM ghcr.io/dependabot/dependabot-updater-conda:v2.0.20260916145555@sha256:c178c0d7b211388092164c5d90e6d4e1a2dd7ec46817911a44202f73607398f9
