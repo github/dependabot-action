@@ -412,6 +412,40 @@ describe('run', () => {
     })
   })
 
+  describe('when the package manager has no configured updater image', () => {
+    beforeEach(() => {
+      jest.spyOn(ImageService, 'pull')
+      jest.spyOn(ApiClient.prototype, 'getJobDetails').mockImplementationOnce(
+        jest.fn(async () => {
+          return {'package-manager': 'unknown_ecosystem'} as JobDetails
+        })
+      )
+      context = new Context()
+    })
+
+    test('it fails the workflow without attempting to pull images', async () => {
+      await run(context)
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Error fetching updater images')
+      )
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(ImageService.pull).not.toHaveBeenCalled()
+    })
+
+    test('it relays a descriptive failure message to the dependabot service', async () => {
+      await run(context)
+
+      expect(reportJobErrorSpy).toHaveBeenCalledWith({
+        'error-type': 'actions_workflow_image',
+        'error-details': {
+          'action-error': expect.stringContaining('unknown_ecosystem')
+        }
+      })
+      expect(markJobAsProcessedSpy).toHaveBeenCalled()
+    })
+  })
+
   describe('when there is an error pulling all images', () => {
     beforeEach(() => {
       jest

@@ -80,6 +80,18 @@ export async function run(context: Context): Promise<void> {
       params.updaterImage || updaterImageName(details['package-manager'])
     let proxyImage = PROXY_IMAGE_NAME
 
+    if (!updaterImage) {
+      await failJob(
+        apiClient,
+        'Error fetching updater images',
+        new Error(
+          `No updater image is configured for package manager '${details['package-manager']}' in this action revision`
+        ),
+        DependabotErrorType.Image
+      )
+      return
+    }
+
     // The sendMetrics function is used to send metrics to the API client.
     // It uses the package manager as a tag to identify the metric.
     const sendMetricsWithPackageManager: MetricReporter = async (
