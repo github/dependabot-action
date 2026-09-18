@@ -100769,6 +100769,17 @@ async function run(context3) {
     const details = await apiClient.getJobDetails();
     let updaterImage = params.updaterImage || updaterImageName(details["package-manager"]);
     let proxyImage = PROXY_IMAGE_NAME;
+    if (!updaterImage) {
+      await failJob(
+        apiClient,
+        "Error fetching updater images",
+        new Error(
+          `No updater image is configured for package manager '${details["package-manager"]}' in this action revision`
+        ),
+        "actions_workflow_image" /* Image */
+      );
+      return;
+    }
     const sendMetricsWithPackageManager = async (name, metricType, value, additionalTags = {}) => {
       try {
         await apiClient.sendMetrics(name, metricType, value, {
