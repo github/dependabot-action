@@ -508,8 +508,6 @@ export function credentialsFromEnv(): Credential[] {
         core.setSecret((e as Record<string, unknown>)[key] as string)
       }
     }
-
-    // TODO: Filter down to only credentials relevant to this job.
   }
 
   return parsed
