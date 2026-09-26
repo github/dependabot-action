@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-pre-commit:v2.0.20260925160631@sha256:47ec87216e4ec617c6f3e2a56771523f5814eb4ecec33f3585f49c7b7e64c6c9
+FROM ghcr.io/dependabot/dependabot-updater-pre-commit:v2.0.20260925215954@sha256:253918d4723b9c5bc9904c2dbffd1e37b1e833a4c1ab9d66fdf9aa844aced418
