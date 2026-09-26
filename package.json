@@ -62,7 +62,7 @@
     "jest-circus": "^30.2.0",
     "json-server": "^0.17.4",
     "lint-staged": "^17.5.1",
-    "prettier": "3.9.8",
+    "prettier": "3.9.9",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
