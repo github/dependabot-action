@@ -53,7 +53,8 @@ const manifest = {
   conda: getImageName('Dockerfile.conda'),
   deno: getImageName('Dockerfile.deno'),
   nix: getImageName('Dockerfile.nix'),
-  sbt: getImageName('Dockerfile.sbt')
+  sbt: getImageName('Dockerfile.sbt'),
+  apm: getImageName('Dockerfile.apm')
 }
 
 fs.writeFile(
