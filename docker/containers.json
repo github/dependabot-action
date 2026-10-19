@@ -32,5 +32,6 @@
   "conda": "ghcr.io/dependabot/dependabot-updater-conda:v2.0.20261016093918@sha256:7d1bff8e4275481ea03edd622d93d940f4850f3bcf7597c05fd9c6769a694acb",
   "deno": "ghcr.io/dependabot/dependabot-updater-deno:v2.0.20261016093918@sha256:78e5144a9d3312f32347f4e706c81ca47645e7d351433496df809f8016c5eba4",
   "nix": "ghcr.io/dependabot/dependabot-updater-nix:v2.0.20261016093918@sha256:df05e841a9cf12f71db4e8684b30b539a754285e482b7dd4513ffbb8b52cae91",
-  "sbt": "ghcr.io/dependabot/dependabot-updater-sbt:v2.0.20261016093918@sha256:0bbacf08ca3174e4c2b5022bc93c2504b5a0d50b808df9ae1dffa40c070ea9bf"
+  "sbt": "ghcr.io/dependabot/dependabot-updater-sbt:v2.0.20261016093918@sha256:0bbacf08ca3174e4c2b5022bc93c2504b5a0d50b808df9ae1dffa40c070ea9bf",
+  "apm": "ghcr.io/dependabot/dependabot-updater-apm:v2.0.20261019142518@sha256:0f95fbe2f2c3621cf75774622b43f9df90172b393e6554ed22949aec2d5a5f27"
 }
