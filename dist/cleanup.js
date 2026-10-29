@@ -74069,7 +74069,7 @@ var import_dockerode = __toESM(require_docker());
 
 // docker/containers.json
 var containers_default = {
-  proxy: "ghcr.io/dependabot/proxy:v2.0.20261020215913@sha256:13a62a50b5a0f02a1f9a1d3a0efdc89e27d5646a874bea64a23272a5d878ea13",
+  proxy: "ghcr.io/dependabot/proxy:v2.0.20261027153815@sha256:28df67a345e3d3fea99a053fc5cc37a6bfa39a330e35861fe560ccf1d992ba7c",
   bundler: "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20261025165412@sha256:8fecda9708eb96ae160d72fe20ce76cd5b05e397a8753bf0845c6a01747d2992",
   cargo: "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20261025165412@sha256:5ad8edfe7f1470a9f5f16acc752e85ca0deb89d32e9f071b6cb72c8e95782169",
   composer: "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20261025165412@sha256:cfde9915428ba3400ed354e8fe27dc3e615245b2780bc371f03cdebde4b69981",
