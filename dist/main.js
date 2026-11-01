@@ -74544,32 +74544,59 @@ var require_b4a = __commonJS({
     function toString(buffer, encoding, start, end) {
       return toBuffer(buffer).toString(encoding, start, end);
     }
+    function toHex(buffer, start, end) {
+      return toBuffer(buffer).toString("hex", start, end);
+    }
     function write(buffer, string, offset, length, encoding) {
       return toBuffer(buffer).write(string, offset, length, encoding);
     }
-    function writeDoubleLE(buffer, value, offset) {
-      return toBuffer(buffer).writeDoubleLE(value, offset);
-    }
-    function writeFloatLE(buffer, value, offset) {
-      return toBuffer(buffer).writeFloatLE(value, offset);
-    }
-    function writeUInt32LE(buffer, value, offset) {
-      return toBuffer(buffer).writeUInt32LE(value, offset);
-    }
-    function writeInt32LE(buffer, value, offset) {
-      return toBuffer(buffer).writeInt32LE(value, offset);
+    function readDoubleBE(buffer, offset) {
+      return toBuffer(buffer).readDoubleBE(offset);
     }
     function readDoubleLE(buffer, offset) {
       return toBuffer(buffer).readDoubleLE(offset);
     }
+    function readFloatBE(buffer, offset) {
+      return toBuffer(buffer).readFloatBE(offset);
+    }
     function readFloatLE(buffer, offset) {
       return toBuffer(buffer).readFloatLE(offset);
+    }
+    function readInt32BE(buffer, offset) {
+      return toBuffer(buffer).readInt32BE(offset);
+    }
+    function readInt32LE(buffer, offset) {
+      return toBuffer(buffer).readInt32LE(offset);
+    }
+    function readUInt32BE(buffer, offset) {
+      return toBuffer(buffer).readUInt32BE(offset);
     }
     function readUInt32LE(buffer, offset) {
       return toBuffer(buffer).readUInt32LE(offset);
     }
-    function readInt32LE(buffer, offset) {
-      return toBuffer(buffer).readInt32LE(offset);
+    function writeDoubleBE(buffer, value, offset) {
+      return toBuffer(buffer).writeDoubleBE(value, offset);
+    }
+    function writeDoubleLE(buffer, value, offset) {
+      return toBuffer(buffer).writeDoubleLE(value, offset);
+    }
+    function writeFloatBE(buffer, value, offset) {
+      return toBuffer(buffer).writeFloatBE(value, offset);
+    }
+    function writeFloatLE(buffer, value, offset) {
+      return toBuffer(buffer).writeFloatLE(value, offset);
+    }
+    function writeInt32BE(buffer, value, offset) {
+      return toBuffer(buffer).writeInt32BE(value, offset);
+    }
+    function writeInt32LE(buffer, value, offset) {
+      return toBuffer(buffer).writeInt32LE(value, offset);
+    }
+    function writeUInt32BE(buffer, value, offset) {
+      return toBuffer(buffer).writeUInt32BE(value, offset);
+    }
+    function writeUInt32LE(buffer, value, offset) {
+      return toBuffer(buffer).writeUInt32LE(value, offset);
     }
     module2.exports = {
       isBuffer,
@@ -74592,15 +74619,24 @@ var require_b4a = __commonJS({
       swap64,
       toBuffer,
       toString,
+      toHex,
       write,
-      writeDoubleLE,
-      writeFloatLE,
-      writeUInt32LE,
-      writeInt32LE,
+      readDoubleBE,
       readDoubleLE,
+      readFloatBE,
       readFloatLE,
+      readInt32BE,
+      readInt32LE,
+      readUInt32BE,
       readUInt32LE,
-      readInt32LE
+      writeDoubleBE,
+      writeDoubleLE,
+      writeFloatBE,
+      writeFloatLE,
+      writeInt32BE,
+      writeInt32LE,
+      writeUInt32BE,
+      writeUInt32LE
     };
   }
 });
@@ -74835,14 +74871,55 @@ var require_text_decoder = __commonJS({
   }
 });
 
+// node_modules/streamx/lib/errors.js
+var require_errors4 = __commonJS({
+  "node_modules/streamx/lib/errors.js"(exports2, module2) {
+    module2.exports = class StreamError extends Error {
+      constructor(msg, code, fn = StreamError) {
+        super(msg);
+        this.code = code;
+        if (Error.captureStackTrace) {
+          Error.captureStackTrace(this, fn);
+        }
+      }
+      static isStreamDestroyed(err) {
+        return err && err.code === "STREAM_DESTROYED";
+      }
+      static isPrematureClose(err) {
+        return err && err.code === "PREMATURE_CLOSE";
+      }
+      static isAborted(err) {
+        return err && err.code === "ABORTED";
+      }
+      static isBadArgument(err) {
+        return err && err.code === "BAD_ARGUMENT";
+      }
+      get name() {
+        return "StreamError";
+      }
+      static STREAM_DESTROYED() {
+        return new StreamError("Stream was destroyed", "STREAM_DESTROYED", StreamError.STREAM_DESTROYED);
+      }
+      static PREMATURE_CLOSE(msg = "Premature close") {
+        return new StreamError(msg, "PREMATURE_CLOSE", StreamError.PREMATURE_CLOSE);
+      }
+      static ABORTED() {
+        return new StreamError("Stream aborted", "ABORTED", StreamError.ABORTED);
+      }
+      static BAD_ARGUMENT(msg = "Bad argument") {
+        return new StreamError(msg, "BAD_ARGUMENT", StreamError.BAD_ARGUMENT);
+      }
+    };
+  }
+});
+
 // node_modules/streamx/index.js
 var require_streamx = __commonJS({
   "node_modules/streamx/index.js"(exports2, module2) {
     var { EventEmitter } = require_default();
-    var STREAM_DESTROYED = new Error("Stream was destroyed");
-    var PREMATURE_CLOSE = new Error("Premature close");
     var FIFO = require_fast_fifo();
     var TextDecoder2 = require_text_decoder();
+    var StreamError = require_errors4();
     var qmt = typeof queueMicrotask === "undefined" ? (fn) => global.process.nextTick(fn) : queueMicrotask;
     var MAX = (1 << 29) - 1;
     var OPENING = 1;
@@ -74945,6 +75022,9 @@ var require_streamx = __commonJS({
         this.afterWrite = afterWrite.bind(this);
         this.afterUpdateNextTick = updateWriteNT.bind(this);
       }
+      get ending() {
+        return (this.stream._duplexState & WRITE_FINISHING) !== 0;
+      }
       get ended() {
         return (this.stream._duplexState & WRITE_DONE) !== 0;
       }
@@ -74967,8 +75047,11 @@ var require_streamx = __commonJS({
         return data;
       }
       end(data) {
-        if (typeof data === "function") this.stream.once("finish", data);
-        else if (data !== void 0 && data !== null) this.push(data);
+        if (typeof data === "function") {
+          this.stream.once("finish", data);
+        } else if (data !== void 0 && data !== null) {
+          this.push(data);
+        }
         this.stream._duplexState = (this.stream._duplexState | WRITE_FINISHING) & WRITE_NON_PRIMARY;
       }
       autoBatch(data, cb) {
@@ -75019,8 +75102,11 @@ var require_streamx = __commonJS({
         return true;
       }
       updateCallback() {
-        if ((this.stream._duplexState & WRITE_UPDATE_SYNC_STATUS) === WRITE_PRIMARY) this.update();
-        else this.updateNextTick();
+        if ((this.stream._duplexState & WRITE_UPDATE_SYNC_STATUS) === WRITE_PRIMARY) {
+          this.update();
+        } else {
+          this.updateNextTick();
+        }
       }
       updateNextTick() {
         if ((this.stream._duplexState & WRITE_NEXT_TICK) !== 0) return;
@@ -75043,11 +75129,14 @@ var require_streamx = __commonJS({
         this.afterRead = afterRead.bind(this);
         this.afterUpdateNextTick = updateReadNT.bind(this);
       }
+      get ending() {
+        return (this.stream._duplexState & READ_ENDING) !== 0;
+      }
       get ended() {
         return (this.stream._duplexState & READ_DONE) !== 0;
       }
       pipe(pipeTo, cb) {
-        if (this.pipeTo !== null) throw new Error("Can only pipe to one destination");
+        if (this.pipeTo !== null) throw StreamError.BAD_ARGUMENT("Can only pipe to one destination");
         if (typeof cb !== "function") cb = null;
         this.stream._duplexState |= READ_PIPE_DRAINED;
         this.pipeTo = pipeTo;
@@ -75090,7 +75179,9 @@ var require_streamx = __commonJS({
       shift() {
         const data = this.queue.shift();
         this.buffered -= this.byteLength(data);
-        if (this.buffered === 0) this.stream._duplexState &= READ_NOT_QUEUED;
+        if (this.buffered === 0) {
+          this.stream._duplexState &= READ_NOT_QUEUED;
+        }
         return data;
       }
       unshift(data) {
@@ -75107,8 +75198,12 @@ var require_streamx = __commonJS({
         const stream2 = this.stream;
         if ((stream2._duplexState & READ_STATUS) === READ_QUEUED) {
           const data = this.shift();
-          if (this.pipeTo !== null && this.pipeTo.write(data) === false) stream2._duplexState &= READ_PIPE_NOT_DRAINED;
-          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) stream2.emit("data", data);
+          if (this.pipeTo !== null && this.pipeTo.write(data) === false) {
+            stream2._duplexState &= READ_PIPE_NOT_DRAINED;
+          }
+          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) {
+            stream2.emit("data", data);
+          }
           return data;
         }
         if (this.readAhead === false) {
@@ -75121,8 +75216,12 @@ var require_streamx = __commonJS({
         const stream2 = this.stream;
         while ((stream2._duplexState & READ_STATUS) === READ_QUEUED && (stream2._duplexState & READ_FLOWING) !== 0) {
           const data = this.shift();
-          if (this.pipeTo !== null && this.pipeTo.write(data) === false) stream2._duplexState &= READ_PIPE_NOT_DRAINED;
-          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) stream2.emit("data", data);
+          if (this.pipeTo !== null && this.pipeTo.write(data) === false) {
+            stream2._duplexState &= READ_PIPE_NOT_DRAINED;
+          }
+          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) {
+            stream2.emit("data", data);
+          }
         }
       }
       update() {
@@ -75139,7 +75238,9 @@ var require_streamx = __commonJS({
             stream2._duplexState |= READ_EMITTED_READABLE;
             stream2.emit("readable");
           }
-          if ((stream2._duplexState & READ_PRIMARY_AND_ACTIVE) === 0) this.updateNonPrimary();
+          if ((stream2._duplexState & READ_PRIMARY_AND_ACTIVE) === 0) {
+            this.updateNonPrimary();
+          }
         } while (this.continueUpdate() === true);
         stream2._duplexState &= READ_NOT_UPDATING;
       }
@@ -75148,8 +75249,12 @@ var require_streamx = __commonJS({
         if ((stream2._duplexState & READ_ENDING_STATUS) === READ_ENDING) {
           stream2._duplexState = (stream2._duplexState | READ_DONE) & READ_NOT_ENDING;
           stream2.emit("end");
-          if ((stream2._duplexState & AUTO_DESTROY) === DONE) stream2._duplexState |= DESTROYING;
-          if (this.pipeTo !== null) this.pipeTo.end();
+          if ((stream2._duplexState & AUTO_DESTROY) === DONE) {
+            stream2._duplexState |= DESTROYING;
+          }
+          if (this.pipeTo !== null) {
+            this.pipeTo.end();
+          }
         }
         if ((stream2._duplexState & DESTROY_STATUS) === DESTROYING) {
           if ((stream2._duplexState & ACTIVE_OR_TICKING) === 0) {
@@ -75169,8 +75274,11 @@ var require_streamx = __commonJS({
         return true;
       }
       updateCallback() {
-        if ((this.stream._duplexState & READ_UPDATE_SYNC_STATUS) === READ_PRIMARY) this.update();
-        else this.updateNextTick();
+        if ((this.stream._duplexState & READ_UPDATE_SYNC_STATUS) === READ_PRIMARY) {
+          this.update();
+        } else {
+          this.updateNextTick();
+        }
       }
       updateNextTickIfOpen() {
         if ((this.stream._duplexState & READ_NEXT_TICK_OR_OPENING) !== 0) return;
@@ -75207,7 +75315,7 @@ var require_streamx = __commonJS({
           this.to = null;
           if (this.from !== null) {
             if ((this.from._duplexState & READ_DONE) === 0 || !this.pipeToFinished) {
-              this.from.destroy(this.error || new Error("Writable stream closed prematurely"));
+              this.from.destroy(this.error || StreamError.PREMATURE_CLOSE("Writable stream closed"));
             }
             return;
           }
@@ -75216,7 +75324,7 @@ var require_streamx = __commonJS({
           this.from = null;
           if (this.to !== null) {
             if ((stream2._duplexState & READ_DONE) === 0) {
-              this.to.destroy(this.error || new Error("Readable stream closed before ending"));
+              this.to.destroy(this.error || StreamError.PREMATURE_CLOSE("Readable stream closed"));
             }
             return;
           }
@@ -75240,21 +75348,30 @@ var require_streamx = __commonJS({
         stream2._duplexState |= DESTROYING;
       }
       stream2._duplexState &= WRITE_NOT_FINISHING;
-      if ((stream2._duplexState & WRITE_UPDATING) === 0) this.update();
-      else this.updateNextTick();
+      if ((stream2._duplexState & WRITE_UPDATING) === 0) {
+        this.update();
+      } else {
+        this.updateNextTick();
+      }
     }
     function afterDestroy(err) {
       const stream2 = this.stream;
-      if (!err && this.error !== STREAM_DESTROYED) err = this.error;
+      if (!err && !StreamError.isStreamDestroyed(this.error)) err = this.error;
       if (err) stream2.emit("error", err);
       stream2._duplexState |= DESTROYED;
       stream2.emit("close");
       const rs = stream2._readableState;
       const ws = stream2._writableState;
-      if (rs !== null && rs.pipeline !== null) rs.pipeline.done(stream2, err);
+      if (rs !== null && rs.pipeline !== null) {
+        rs.pipeline.done(stream2, err);
+      }
       if (ws !== null) {
-        while (ws.drains !== null && ws.drains.length > 0) ws.drains.shift().resolve(false);
-        if (ws.pipeline !== null) ws.pipeline.done(stream2, err);
+        while (ws.drains !== null && ws.drains.length > 0) {
+          ws.drains.shift().resolve(false);
+        }
+        if (ws.pipeline !== null) {
+          ws.pipeline.done(stream2, err);
+        }
       }
     }
     function afterWrite(err) {
@@ -75273,7 +75390,9 @@ var require_streamx = __commonJS({
     function afterRead(err) {
       if (err) this.stream.destroy(err);
       this.stream._duplexState &= READ_NOT_ACTIVE;
-      if (this.readAhead === false && (this.stream._duplexState & READ_RESUMED) === 0) this.stream._duplexState &= READ_NO_READ_AHEAD;
+      if (this.readAhead === false && (this.stream._duplexState & READ_RESUMED) === 0) {
+        this.stream._duplexState &= READ_NO_READ_AHEAD;
+      }
       this.updateCallback();
     }
     function updateReadNT() {
@@ -75300,8 +75419,12 @@ var require_streamx = __commonJS({
       const stream2 = this.stream;
       if (err) stream2.destroy(err);
       if ((stream2._duplexState & DESTROYING) === 0) {
-        if ((stream2._duplexState & READ_PRIMARY_STATUS) === 0) stream2._duplexState |= READ_PRIMARY;
-        if ((stream2._duplexState & WRITE_PRIMARY_STATUS) === 0) stream2._duplexState |= WRITE_PRIMARY;
+        if ((stream2._duplexState & READ_PRIMARY_STATUS) === 0) {
+          stream2._duplexState |= READ_PRIMARY;
+        }
+        if ((stream2._duplexState & WRITE_PRIMARY_STATUS) === 0) {
+          stream2._duplexState |= WRITE_PRIMARY;
+        }
         stream2.emit("open");
       }
       stream2._duplexState &= NOT_ACTIVE;
@@ -75344,9 +75467,7 @@ var require_streamx = __commonJS({
           if (opts.open) this._open = opts.open;
           if (opts.destroy) this._destroy = opts.destroy;
           if (opts.predestroy) this._predestroy = opts.predestroy;
-          if (opts.signal) {
-            opts.signal.addEventListener("abort", abort.bind(this));
-          }
+          if (opts.signal) opts.signal.addEventListener("abort", abort.bind(this));
         }
         this.on("newListener", newListener);
       }
@@ -75372,7 +75493,7 @@ var require_streamx = __commonJS({
       }
       destroy(err) {
         if ((this._duplexState & DESTROY_STATUS) === 0) {
-          if (!err) err = STREAM_DESTROYED;
+          if (!err) err = StreamError.STREAM_DESTROYED();
           this._duplexState = (this._duplexState | DESTROYING) & NON_PRIMARY;
           if (this._readableState !== null) {
             this._readableState.highWaterMark = 0;
@@ -75385,8 +75506,12 @@ var require_streamx = __commonJS({
           this._duplexState |= PREDESTROYING;
           this._predestroy();
           this._duplexState &= NOT_PREDESTROYING;
-          if (this._readableState !== null) this._readableState.updateNextTick();
-          if (this._writableState !== null) this._writableState.updateNextTick();
+          if (this._readableState !== null) {
+            this._readableState.updateNextTick();
+          }
+          if (this._writableState !== null) {
+            this._writableState.updateNextTick();
+          }
         }
       }
     };
@@ -75401,6 +75526,15 @@ var require_streamx = __commonJS({
           if (opts.eagerOpen) this._readableState.updateNextTick();
           if (opts.encoding) this.setEncoding(opts.encoding);
         }
+      }
+      static deferred(fn, opts) {
+        const out = new PassThrough(opts);
+        fn().then((src) => {
+          if (src === null) return out.end();
+          if (out.destroying) return;
+          pipeline(src, out, noop3);
+        }).catch((err) => out.destroy(err));
+        return out;
       }
       setEncoding(encoding) {
         const dec = new TextDecoder2(encoding);
@@ -75519,9 +75653,13 @@ var require_streamx = __commonJS({
         }
         function ondata(data) {
           if (promiseReject === null) return;
-          if (error2) promiseReject(error2);
-          else if (data === null && (stream2._duplexState & READ_DONE) === 0) promiseReject(STREAM_DESTROYED);
-          else promiseResolve({ value: data, done: data === null });
+          if (error2) {
+            promiseReject(error2);
+          } else if (data === null && (stream2._duplexState & READ_DONE) === 0) {
+            promiseReject(StreamError.STREAM_DESTROYED());
+          } else {
+            promiseResolve({ value: data, done: data === null });
+          }
           promiseReject = promiseResolve = null;
         }
         function destroy(err) {
@@ -75690,7 +75828,7 @@ var require_streamx = __commonJS({
     function pipeline(stream2, ...streams) {
       const all = Array.isArray(stream2) ? [...stream2, ...streams] : [stream2, ...streams];
       const done = all.length && typeof all[all.length - 1] === "function" ? all.pop() : null;
-      if (all.length < 2) throw new Error("Pipeline requires at least 2 streams");
+      if (all.length < 2) throw StreamError.BAD_ARGUMENT("Pipeline requires at least 2 streams");
       let src = all[0];
       let dest = null;
       let error2 = null;
@@ -75715,7 +75853,7 @@ var require_streamx = __commonJS({
           if (!autoDestroy) done(error2);
         });
         if (autoDestroy) {
-          dest.on("close", () => done(error2 || (fin ? null : PREMATURE_CLOSE)));
+          dest.on("close", () => done(error2 || (fin ? null : StreamError.PREMATURE_CLOSE())));
         }
       }
       return dest;
@@ -75723,8 +75861,12 @@ var require_streamx = __commonJS({
         s.on("error", onerror2);
         s.on("close", onclose);
         function onclose() {
-          if (rd && s._readableState && !s._readableState.ended) return onerror2(PREMATURE_CLOSE);
-          if (wr && s._writableState && !s._writableState.ended) return onerror2(PREMATURE_CLOSE);
+          if (rd && s._readableState && !s._readableState.ended) {
+            return onerror2(StreamError.PREMATURE_CLOSE());
+          }
+          if (wr && s._writableState && !s._writableState.ended) {
+            return onerror2(StreamError.PREMATURE_CLOSE());
+          }
         }
       }
       function onerror(err) {
@@ -75744,21 +75886,27 @@ var require_streamx = __commonJS({
     function isStreamx(stream2) {
       return typeof stream2._duplexState === "number" && isStream(stream2);
     }
+    function isEnding(stream2) {
+      return !!stream2._readableState && stream2._readableState.ending;
+    }
     function isEnded(stream2) {
       return !!stream2._readableState && stream2._readableState.ended;
+    }
+    function isFinishing(stream2) {
+      return !!stream2._writableState && stream2._writableState.ending;
     }
     function isFinished(stream2) {
       return !!stream2._writableState && stream2._writableState.ended;
     }
     function getStreamError(stream2, opts = {}) {
       const err = stream2._readableState && stream2._readableState.error || stream2._writableState && stream2._writableState.error;
-      return !opts.all && err === STREAM_DESTROYED ? null : err;
+      return !opts.all && StreamError.isStreamDestroyed(err) ? null : err;
     }
     function isReadStreamx(stream2) {
       return isStreamx(stream2) && stream2.readable;
     }
     function isDisturbed(stream2) {
-      return (stream2._duplexState & OPENING) !== OPENING || (stream2._duplexState & ACTIVE_OR_TICKING) !== 0;
+      return (stream2._duplexState & OPENING) !== OPENING || (stream2._duplexState & DESTROYING) === DESTROYING || (stream2._duplexState & ACTIVE_OR_TICKING) !== 0;
     }
     function isTypedArray(data) {
       return typeof data === "object" && data !== null && typeof data.byteLength === "number";
@@ -75769,7 +75917,7 @@ var require_streamx = __commonJS({
     function noop3() {
     }
     function abort() {
-      this.destroy(new Error("Stream aborted."));
+      this.destroy(StreamError.ABORTED());
     }
     function isWritev(s) {
       return s._writev !== Writable2.prototype._writev && s._writev !== Duplex.prototype._writev;
@@ -75779,7 +75927,9 @@ var require_streamx = __commonJS({
       pipelinePromise,
       isStream,
       isStreamx,
+      isEnding,
       isEnded,
+      isFinishing,
       isFinished,
       isDisturbed,
       getStreamError,
@@ -78338,9 +78488,17 @@ var require_cipherModes = __commonJS({
         return false;
       }
       var len = output.length();
+      if (len === 0) {
+        return true;
+      }
       var count = output.at(len - 1);
-      if (count > this.blockSize << 2) {
+      if (count === 0 || count > this.blockSize || count > len) {
         return false;
+      }
+      for (var i = 2; i <= count; ++i) {
+        if (output.at(len - i) !== count) {
+          return false;
+        }
       }
       output.truncate(count);
       return true;
@@ -78403,9 +78561,17 @@ var require_cipherModes = __commonJS({
         return false;
       }
       var len = output.length();
+      if (len === 0) {
+        return true;
+      }
       var count = output.at(len - 1);
-      if (count > this.blockSize << 2) {
+      if (count === 0 || count > this.blockSize || count > len) {
         return false;
+      }
+      for (var i = 2; i <= count; ++i) {
+        if (output.at(len - i) !== count) {
+          return false;
+        }
       }
       output.truncate(count);
       return true;
@@ -78664,10 +78830,13 @@ var require_cipherModes = __commonJS({
       } else {
         additionalData = forge.util.createBuffer();
       }
-      if ("tagLength" in options) {
-        this._tagLength = options.tagLength;
+      if (options.tagLength !== void 0 && options.tagLength !== null) {
+        this._tagLength = Number(options.tagLength);
       } else {
         this._tagLength = 128;
+      }
+      if ([128, 120, 112, 104, 96, 64, 32].indexOf(this._tagLength) === -1) {
+        throw new Error("Invalid tag length.");
       }
       this._tag = null;
       if (options.decrypt) {
@@ -79619,7 +79788,10 @@ var require_asn1 = __commonJS({
             var subOptions = {
               // enforce strict mode to avoid parsing ASN.1 from plain data
               strict: true,
-              decodeBitStrings: true
+              // only decode one level of BIT STRINGs, nested decoding has
+              // quadratic cost due to copies for change detection
+              decodeBitStrings: false,
+              maxDepth: options.maxDepth
             };
             var composed = _fromDer(bytes, remaining, depth + 1, subOptions);
             var used = start - bytes.length();
@@ -79723,12 +79895,16 @@ var require_asn1 = __commonJS({
     asn1.oidToDer = function(oid) {
       var values = oid.split(".");
       var bytes = forge.util.createBuffer();
-      bytes.putByte(40 * parseInt(values[0], 10) + parseInt(values[1], 10));
+      var first = parseInt(values[0], 10);
+      var second = parseInt(values[1], 10);
+      if (!(first >= 0 && first <= 2 && second >= 0) || first < 2 && second > 39) {
+        throw new Error("Invalid OID; the first two arcs are out of range.");
+      }
       var last, valueBytes, value, b;
-      for (var i = 2; i < values.length; ++i) {
+      for (var i = 1; i < values.length; ++i) {
         last = true;
         valueBytes = [];
-        value = parseInt(values[i], 10);
+        value = i === 1 ? 40 * first + second : parseInt(values[i], 10);
         if (value > 4294967295) {
           throw new Error("OID value too large; max is 32-bits.");
         }
@@ -79752,9 +79928,9 @@ var require_asn1 = __commonJS({
       if (typeof bytes === "string") {
         bytes = forge.util.createBuffer(bytes);
       }
-      var b = bytes.getByte();
-      oid = Math.floor(b / 40) + "." + b % 40;
+      var b;
       var value = 0;
+      var first = true;
       while (bytes.length() > 0) {
         if (value > 70368744177663) {
           throw new Error("OID value too large; max is 53-bits.");
@@ -79764,7 +79940,13 @@ var require_asn1 = __commonJS({
         if (b & 128) {
           value += b & 127;
         } else {
-          oid += "." + (value + b);
+          value += b;
+          if (first) {
+            oid = value < 80 ? Math.floor(value / 40) + "." + value % 40 : "2." + (value - 80);
+            first = false;
+          } else {
+            oid += "." + value;
+          }
           value = 0;
         }
       }
@@ -80600,12 +80782,13 @@ var require_pem = __commonJS({
     };
     pem.decode = function(str) {
       var rval = [];
-      var rMessage = /\s*-----BEGIN ([A-Z0-9- ]+)-----\r?\n?([\x21-\x7e\s]+?(?:\r?\n\r?\n))?([:A-Za-z0-9+\/=\s]+?)-----END \1-----/g;
-      var rHeader = /([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
+      str = String(str);
+      var messages = _pemMessageScanner(str);
+      var rHeader = /(?:^|[^\x21-\x7e])([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
       var rCRLF = /\r?\n/;
       var match;
       while (true) {
-        match = rMessage.exec(str);
+        match = messages.next();
         if (!match) {
           break;
         }
@@ -80628,7 +80811,7 @@ var require_pem = __commonJS({
         var lines = match[2].split(rCRLF);
         var li = 0;
         while (match && li < lines.length) {
-          var line = lines[li].replace(/\s+$/, "");
+          var line = rtrim(lines[li]);
           for (var nl = li + 1; nl < lines.length; ++nl) {
             var next = lines[nl];
             if (!/\s/.test(next[0])) {
@@ -80705,6 +80888,140 @@ var require_pem = __commonJS({
     }
     function ltrim(str) {
       return str.replace(/^\s+/, "");
+    }
+    function rtrim(str) {
+      var end = str.length;
+      while (end > 0 && /\s/.test(str.charAt(end - 1))) {
+        --end;
+      }
+      return str.substring(0, end);
+    }
+    function _pemMessageScanner(str) {
+      var rBody = /[:A-Za-z0-9+\/=\s]/;
+      var rNotBody = /[^:A-Za-z0-9+\/=\s]/g;
+      var rNotHeader = /[^\x21-\x7e\s]/g;
+      var rLabel = /[A-Z0-9- ]/;
+      function indexOfRegex(regex, i) {
+        regex.lastIndex = i;
+        var match = regex.exec(str);
+        return match ? match.index : str.length;
+      }
+      function labelAt(i) {
+        for (var j = i; j < str.length && rLabel.test(str.charAt(j)); ++j) {
+          if (j > i && str.substr(j, 5) === "-----") {
+            return str.substring(i, j);
+          }
+        }
+        return null;
+      }
+      function blankLineEnd(i) {
+        if (str.charAt(i) === "\r") {
+          ++i;
+        }
+        if (str.charAt(i) !== "\n") {
+          return -1;
+        }
+        if (str.charAt(++i) === "\r") {
+          ++i;
+        }
+        return str.charAt(i) === "\n" ? i + 1 : -1;
+      }
+      function firstBlankLine(start2, end2) {
+        for (var i = start2; i < end2; ++i) {
+          var v = blankLineEnd(i);
+          if (v !== -1 && v < end2) {
+            return i;
+          }
+        }
+        return -1;
+      }
+      var ends = {};
+      for (var end = str.indexOf("-----END "); end !== -1; end = str.indexOf("-----END ", end + 1)) {
+        var endLabel = labelAt(end + 9);
+        var start = end;
+        while (start > 0 && rBody.test(str.charAt(start - 1))) {
+          --start;
+        }
+        var blank = firstBlankLine(start, end);
+        if (endLabel !== null && blank !== -1) {
+          var key = "$" + endLabel;
+          (ends[key] = ends[key] || []).push({ end, blank });
+        }
+      }
+      var pos = 0;
+      var headerEnd = -1;
+      return {
+        next: function() {
+          var begin;
+          while ((begin = str.indexOf("-----BEGIN ", pos)) !== -1) {
+            pos = begin + 1;
+            var label = labelAt(begin + 11);
+            if (label === null) {
+              continue;
+            }
+            var q = begin + 16 + label.length;
+            var bodyEnd = indexOfRegex(rNotBody, q);
+            var bodyEndOk = str.substr(bodyEnd, 9) === "-----END " && labelAt(bodyEnd + 9) === label;
+            if (q > headerEnd) {
+              headerEnd = indexOfRegex(rNotHeader, q);
+            }
+            var later = null;
+            var list = ends["$" + label];
+            if (list) {
+              var lo = 0;
+              var hi = list.length;
+              while (lo < hi) {
+                var mid = lo + hi >> 1;
+                if (list[mid].end > bodyEnd) {
+                  hi = mid;
+                } else {
+                  lo = mid + 1;
+                }
+              }
+              later = list[lo] || null;
+            }
+            var starts = [];
+            if (str.charAt(q) === "\r") {
+              if (str.charAt(q + 1) === "\n") {
+                starts.push(q + 2);
+              }
+              starts.push(q + 1);
+            } else if (str.charAt(q) === "\n") {
+              starts.push(q + 1);
+            }
+            starts.push(q);
+            for (var i = 0; i < starts.length; ++i) {
+              var t = starts[i];
+              var blank2 = bodyEndOk ? firstBlankLine(t + 1, bodyEnd) : -1;
+              var end2 = bodyEnd;
+              if (blank2 === -1 && later) {
+                blank2 = later.blank;
+                end2 = later.end;
+              }
+              if (blank2 !== -1 && blank2 <= headerEnd) {
+                var v = blankLineEnd(blank2);
+                pos = end2 + 14 + label.length;
+                return [
+                  str.substring(begin, pos),
+                  label,
+                  str.substring(t, v),
+                  str.substring(v, end2)
+                ];
+              }
+              if (bodyEndOk && t < bodyEnd) {
+                pos = bodyEnd + 14 + label.length;
+                return [
+                  str.substring(begin, pos),
+                  label,
+                  void 0,
+                  str.substring(t, bodyEnd)
+                ];
+              }
+            }
+          }
+          return null;
+        }
+      };
     }
   }
 });
@@ -83143,7 +83460,7 @@ var require_jsbn = __commonJS({
       return r;
     }
     function bnModInverse(m) {
-      if (this.signum() == 0) {
+      if (this.signum() <= 0 || m.signum() <= 0) {
         return BigInteger.ZERO;
       }
       var ac = m.isEven();
@@ -84022,6 +84339,41 @@ var require_rsa = __commonJS({
         capture: "digest"
       }]
     };
+    var _encodeDigestInfo = function(oid, digest, withParameters) {
+      var digestAlgorithm = [asn1.create(
+        asn1.Class.UNIVERSAL,
+        asn1.Type.OID,
+        false,
+        asn1.oidToDer(oid).getBytes()
+      )];
+      if (withParameters) {
+        digestAlgorithm.push(asn1.create(
+          asn1.Class.UNIVERSAL,
+          asn1.Type.NULL,
+          false,
+          ""
+        ));
+      }
+      return asn1.toDer(asn1.create(
+        asn1.Class.UNIVERSAL,
+        asn1.Type.SEQUENCE,
+        true,
+        [
+          asn1.create(
+            asn1.Class.UNIVERSAL,
+            asn1.Type.SEQUENCE,
+            true,
+            digestAlgorithm
+          ),
+          asn1.create(
+            asn1.Class.UNIVERSAL,
+            asn1.Type.OCTETSTRING,
+            false,
+            digest
+          )
+        ]
+      )).getBytes();
+    };
     var emsaPkcs1v15encode = function(md2) {
       var oid;
       if (md2.algorithm in pki2.oids) {
@@ -84524,6 +84876,13 @@ var require_rsa = __commonJS({
                     "ASN.1 object does not contain a valid RSASSA-PKCS1-v1_5 DigestInfo value. Missing algorithm identifier NULL parameters."
                   );
                 }
+              }
+              var withParameters = _encodeDigestInfo(oid, capture.digest, true);
+              var withoutParameters = _encodeDigestInfo(oid, capture.digest, false);
+              if (d2.substring(0, withParameters.length) !== withParameters && d2.substring(0, withoutParameters.length) !== withoutParameters) {
+                throw new Error(
+                  "ASN.1 object does not contain a valid RSASSA-PKCS1-v1_5 DigestInfo value."
+                );
               }
               return digest2 === capture.digest;
             }
@@ -85485,6 +85844,9 @@ var require_pbe = __commonJS({
     };
     pki2.pbe.generatePkcs12Key = function(password, salt, id, iter, n, md2) {
       var j, l;
+      if (!(iter >= 1)) {
+        throw new Error("PKCS#12 key derivation iteration count must be >= 1.");
+      }
       if (typeof md2 === "undefined" || md2 === null) {
         if (!("sha1" in forge.md)) {
           throw new Error('"sha1" hash algorithm unavailable.');
@@ -86770,6 +87132,7 @@ var require_x509 = __commonJS({
     };
     var _verifySignature = function(options) {
       var cert = options.certificate;
+      var publicKey = options.publicKey || cert.publicKey;
       var scheme;
       switch (cert.signatureOid) {
         case oids.sha1WithRSAEncryption:
@@ -86807,7 +87170,7 @@ var require_x509 = __commonJS({
           );
           break;
       }
-      return cert.publicKey.verify(
+      return publicKey.verify(
         options.md.digest().getBytes(),
         options.signature,
         scheme
@@ -87027,7 +87390,8 @@ var require_x509 = __commonJS({
         }
         if (md2 !== null) {
           rval = _verifySignature({
-            certificate: cert,
+            certificate: child,
+            publicKey: cert.publicKey,
             md: md2,
             signature: child.signature
           });
@@ -88262,10 +88626,7 @@ var require_x509 = __commonJS({
             }
           }
           if (parent) {
-            var parents = parent;
-            if (!forge.util.isArray(parents)) {
-              parents = [parents];
-            }
+            var parents = forge.util.isArray(parent) ? parent.slice() : [parent];
             var verified = false;
             while (!verified && parents.length > 0) {
               parent = parents.shift();
@@ -88310,7 +88671,7 @@ var require_x509 = __commonJS({
           }
         }
         if (error2 === null && (!first || chain.length === 0 && (!parent || selfSigned))) {
-          var bcExt = cert.getExtension("basicConstraints");
+          var bcExt = cert.getExtension({ id: "2.5.29.19" });
           var keyUsageExt = cert.getExtension("keyUsage");
           if (keyUsageExt !== null) {
             if (!keyUsageExt.keyCertSign || bcExt === null) {
@@ -88332,7 +88693,7 @@ var require_x509 = __commonJS({
               error: pki2.certificateError.bad_certificate
             };
           }
-          if (error2 === null && keyUsageExt !== null && "pathLenConstraint" in bcExt) {
+          if (error2 === null && bcExt !== null && "pathLenConstraint" in bcExt) {
             var pathLen = depth - 1;
             if (pathLen > bcExt.pathLenConstraint) {
               error2 = {
@@ -88716,6 +89077,9 @@ var require_pkcs12 = __commonJS({
         }
         var macSalt = new forge.util.ByteBuffer(capture.macSalt);
         var macIterations = "macIterations" in capture ? parseInt(forge.util.bytesToHex(capture.macIterations), 16) : 1;
+        if (!(macIterations >= 1)) {
+          throw new Error("PKCS#12 MAC iteration count must be >= 1.");
+        }
         var macKey = p12.generateKey(
           password,
           macSalt,
@@ -89977,7 +90341,7 @@ var require_tls = __commonJS({
           }
         });
       }
-      if (c.serverCertificate === null) {
+      if (c.session.serverCertificate === null) {
         var error2 = {
           message: "No server certificate provided. Not enough security.",
           send: true,
@@ -90001,8 +90365,8 @@ var require_tls = __commonJS({
               error2.alert.description = ret;
             }
           }
-          return c.error(c, error2);
         }
+        return c.error(c, error2);
       }
       if (c.session.certificateRequest !== null) {
         record = tls.createRecord(c, {
@@ -90258,7 +90622,7 @@ var require_tls = __commonJS({
       var length = b.getInt16();
       var payload = b.getBytes(length);
       if (type === tls.HeartbeatMessageType.heartbeat_request) {
-        if (c.handshaking || length > payload.length) {
+        if (c.handshakes === 0 || c.handshaking || length > payload.length) {
           return c.process();
         }
         tls.queue(c, tls.createRecord(c, {
@@ -91173,6 +91537,7 @@ var require_tls = __commonJS({
                     description: tls.Alert.Description.unexpected_message
                   }
                 });
+                return rval;
               }
             }
             c2.record.ready = true;
@@ -91237,24 +91602,48 @@ var require_tls = __commonJS({
           tls.flush(c);
         }
       };
+      var _processing = false;
+      var _processNext = false;
+      var _processRecord = function(c2) {
+        var rval = 0;
+        if (!c2.fail) {
+          if (c2.record !== null && c2.record.ready && c2.record.fragment.isEmpty()) {
+            c2.record = null;
+          }
+          if (c2.record === null) {
+            rval = _readRecordHeader(c2);
+          }
+          if (!c2.fail && c2.record !== null && !c2.record.ready) {
+            rval = _readRecord(c2);
+          }
+          if (!c2.fail && c2.record !== null && c2.record.ready) {
+            _update(c2, c2.record);
+          }
+        }
+        return rval;
+      };
       c.process = function(data) {
         var rval = 0;
         if (data) {
           c.input.putBytes(data);
         }
-        if (!c.fail) {
-          if (c.record !== null && c.record.ready && c.record.fragment.isEmpty()) {
-            c.record = null;
+        if (_processing && typeof data === "undefined") {
+          _processNext = true;
+          return rval;
+        }
+        var processing = _processing;
+        var processNext = _processNext;
+        _processing = true;
+        _processNext = false;
+        try {
+          rval = _processRecord(c);
+          while (_processNext) {
+            _processNext = false;
+            _processRecord(c);
           }
-          if (c.record === null) {
-            rval = _readRecordHeader(c);
-          }
-          if (!c.fail && c.record !== null && !c.record.ready) {
-            rval = _readRecord(c);
-          }
-          if (!c.fail && c.record !== null && c.record.ready) {
-            _update(c, c.record);
-          }
+        } finally {
+          _processing = processing;
+          _processNext = processNext;
         }
         return rval;
       };
