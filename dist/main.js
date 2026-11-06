@@ -100662,6 +100662,9 @@ var Updater = class {
       if (credential["public-key-fingerprint"] !== void 0) {
         obj["public-key-fingerprint"] = credential["public-key-fingerprint"];
       }
+      if (credential["public-key"] !== void 0) {
+        obj["public-key"] = credential["public-key"];
+      }
       if (credential.repo !== void 0) {
         obj.repo = credential.repo;
       }
