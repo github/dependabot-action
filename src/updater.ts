@@ -105,6 +105,9 @@ export class Updater {
       if (credential['public-key-fingerprint'] !== undefined) {
         obj['public-key-fingerprint'] = credential['public-key-fingerprint']
       }
+      if (credential['public-key'] !== undefined) {
+        obj['public-key'] = credential['public-key']
+      }
       if (credential.repo !== undefined) {
         obj.repo = credential.repo
       }
