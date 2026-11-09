@@ -559,4 +559,70 @@ describe('Updater', () => {
       ])
     })
   })
+
+  describe('when given hex_repository credentials with a public-key', () => {
+    const jobDetails = {...mockJobDetails}
+    const publicKey =
+      '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA\n-----END PUBLIC KEY-----\n'
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'hex_repository',
+          url: 'https://example.jfrog.io/artifactory/api/hex/hex-remote',
+          repo: 'hexpm',
+          'auth-key': 'hex-auth-key',
+          'public-key-fingerprint': 'SHA256:abc123',
+          'public-key': publicKey
+        }
+      ]
+    )
+
+    it('generates credentials metadata with the public-key', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'hex_repository',
+          url: 'https://example.jfrog.io/artifactory/api/hex/hex-remote',
+          'public-key-fingerprint': 'SHA256:abc123',
+          'public-key': publicKey,
+          repo: 'hexpm'
+        }
+      ])
+    })
+  })
+
+  describe('when given hex_repository credentials without a public-key', () => {
+    const jobDetails = {...mockJobDetails}
+
+    new Updater(
+      'MOCK_UPDATER_IMAGE_NAME',
+      'MOCK_PROXY_IMAGE_NAME',
+      mockApiClient,
+      jobDetails,
+      [
+        {
+          type: 'hex_repository',
+          url: 'https://example.jfrog.io/artifactory/api/hex/hex-remote',
+          repo: 'hexpm',
+          'auth-key': 'hex-auth-key',
+          'public-key-fingerprint': 'SHA256:abc123'
+        }
+      ]
+    )
+
+    it('generates credentials metadata without the public-key', () => {
+      expect(jobDetails['credentials-metadata']).toEqual([
+        {
+          type: 'hex_repository',
+          url: 'https://example.jfrog.io/artifactory/api/hex/hex-remote',
+          'public-key-fingerprint': 'SHA256:abc123',
+          repo: 'hexpm'
+        }
+      ])
+    })
+  })
 })
