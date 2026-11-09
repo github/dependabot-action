@@ -902,6 +902,7 @@ describe('credentialsFromEnv', () => {
 })
 
 describe('getPackagesCredential', () => {
+  const originalServerUrl = process.env.GITHUB_SERVER_URL
   const experimentName = 'automatic_github_packages_auth'
   const alternateExperimentName = experimentName.replace(/_/g, '-')
   function createJobDetails(
@@ -921,10 +922,109 @@ describe('getPackagesCredential', () => {
 
   beforeEach(() => {
     process.env.GITHUB_TOKEN = 'test-token'
+    process.env.GITHUB_SERVER_URL = 'https://github.com'
   })
 
   afterEach(() => {
     delete process.env.GITHUB_TOKEN
+    if (originalServerUrl === undefined) {
+      delete process.env.GITHUB_SERVER_URL
+    } else {
+      process.env.GITHUB_SERVER_URL = originalServerUrl
+    }
+  })
+
+  describe('on GHE.com', () => {
+    beforeEach(() => {
+      process.env.GITHUB_SERVER_URL = 'https://test-tenant.ghe.com'
+    })
+
+    it.each([
+      ['bundler', 'rubygems_server', 'host', 'rubygems'],
+      ['docker', 'docker_registry', 'registry', 'containers'],
+      ['docker_compose', 'docker_registry', 'registry', 'containers'],
+      ['devcontainers', 'docker_registry', 'registry', 'containers'],
+      ['npm_and_yarn', 'npm_registry', 'registry', 'npm'],
+      ['bun', 'npm_registry', 'registry', 'npm'],
+      ['nuget', 'nuget_feed', 'host', 'nuget']
+    ])(
+      'creates a tenant-scoped fallback credential for %s',
+      (packageManager, type, location, registry) => {
+        const details = createJobDetails(packageManager, {
+          [experimentName]: true
+        })
+        const authentication =
+          type === 'npm_registry' || type === 'rubygems_server'
+            ? {token: 'test-actor:test-token'}
+            : {username: 'test-actor', password: 'test-token'}
+
+        expect(getPackagesCredential(details, 'test-actor')).toEqual({
+          type,
+          [location]: `${registry}.test-tenant.ghe.com`,
+          ...authentication,
+          'proxy-only': true
+        })
+      }
+    )
+
+    it('preserves an explicit host-wide tenant credential', () => {
+      const details = createJobDetails('nuget', {[experimentName]: true}, [
+        {type: 'nuget_feed', url: 'https://NUGET.TEST-TENANT.GHE.COM/'}
+      ])
+
+      expect(getPackagesCredential(details, 'test-actor')).toBeNull()
+    })
+
+    it.each([
+      'https://nuget.test-tenant.ghe.com/owner/index.json',
+      'https://nuget.other-tenant.ghe.com/',
+      'https://nuget.pkg.github.com/'
+    ])('keeps tenant fallback auth alongside credentials for %s', url => {
+      const details = createJobDetails('nuget', {[experimentName]: true}, [
+        {type: 'nuget_feed', url}
+      ])
+
+      expect(getPackagesCredential(details, 'test-actor')).toEqual({
+        type: 'nuget_feed',
+        host: 'nuget.test-tenant.ghe.com',
+        username: 'test-actor',
+        password: 'test-token',
+        'proxy-only': true
+      })
+    })
+
+    it.each([
+      'https://TEST-TENANT.GHE.COM/',
+      'https://test-tenant.ghe.com:443'
+    ])('recognizes the tenant server URL %s', serverUrl => {
+      process.env.GITHUB_SERVER_URL = serverUrl
+      const details = createJobDetails('nuget', {[experimentName]: true})
+
+      expect(getPackagesCredential(details, 'test-actor')?.host).toBe(
+        'nuget.test-tenant.ghe.com'
+      )
+    })
+  })
+
+  it.each([
+    undefined,
+    'https://github.example.com',
+    'https://ghe.com',
+    'https://nested.test-tenant.ghe.com',
+    'https://test-tenant.ghe.com.example.com',
+    'http://test-tenant.ghe.com',
+    'https://test-tenant.ghe.com:8443'
+  ])('does not derive tenant credentials from %s', serverUrl => {
+    if (serverUrl === undefined) {
+      delete process.env.GITHUB_SERVER_URL
+    } else {
+      process.env.GITHUB_SERVER_URL = serverUrl
+    }
+    const details = createJobDetails('nuget', {[experimentName]: true})
+
+    expect(getPackagesCredential(details, 'test-actor')?.host).toBe(
+      'nuget.pkg.github.com'
+    )
   })
 
   describe('when the package manager is unsupported', () => {
