@@ -331,12 +331,25 @@ function isHostWideCredentialLocation(
   )
 }
 
+function getPackagesHost(
+  registry: 'rubygems' | 'containers' | 'npm' | 'nuget'
+): string {
+  const tenant = process.env.GITHUB_SERVER_URL?.match(
+    /^https:\/\/([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.ghe\.com)(?::443)?\/?$/i
+  )
+  if (tenant) {
+    return `${registry}.${tenant[1].toLowerCase()}`
+  }
+
+  return registry === 'containers' ? 'ghcr.io' : `${registry}.pkg.github.com`
+}
+
 function getRubyGemsPackagesCredential(
   jobDetails: JobDetails,
   actor: string,
   githubToken: string
 ): Credential | null {
-  const host = 'rubygems.pkg.github.com'
+  const host = getPackagesHost('rubygems')
   if (hasCredentialForHost(jobDetails, 'rubygems_server', host)) {
     return null
   }
@@ -354,7 +367,7 @@ function getDockerPackagesCredential(
   actor: string,
   githubToken: string
 ): Credential | null {
-  const registry = 'ghcr.io'
+  const registry = getPackagesHost('containers')
   if (hasCredentialForHost(jobDetails, 'docker_registry', registry)) {
     return null
   }
@@ -392,7 +405,7 @@ function getNpmPackagesCredential(
   actor: string,
   githubToken: string
 ): Credential | null {
-  const registry = 'npm.pkg.github.com'
+  const registry = getPackagesHost('npm')
   if (hasCredentialForHost(jobDetails, 'npm_registry', registry)) {
     return null
   }
@@ -410,7 +423,7 @@ function getNuGetPackagesCredential(
   actor: string,
   githubToken: string
 ): Credential | null {
-  const host = 'nuget.pkg.github.com'
+  const host = getPackagesHost('nuget')
   if (hasCredentialForHost(jobDetails, 'nuget_feed', host)) {
     return null
   }

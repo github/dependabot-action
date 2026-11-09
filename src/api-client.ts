@@ -48,6 +48,7 @@ export type Credential = {
   'replaces-base'?: boolean
   scope?: string
   'public-key-fingerprint'?: string
+  'public-key'?: string
   'auth-key'?: string
   'tenant-id'?: string
   'client-id'?: string

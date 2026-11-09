@@ -1859,10 +1859,66 @@ var require_request = __commonJS({
           return false;
         }
       }
-      onUpgrade(statusCode, headers, socket) {
+      /**
+       * @param {number|null} statusCode
+       * @param {Buffer[]|null} headers
+       * @param {import('node:stream').Duplex} socket
+       * @param {string} [statusText]
+       */
+      onUpgrade(statusCode, headers, socket, statusText = "") {
+        this.onFinally();
         assert(!this.aborted);
         assert(!this.completed);
-        return this[kHandler].onUpgrade(statusCode, headers, socket);
+        if (statusCode !== null) {
+          this.#publishUpgradeHeaders(statusCode, headers, statusText);
+        }
+        const result = this[kHandler].onUpgrade(statusCode, headers, socket);
+        if (!this.aborted) {
+          this.completed = true;
+          if (statusCode !== null) {
+            this.#publishUpgradeTrailers();
+          }
+        }
+        return result;
+      }
+      /**
+       * @param {number} statusCode
+       * @param {import('node:http2').IncomingHttpHeaders} headers
+       * @param {(headers: import('node:http2').IncomingHttpHeaders) => Buffer[]} parseHeaders
+       * @param {string} [statusText]
+       */
+      onUpgradeResponse(statusCode, headers, parseHeaders, statusText = "") {
+        assert(!this.aborted);
+        assert(this.completed);
+        if (channels.headers.hasSubscribers) {
+          this.#publishUpgradeHeaders(statusCode, parseHeaders(headers), statusText);
+        }
+        this.#publishUpgradeTrailers();
+      }
+      /**
+       * @param {Error} error
+       */
+      onUpgradeError(error2) {
+        assert(!this.aborted);
+        assert(this.completed);
+        if (channels.error.hasSubscribers) {
+          channels.error.publish({ request: this, error: error2 });
+        }
+      }
+      /**
+       * @param {number} statusCode
+       * @param {Buffer[]} headers
+       * @param {string} statusText
+       */
+      #publishUpgradeHeaders(statusCode, headers, statusText) {
+        if (channels.headers.hasSubscribers) {
+          channels.headers.publish({ request: this, response: { statusCode, headers, statusText } });
+        }
+      }
+      #publishUpgradeTrailers() {
+        if (channels.trailers.hasSubscribers) {
+          channels.trailers.publish({ request: this, trailers: [] });
+        }
       }
       onComplete(trailers) {
         this.onFinally();
@@ -2047,6 +2103,7 @@ var require_dispatcher = __commonJS({
 var require_dispatcher_base = __commonJS({
   "node_modules/undici/lib/dispatcher/dispatcher-base.js"(exports2, module2) {
     "use strict";
+    var buffer = require("node:buffer");
     var Dispatcher = require_dispatcher();
     var {
       ClientDestroyedError,
@@ -2058,6 +2115,7 @@ var require_dispatcher_base = __commonJS({
     var kOnClosed = /* @__PURE__ */ Symbol("onClosed");
     var kInterceptedDispatch = /* @__PURE__ */ Symbol("Intercepted Dispatch");
     var kWebSocketOptions = /* @__PURE__ */ Symbol("webSocketOptions");
+    var kEventSourceOptions = /* @__PURE__ */ Symbol("eventSourceOptions");
     var DispatcherBase = class extends Dispatcher {
       constructor(opts) {
         super();
@@ -2066,11 +2124,17 @@ var require_dispatcher_base = __commonJS({
         this[kClosed] = false;
         this[kOnClosed] = [];
         this[kWebSocketOptions] = opts?.webSocket ?? {};
+        this[kEventSourceOptions] = opts?.eventSource ?? {};
       }
       get webSocketOptions() {
         return {
           maxFragments: this[kWebSocketOptions].maxFragments ?? 131072,
           maxPayloadSize: this[kWebSocketOptions].maxPayloadSize ?? 128 * 1024 * 1024
+        };
+      }
+      get eventSourceOptions() {
+        return {
+          maxEventSize: this[kEventSourceOptions].maxEventSize ?? buffer.kStringMaxLength
         };
       }
       get destroyed() {
@@ -6005,7 +6069,7 @@ var require_client_h1 = __commonJS({
         }
       }
       onUpgrade(head) {
-        const { upgrade, client, socket, headers, statusCode } = this;
+        const { upgrade, client, socket, headers, statusCode, statusText } = this;
         assert(upgrade);
         assert(client[kSocket] === socket);
         assert(!socket.destroyed);
@@ -6030,9 +6094,10 @@ var require_client_h1 = __commonJS({
         client[kQueue][client[kRunningIdx]++] = null;
         client.emit("disconnect", client[kUrl], [client], new InformationalError("upgrade"));
         try {
-          request2.onUpgrade(statusCode, headers, socket);
-        } catch (err) {
-          util.destroy(socket, err);
+          request2.onUpgrade(statusCode, headers, socket, statusText);
+        } catch (error2) {
+          util.errorRequest(client, request2, error2);
+          util.destroy(socket, error2);
         }
         client[kResume]();
       }
@@ -6219,7 +6284,6 @@ var require_client_h1 = __commonJS({
       socket[kSocketUsed] = false;
       socket[kParser] = new Parser(client, socket, llhttpInstance);
       addListener(socket, "error", function(err) {
-        assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
         const parser = this[kParser];
         if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
           const parserErr = parser.finish();
@@ -6324,21 +6388,20 @@ var require_client_h1 = __commonJS({
     }
     function clearIdleSocketValidation(socket) {
       if (socket[kIdleSocketValidationTimeout]) {
-        clearTimeout(socket[kIdleSocketValidationTimeout]);
+        clearImmediate(socket[kIdleSocketValidationTimeout]);
         socket[kIdleSocketValidationTimeout] = null;
       }
       socket[kIdleSocketValidation] = 0;
     }
     function scheduleIdleSocketValidation(client, socket) {
       socket[kIdleSocketValidation] = 1;
-      socket[kIdleSocketValidationTimeout] = setTimeout(() => {
+      socket[kIdleSocketValidationTimeout] = setImmediate(() => {
         socket[kIdleSocketValidationTimeout] = null;
         socket[kIdleSocketValidation] = 2;
         if (client[kSocket] === socket && !socket.destroyed) {
           client[kResume]();
         }
-      }, 0);
-      socket[kIdleSocketValidationTimeout].unref?.();
+      });
     }
     function resumeH1(client) {
       const socket = client[kSocket];
@@ -6436,11 +6499,17 @@ var require_client_h1 = __commonJS({
       }
       const socket = client[kSocket];
       clearIdleSocketValidation(socket);
-      const abort = (err) => {
-        if (request2.aborted || request2.completed) {
+      const abort = (error2) => {
+        if (request2.aborted) {
           return;
         }
-        util.errorRequest(client, request2, err || new RequestAbortedError());
+        if (request2.completed) {
+          if (request2.upgrade || request2.method === "CONNECT") {
+            util.destroy(socket, new InformationalError("aborted"));
+          }
+          return;
+        }
+        util.errorRequest(client, request2, error2 || new RequestAbortedError());
         util.destroy(body);
         util.destroy(socket, new InformationalError("aborted"));
       };
@@ -6796,6 +6865,7 @@ var require_client_h2 = __commonJS({
   "node_modules/undici/lib/dispatcher/client-h2.js"(exports2, module2) {
     "use strict";
     var assert = require("node:assert");
+    var { errorMonitor } = require("node:events");
     var { pipeline } = require("node:stream");
     var util = require_util();
     var {
@@ -6856,6 +6926,10 @@ var require_client_h2 = __commonJS({
       }
       return result;
     }
+    function parseH2ResponseHeaders(headers) {
+      const { [HTTP2_HEADER_STATUS]: _statusCode, ...realHeaders } = headers;
+      return parseH2Headers(realHeaders);
+    }
     async function connectH2(client, socket) {
       client[kSocket] = socket;
       if (!h2ExperimentalWarned) {
@@ -6893,7 +6967,6 @@ var require_client_h2 = __commonJS({
       client[kHTTP2Session] = session;
       socket[kHTTP2Session] = session;
       util.addListener(socket, "error", function(err) {
-        assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
         this[kError] = err;
         this[kClient][kOnError](err);
       });
@@ -6952,7 +7025,6 @@ var require_client_h2 = __commonJS({
       }
     }
     function onHttp2SessionError(err) {
-      assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
       this[kSocket][kError] = err;
       this[kClient][kOnError](err);
     }
@@ -7019,16 +7091,22 @@ var require_client_h2 = __commonJS({
       const { hostname, port } = client[kUrl];
       headers[HTTP2_HEADER_AUTHORITY] = host || `${hostname}${port ? `:${port}` : ""}`;
       headers[HTTP2_HEADER_METHOD] = method;
-      const abort = (err) => {
-        if (request2.aborted || request2.completed) {
+      const abort = (error2) => {
+        if (request2.aborted) {
           return;
         }
-        err = err || new RequestAbortedError();
-        util.errorRequest(client, request2, err);
-        if (stream2 != null) {
-          util.destroy(stream2, err);
+        if (request2.completed) {
+          if (method === "CONNECT" && stream2 != null) {
+            util.destroy(stream2, error2 || new RequestAbortedError());
+          }
+          return;
         }
-        util.destroy(body, err);
+        error2 = error2 || new RequestAbortedError();
+        util.errorRequest(client, request2, error2);
+        if (stream2 != null) {
+          util.destroy(stream2, error2);
+        }
+        util.destroy(body, error2);
         client[kQueue][client[kRunningIdx]++] = null;
         client[kResume]();
       };
@@ -7043,18 +7121,42 @@ var require_client_h2 = __commonJS({
       if (method === "CONNECT") {
         session.ref();
         stream2 = session.request(headers, { endStream: false, signal });
-        if (stream2.id && !stream2.pending) {
-          request2.onUpgrade(null, null, stream2);
-          ++session[kOpenStreams];
-          client[kQueue][client[kRunningIdx]++] = null;
-        } else {
-          stream2.once("ready", () => {
+        let upgradeResponseFinished = false;
+        const onResponse = (headers2) => {
+          upgradeResponseFinished = true;
+          stream2.off(errorMonitor, onUpgradeError);
+          request2.onUpgradeResponse(Number(headers2[HTTP2_HEADER_STATUS]), headers2, parseH2ResponseHeaders);
+        };
+        const onUpgradeError = (error2) => {
+          upgradeResponseFinished = true;
+          stream2.off("response", onResponse);
+          request2.onUpgradeError(error2);
+        };
+        const onReady = () => {
+          try {
             request2.onUpgrade(null, null, stream2);
-            ++session[kOpenStreams];
-            client[kQueue][client[kRunningIdx]++] = null;
-          });
-        }
+          } catch (error2) {
+            stream2.off("response", onResponse);
+            abort(error2);
+            return;
+          }
+          if (request2.aborted) {
+            return;
+          }
+          stream2.off("error", abort);
+          stream2.once(errorMonitor, onUpgradeError);
+          client[kQueue][client[kRunningIdx]++] = null;
+        };
+        stream2.once("response", onResponse);
+        stream2.once("error", abort);
+        ++session[kOpenStreams];
+        onReady();
         stream2.once("close", () => {
+          if (!upgradeResponseFinished && request2.completed) {
+            stream2.off("response", onResponse);
+            stream2.off(errorMonitor, onUpgradeError);
+            request2.onUpgradeError(new InformationalError(`HTTP/2: "stream error" received - code ${stream2.rstCode}`));
+          }
           session[kOpenStreams] -= 1;
           if (session[kOpenStreams] === 0) session.unref();
         });
@@ -7616,9 +7718,10 @@ var require_client = __commonJS({
         // h2
         maxConcurrentStreams,
         allowH2,
-        webSocket
+        webSocket,
+        eventSource
       } = {}) {
-        super({ webSocket });
+        super({ webSocket, eventSource });
         if (keepAlive !== void 0) {
           throw new InvalidArgumentError("unsupported keepAlive, use pipelining=0 instead");
         }
@@ -8515,7 +8618,7 @@ var require_agent = __commonJS({
       return opts && opts.connections === 1 ? new Client(origin, opts) : new Pool(origin, opts);
     }
     var Agent3 = class extends DispatcherBase {
-      constructor({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
+      constructor({ factory = defaultFactory, maxRedirections = 0, connect, tls, ...options } = {}) {
         if (typeof factory !== "function") {
           throw new InvalidArgumentError("factory must be a function.");
         }
@@ -8529,8 +8632,11 @@ var require_agent = __commonJS({
         if (connect && typeof connect !== "function") {
           connect = { ...connect };
         }
+        if (tls && typeof tls !== "function") {
+          tls = { ...tls };
+        }
         this[kInterceptors] = options.interceptors?.Agent && Array.isArray(options.interceptors.Agent) ? options.interceptors.Agent : [createRedirectInterceptor({ maxRedirections })];
-        this[kOptions] = { ...util.deepClone(options), connect };
+        this[kOptions] = { ...util.deepClone(options), connect, tls };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
@@ -9037,6 +9143,7 @@ var require_retry_handler = __commonJS({
         this.end = null;
         this.etag = null;
         this.resume = null;
+        this.headersSent = false;
         this.handler.onConnect((reason) => {
           this.aborted = true;
           if (this.abort) {
@@ -9045,6 +9152,17 @@ var require_retry_handler = __commonJS({
             this.reason = reason;
           }
         });
+      }
+      checkpointResponseEnd(headers, resume) {
+        if (this.end == null && this.opts.method !== "HEAD") {
+          const contentLength = headers["content-length"];
+          this.end = contentLength != null ? Number(contentLength) - 1 : null;
+          assert(
+            this.end == null || Number.isFinite(this.end),
+            "invalid content-length"
+          );
+        }
+        this.resume = this.end != null ? resume : null;
       }
       onRequestSent() {
         if (this.handler.onRequestSent) {
@@ -9107,7 +9225,9 @@ var require_retry_handler = __commonJS({
         const headers = parseHeaders(rawHeaders);
         this.retryCount += 1;
         if (statusCode >= 300) {
-          if (this.retryOpts.statusCodes.includes(statusCode) === false) {
+          if (!this.headersSent && this.retryOpts.statusCodes.includes(statusCode) === false) {
+            this.headersSent = true;
+            this.checkpointResponseEnd(headers, resume);
             return this.handler.onHeaders(
               statusCode,
               rawHeaders,
@@ -9162,8 +9282,15 @@ var require_retry_handler = __commonJS({
             return false;
           }
           const { start, size, end = size - 1 } = contentRange;
-          assert(this.start === start, "content-range mismatch");
-          assert(this.end == null || this.end === end, "content-range mismatch");
+          if (this.start !== start || this.end != null && this.end !== end) {
+            this.abort(
+              new RequestRetryError("Content-Range mismatch", statusCode, {
+                headers,
+                data: { count: this.retryCount }
+              })
+            );
+            return false;
+          }
           this.resume = resume;
           return true;
         }
@@ -9171,6 +9298,7 @@ var require_retry_handler = __commonJS({
           if (statusCode === 206) {
             const range = parseRangeHeader(headers["content-range"]);
             if (range == null) {
+              this.headersSent = true;
               return this.handler.onHeaders(
                 statusCode,
                 rawHeaders,
@@ -9202,6 +9330,7 @@ var require_retry_handler = __commonJS({
             "invalid content-length"
           );
           this.resume = resume;
+          this.headersSent = true;
           this.etag = headers.etag != null ? headers.etag : null;
           if (this.etag != null && this.etag.startsWith("W/")) {
             this.etag = null;
@@ -9229,7 +9358,7 @@ var require_retry_handler = __commonJS({
         return this.handler.onComplete(rawTrailers);
       }
       onError(err) {
-        if (this.aborted || isDisturbed(this.opts.body)) {
+        if (this.aborted || isDisturbed(this.opts.body) || this.headersSent && this.resume == null) {
           return this.handler.onError(err);
         }
         if (this.retryCount - this.retryCountCheckpoint > 0) {
@@ -14235,8 +14364,9 @@ var require_fetch = __commonJS({
         }
       );
       response.body = { stream: stream2, source: null, length: null };
-      fetchParams.controller.onAborted = onAborted;
-      fetchParams.controller.on("terminated", onAborted);
+      if (!fetchParams.controller.resume) {
+        fetchParams.controller.on("terminated", onAborted);
+      }
       fetchParams.controller.resume = async () => {
         while (true) {
           let bytes;
@@ -14336,7 +14466,6 @@ var require_fetch = __commonJS({
                 headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString("latin1"), true);
               }
               location = headersList.get("location", true);
-              this.body = new Readable2({ read: resume });
               const decoders = [];
               const willFollow = location && request2.redirect === "follow" && redirectStatusSet.has(status);
               if (request2.method !== "HEAD" && request2.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
@@ -14344,7 +14473,7 @@ var require_fetch = __commonJS({
                 const codings = contentEncoding ? contentEncoding.toLowerCase().split(",") : [];
                 const maxContentEncodings = 5;
                 if (codings.length > maxContentEncodings) {
-                  reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`));
+                  this.abort(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`));
                   return true;
                 }
                 for (let i = codings.length - 1; i >= 0; --i) {
@@ -14374,6 +14503,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
+              this.body = new Readable2({ read: resume });
               const onError = this.onError.bind(this);
               resolve({
                 status,
@@ -14398,9 +14528,6 @@ var require_fetch = __commonJS({
             onComplete() {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
-              }
-              if (fetchParams.controller.onAborted) {
-                fetchParams.controller.off("terminated", fetchParams.controller.onAborted);
               }
               fetchParams.controller.ended = true;
               this.body.push(null);
@@ -17115,7 +17242,7 @@ var require_connection = __commonJS({
           const secProtocol = response.headersList.get("Sec-WebSocket-Protocol");
           if (secProtocol !== null) {
             const requestProtocols = getDecodeSplit("sec-websocket-protocol", request2.headersList);
-            if (!requestProtocols.includes(secProtocol)) {
+            if (requestProtocols === null || !requestProtocols.includes(secProtocol)) {
               failWebsocketConnection(ws, "Protocol was not set in the opening handshake.");
               return;
             }
@@ -17263,6 +17390,7 @@ var require_permessage_deflate = __commonJS({
             if (this.#maxPayloadSize > 0 && this.#inflate[kLength] > this.#maxPayloadSize) {
               callback(new MessageSizeExceededError());
               this.#inflate.removeAllListeners();
+              this.#inflate.destroy();
               this.#inflate = null;
               return;
             }
@@ -17474,6 +17602,16 @@ var require_receiver = __commonJS({
             if (isControlFrame(this.#info.opcode)) {
               this.#loop = this.parseControlFrame(body);
               this.#state = parserStates.INFO;
+              const socket = this.ws[kResponse].socket;
+              if (this.#loop && socket.writableNeedDrain) {
+                this.#loop = false;
+                socket.once("drain", () => {
+                  if (this.destroyed) return;
+                  this.#loop = true;
+                  this.run(callback);
+                });
+                return;
+              }
             } else {
               if (!this.#info.compressed) {
                 if (!this.writeFragments(body)) {
@@ -18167,6 +18305,7 @@ var require_util8 = __commonJS({
 var require_eventsource_stream = __commonJS({
   "node_modules/undici/lib/web/eventsource/eventsource-stream.js"(exports2, module2) {
     "use strict";
+    var buffer = require("node:buffer");
     var { Transform } = require("node:stream");
     var { isASCIINumber, isValidLastEventId } = require_util8();
     var BOM = [239, 187, 191];
@@ -18174,6 +18313,49 @@ var require_eventsource_stream = __commonJS({
     var CR = 13;
     var COLON = 58;
     var SPACE = 32;
+    var defaultMaxEventSize = buffer.kStringMaxLength;
+    var DATA = Buffer.from("data");
+    var EVENT = Buffer.from("event");
+    var ID = Buffer.from("id");
+    var RETRY = Buffer.from("retry");
+    var minParserItems = 1024;
+    var maxParserItems = 131072;
+    var bytesPerParserItem = 128;
+    function isASCIINumberBytes(buffer2, start) {
+      if (start >= buffer2.length) {
+        return false;
+      }
+      for (let i = start; i < buffer2.length; i++) {
+        if (buffer2[i] < 48 || buffer2[i] > 57) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function isValidLastEventIdBytes(buffer2, start) {
+      for (let i = start; i < buffer2.length; i++) {
+        if (buffer2[i] === 0) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function isFieldName(line, length, field) {
+      if (length !== field.length) {
+        return false;
+      }
+      for (let i = 0; i < length; i++) {
+        if (line[i] !== field[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function createMaxEventSizeExceededError() {
+      const error2 = new Error("EventSource message size exceeded");
+      error2.aborted = false;
+      return error2;
+    }
     var EventSourceStream = class extends Transform {
       /**
        * @type {eventSourceSettings}
@@ -18193,10 +18375,20 @@ var require_eventsource_stream = __commonJS({
        */
       eventEndCheck = false;
       /**
-       * @type {Buffer}
+       * @type {Buffer[]}
        */
-      buffer = null;
+      chunks = [];
+      chunkIndex = 0;
       pos = 0;
+      lineChunkIndex = 0;
+      linePos = 0;
+      lineLength = 0;
+      eventSize = 0;
+      eventFieldSizes = { data: 0, event: 0, id: 0, retry: 0 };
+      dataLineCount = 0;
+      maxEventSize;
+      maxDataLines;
+      maxBufferedChunks;
       event = {
         data: void 0,
         event: void 0,
@@ -18205,6 +18397,7 @@ var require_eventsource_stream = __commonJS({
       };
       /**
        * @param {object} options
+       * @param {number} [options.maxEventSize]
        * @param {eventSourceSettings} options.eventSourceSettings
        * @param {Function} [options.push]
        */
@@ -18212,6 +18405,10 @@ var require_eventsource_stream = __commonJS({
         options.readableObjectMode = true;
         super(options);
         this.state = options.eventSourceSettings || {};
+        this.maxEventSize = options.maxEventSize ?? defaultMaxEventSize;
+        const parserItemLimit = this.maxEventSize > 0 ? Math.min(maxParserItems, Math.max(minParserItems, Math.floor(this.maxEventSize / bytesPerParserItem))) : 0;
+        this.maxDataLines = parserItemLimit;
+        this.maxBufferedChunks = parserItemLimit;
         if (options.push) {
           this.push = options.push;
         }
@@ -18227,63 +18424,34 @@ var require_eventsource_stream = __commonJS({
           callback();
           return;
         }
-        if (this.buffer) {
-          this.buffer = Buffer.concat([this.buffer, chunk]);
-        } else {
-          this.buffer = chunk;
+        if (this.maxEventSize > 0 && this.chunks.length >= this.maxBufferedChunks && chunk[0] !== LF && chunk[0] !== CR) {
+          callback(createMaxEventSizeExceededError());
+          return;
         }
+        this.chunks.push(chunk);
         if (this.checkBOM) {
-          switch (this.buffer.length) {
-            case 1:
-              if (this.buffer[0] === BOM[0]) {
-                callback();
-                return;
-              }
-              this.checkBOM = false;
-              callback();
-              return;
-            case 2:
-              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1]) {
-                callback();
-                return;
-              }
-              this.checkBOM = false;
-              break;
-            case 3:
-              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) {
-                this.buffer = Buffer.alloc(0);
-                this.checkBOM = false;
-                callback();
-                return;
-              }
-              this.checkBOM = false;
-              break;
-            default:
-              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) {
-                this.buffer = this.buffer.subarray(3);
-              }
-              this.checkBOM = false;
-              break;
+          if (this.handleBOM()) {
+            callback();
+            return;
           }
         }
-        while (this.pos < this.buffer.length) {
+        while (this.hasCurrentByte()) {
+          const byte = this.currentByte();
           if (this.eventEndCheck) {
             if (this.crlfCheck) {
-              if (this.buffer[this.pos] === LF) {
-                this.buffer = this.buffer.subarray(this.pos + 1);
-                this.pos = 0;
+              if (byte === LF) {
                 this.crlfCheck = false;
+                this.consumeCurrentByte();
                 continue;
               }
               this.crlfCheck = false;
             }
-            if (this.buffer[this.pos] === LF || this.buffer[this.pos] === CR) {
-              if (this.buffer[this.pos] === CR) {
+            if (byte === LF || byte === CR) {
+              if (byte === CR) {
                 this.crlfCheck = true;
               }
-              this.buffer = this.buffer.subarray(this.pos + 1);
-              this.pos = 0;
-              if (this.event.data !== void 0 || this.event.event || this.event.id || this.event.retry) {
+              this.consumeCurrentByte();
+              if (this.hasPendingEvent()) {
                 this.processEvent(this.event);
               }
               this.clearEvent();
@@ -18292,23 +18460,36 @@ var require_eventsource_stream = __commonJS({
             this.eventEndCheck = false;
             continue;
           }
-          if (this.buffer[this.pos] === LF || this.buffer[this.pos] === CR) {
-            if (this.buffer[this.pos] === CR) {
+          if (byte === LF || byte === CR) {
+            if (byte === CR) {
               this.crlfCheck = true;
             }
-            this.parseLine(this.buffer.subarray(0, this.pos), this.event);
-            this.buffer = this.buffer.subarray(this.pos + 1);
-            this.pos = 0;
+            try {
+              this.parseLine(this.readLine(), this.event);
+            } catch (error2) {
+              callback(error2);
+              return;
+            }
+            this.consumeCurrentByte();
             this.eventEndCheck = true;
             continue;
           }
-          this.pos++;
+          if (this.maxEventSize > 0 && ++this.lineLength > this.maxEventSize + 7) {
+            callback(createMaxEventSizeExceededError());
+            return;
+          }
+          this.advanceCursor();
         }
         callback();
       }
+      _destroy(error2, callback) {
+        this.chunks.length = 0;
+        this.clearEvent();
+        super._destroy(error2, callback);
+      }
       /**
        * @param {Buffer} line
-       * @param {EventStreamEvent} event
+       * @param {EventSourceStreamEvent} event
        */
       parseLine(line, event) {
         if (line.length === 0) {
@@ -18318,44 +18499,60 @@ var require_eventsource_stream = __commonJS({
         if (colonPosition === 0) {
           return;
         }
-        let field = "";
-        let value = "";
+        let fieldLength = line.length;
+        let valueStart = line.length;
         if (colonPosition !== -1) {
-          field = line.subarray(0, colonPosition).toString("utf8");
-          let valueStart = colonPosition + 1;
+          fieldLength = colonPosition;
+          valueStart = colonPosition + 1;
           if (line[valueStart] === SPACE) {
             ++valueStart;
           }
-          value = line.subarray(valueStart).toString("utf8");
-        } else {
-          field = line.toString("utf8");
-          value = "";
         }
-        switch (field) {
-          case "data":
-            if (event[field] === void 0) {
-              event[field] = value;
-            } else {
-              event[field] += `
+        if (isFieldName(line, fieldLength, DATA)) {
+          if (this.maxEventSize > 0 && this.dataLineCount >= this.maxDataLines) {
+            throw createMaxEventSizeExceededError();
+          }
+          const valueBytes = line.length - valueStart;
+          const dataSize = this.eventFieldSizes.data + (event.data === void 0 ? 0 : 1) + valueBytes;
+          this.setEventFieldSize("data", dataSize);
+          const value = line.toString("utf8", valueStart);
+          if (event.data === void 0) {
+            event.data = value;
+          } else {
+            event.data += `
 ${value}`;
-            }
-            break;
-          case "retry":
-            if (isASCIINumber(value)) {
-              event[field] = value;
-            }
-            break;
-          case "id":
-            if (isValidLastEventId(value)) {
-              event[field] = value;
-            }
-            break;
-          case "event":
-            if (value.length > 0) {
-              event[field] = value;
-            }
-            break;
+          }
+          this.dataLineCount++;
+          return;
         }
+        if (isFieldName(line, fieldLength, RETRY)) {
+          if (isASCIINumberBytes(line, valueStart)) {
+            this.setEventFieldSize("retry", line.length - valueStart);
+            event.retry = line.toString("utf8", valueStart);
+          }
+          return;
+        }
+        if (isFieldName(line, fieldLength, ID)) {
+          if (isValidLastEventIdBytes(line, valueStart)) {
+            this.setEventFieldSize("id", line.length - valueStart);
+            event.id = line.toString("utf8", valueStart);
+          }
+          return;
+        }
+        if (isFieldName(line, fieldLength, EVENT)) {
+          if (valueStart < line.length) {
+            this.setEventFieldSize("event", line.length - valueStart);
+            event.event = line.toString("utf8", valueStart);
+          }
+        }
+      }
+      setEventFieldSize(field, size) {
+        const eventSize = this.eventSize - this.eventFieldSizes[field] + size;
+        if (this.maxEventSize > 0 && eventSize > this.maxEventSize) {
+          throw createMaxEventSizeExceededError();
+        }
+        this.eventSize = eventSize;
+        this.eventFieldSizes[field] = size;
       }
       /**
        * @param {EventSourceStreamEvent} event
@@ -18379,12 +18576,128 @@ ${value}`;
         }
       }
       clearEvent() {
-        this.event = {
-          data: void 0,
-          event: void 0,
-          id: void 0,
-          retry: void 0
-        };
+        this.event.data = void 0;
+        this.event.event = void 0;
+        this.event.id = void 0;
+        this.event.retry = void 0;
+        this.eventSize = 0;
+        this.dataLineCount = 0;
+        this.eventFieldSizes.data = 0;
+        this.eventFieldSizes.event = 0;
+        this.eventFieldSizes.id = 0;
+        this.eventFieldSizes.retry = 0;
+      }
+      hasPendingEvent() {
+        return this.event.data !== void 0 || this.event.event !== void 0 || this.event.id !== void 0 || this.event.retry !== void 0;
+      }
+      hasCurrentByte() {
+        return this.chunkIndex < this.chunks.length && this.pos < this.chunks[this.chunkIndex].length;
+      }
+      currentByte() {
+        return this.chunks[this.chunkIndex][this.pos];
+      }
+      consumeCurrentByte() {
+        this.advanceCursor();
+        this.syncLineStartToCursor();
+      }
+      advanceCursor() {
+        this.pos++;
+        while (this.chunkIndex < this.chunks.length && this.pos >= this.chunks[this.chunkIndex].length) {
+          this.chunkIndex++;
+          this.pos = 0;
+        }
+      }
+      syncLineStartToCursor() {
+        this.lineChunkIndex = this.chunkIndex;
+        this.linePos = this.pos;
+        this.lineLength = 0;
+        this.dropConsumedChunks();
+      }
+      dropConsumedChunks() {
+        if (this.lineChunkIndex > 0) {
+          const consumed = this.lineChunkIndex;
+          this.chunks.splice(0, consumed);
+          this.lineChunkIndex = 0;
+          this.chunkIndex -= consumed;
+        }
+        if (this.chunkIndex === this.chunks.length) {
+          this.chunks.length = 0;
+          this.chunkIndex = 0;
+          this.pos = 0;
+          this.lineChunkIndex = 0;
+          this.linePos = 0;
+        }
+      }
+      readLine() {
+        if (this.lineChunkIndex === this.chunkIndex) {
+          return this.chunks[this.chunkIndex].subarray(this.linePos, this.pos);
+        }
+        const chunks = [];
+        let length = 0;
+        for (let i = this.lineChunkIndex; i <= this.chunkIndex; i++) {
+          const chunk = this.chunks[i];
+          const start = i === this.lineChunkIndex ? this.linePos : 0;
+          const end = i === this.chunkIndex ? this.pos : chunk.length;
+          const slice = chunk.subarray(start, end);
+          length += slice.length;
+          chunks.push(slice);
+        }
+        return Buffer.concat(chunks, length);
+      }
+      peekBufferedByte(offset) {
+        let chunkIndex = this.lineChunkIndex;
+        let pos = this.linePos;
+        while (chunkIndex < this.chunks.length) {
+          const chunk = this.chunks[chunkIndex];
+          const remaining = chunk.length - pos;
+          if (offset < remaining) {
+            return chunk[pos + offset];
+          }
+          offset -= remaining;
+          chunkIndex++;
+          pos = 0;
+        }
+      }
+      discardLeadingBytes(count) {
+        while (count > 0 && this.lineChunkIndex < this.chunks.length) {
+          const chunk = this.chunks[this.lineChunkIndex];
+          const remaining = chunk.length - this.linePos;
+          if (count < remaining) {
+            this.linePos += count;
+            count = 0;
+          } else {
+            count -= remaining;
+            this.lineChunkIndex++;
+            this.linePos = 0;
+          }
+        }
+        this.chunkIndex = this.lineChunkIndex;
+        this.pos = this.linePos;
+        this.dropConsumedChunks();
+      }
+      handleBOM() {
+        const first = this.peekBufferedByte(0);
+        const second = this.peekBufferedByte(1);
+        const third = this.peekBufferedByte(2);
+        if (second === void 0) {
+          if (first === BOM[0]) {
+            return true;
+          }
+          this.checkBOM = false;
+          return true;
+        }
+        if (third === void 0) {
+          if (first === BOM[0] && second === BOM[1]) {
+            return true;
+          }
+          this.checkBOM = false;
+          return false;
+        }
+        if (first === BOM[0] && second === BOM[1] && third === BOM[2]) {
+          this.discardLeadingBytes(3);
+        }
+        this.checkBOM = false;
+        return !this.hasCurrentByte();
       }
     };
     module2.exports = {
@@ -18408,6 +18721,7 @@ var require_eventsource = __commonJS({
     var { delay } = require_util8();
     var { kEnumerableProperty } = require_util();
     var { environmentSettingsObject } = require_util2();
+    var { getGlobalDispatcher } = require_global2();
     var experimentalWarned = false;
     var defaultReconnectionTime = 3e3;
     var CONNECTING = 0;
@@ -18548,6 +18862,7 @@ var require_eventsource = __commonJS({
           this.#state.origin = response.urlList[response.urlList.length - 1].origin;
           const eventSourceStream = new EventSourceStream({
             eventSourceSettings: this.#state,
+            maxEventSize: this.#dispatcher.eventSourceOptions?.maxEventSize,
             push: (event) => {
               this.dispatchEvent(createFastMessageEvent(
                 event.type,
@@ -18680,7 +18995,8 @@ var require_eventsource = __commonJS({
       {
         key: "dispatcher",
         // undici only
-        converter: webidl.converters.any
+        converter: webidl.converters.any,
+        defaultValue: () => getGlobalDispatcher()
       }
     ]);
     module2.exports = {
@@ -48308,7 +48624,7 @@ var require_package2 = __commonJS({
   "node_modules/@grpc/grpc-js/package.json"(exports2, module2) {
     module2.exports = {
       name: "@grpc/grpc-js",
-      version: "1.14.4",
+      version: "1.14.7",
       description: "gRPC Library for Node - pure JS implementation",
       homepage: "https://grpc.io/",
       repository: "https://github.com/grpc/grpc-node/tree/master/packages/grpc-js",
@@ -48481,6 +48797,9 @@ var require_logging = __commonJS({
     var enabledTracers = /* @__PURE__ */ new Set();
     var disabledTracers = /* @__PURE__ */ new Set();
     for (const tracerName of tracersString.split(",")) {
+      if (tracerName.length === 0) {
+        continue;
+      }
       if (tracerName.startsWith("-")) {
         disabledTracers.add(tracerName.substring(1));
       } else {
@@ -48488,12 +48807,16 @@ var require_logging = __commonJS({
       }
     }
     var allEnabled = enabledTracers.has("all");
+    var anyTracerEnabled = allEnabled || enabledTracers.size > 0;
     function trace(severity, tracer, text) {
       if (isTracerEnabled(tracer)) {
         (0, exports2.log)(severity, (/* @__PURE__ */ new Date()).toISOString() + " | v" + clientVersion + " " + process_1.pid + " | " + tracer + " | " + text);
       }
     }
     function isTracerEnabled(tracer) {
+      if (!anyTracerEnabled) {
+        return false;
+      }
       return !disabledTracers.has(tracer) && (allEnabled || enabledTracers.has(tracer));
     }
   }
@@ -48571,7 +48894,6 @@ var require_metadata = __commonJS({
     var Metadata = class _Metadata {
       constructor(options = {}) {
         this.internalRepr = /* @__PURE__ */ new Map();
-        this.opaqueData = /* @__PURE__ */ new Map();
         this.options = options;
       }
       /**
@@ -48682,7 +49004,11 @@ var require_metadata = __commonJS({
           if (key.startsWith(":")) {
             continue;
           }
-          result[key] = values.map(bufToString);
+          if (values.length === 1) {
+            result[key] = bufToString(values[0]);
+          } else {
+            result[key] = values.map(bufToString);
+          }
         }
         return result;
       }
@@ -48706,6 +49032,9 @@ var require_metadata = __commonJS({
        * @param value
        */
       setOpaque(key, value) {
+        if (!this.opaqueData) {
+          this.opaqueData = /* @__PURE__ */ new Map();
+        }
         this.opaqueData.set(key, value);
       }
       /**
@@ -48714,7 +49043,8 @@ var require_metadata = __commonJS({
        * @returns
        */
       getOpaque(key) {
-        return this.opaqueData.get(key);
+        var _a;
+        return (_a = this.opaqueData) === null || _a === void 0 ? void 0 : _a.get(key);
       }
       /**
        * Returns a new Metadata object based fields in a given IncomingHttpHeaders
@@ -48773,6 +49103,7 @@ var require_call_credentials = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CallCredentials = void 0;
+    exports2.isEmptyCallCredentials = isEmptyCallCredentials;
     var metadata_1 = require_metadata();
     function isCurrentOauth2Client(client) {
       return "getRequestHeaders" in client && typeof client.getRequestHeaders === "function";
@@ -48843,6 +49174,9 @@ var require_call_credentials = __commonJS({
         return base;
       }
       compose(other) {
+        if (other instanceof EmptyCallCredentials) {
+          return this;
+        }
         return new _ComposedCallCredentials(this.creds.concat([other]));
       }
       _equals(other) {
@@ -48873,6 +49207,9 @@ var require_call_credentials = __commonJS({
         });
       }
       compose(other) {
+        if (other instanceof EmptyCallCredentials) {
+          return this;
+        }
         return new ComposedCallCredentials([this, other]);
       }
       _equals(other) {
@@ -48897,6 +49234,9 @@ var require_call_credentials = __commonJS({
         return other instanceof _EmptyCallCredentials;
       }
     };
+    function isEmptyCallCredentials(callCredentials) {
+      return callCredentials instanceof EmptyCallCredentials;
+    }
   }
 });
 
@@ -48932,6 +49272,8 @@ var require_uri_parser = __commonJS({
     exports2.splitHostPort = splitHostPort;
     exports2.combineHostPort = combineHostPort;
     exports2.uriToString = uriToString;
+    exports2.extractServiceName = extractServiceName;
+    exports2.computeServiceUrl = computeServiceUrl;
     var URI_REGEX = /^(?:([A-Za-z0-9+.-]+):)?(?:\/\/([^/]*)\/)?(.+)$/;
     function parseUri(uriString) {
       const parsedUri = URI_REGEX.exec(uriString);
@@ -49013,6 +49355,23 @@ var require_uri_parser = __commonJS({
       }
       result += uri.path;
       return result;
+    }
+    function extractServiceName(methodName) {
+      const firstSlashIndex = methodName.indexOf("/");
+      if (firstSlashIndex === -1) {
+        return "";
+      }
+      const secondSlashIndex = methodName.indexOf("/", firstSlashIndex + 1);
+      if (secondSlashIndex === -1) {
+        return methodName.substring(firstSlashIndex + 1);
+      }
+      return methodName.substring(firstSlashIndex + 1, secondSlashIndex);
+    }
+    function computeServiceUrl(host, methodName) {
+      var _a, _b;
+      const serviceName = extractServiceName(methodName);
+      const hostname = (_b = (_a = splitHostPort(host)) === null || _a === void 0 ? void 0 : _a.host) !== null && _b !== void 0 ? _b : "localhost";
+      return `https://${hostname}/${serviceName}`;
     }
   }
 });
@@ -49161,6 +49520,7 @@ var require_channel_credentials = __commonJS({
         return other instanceof _InsecureChannelCredentialsImpl;
       }
       _createSecureConnector(channelTarget, options, callCredentials) {
+        const credentials = callCredentials !== null && callCredentials !== void 0 ? callCredentials : call_credentials_1.CallCredentials.createEmpty();
         return {
           connect(socket) {
             return Promise.resolve({
@@ -49172,7 +49532,7 @@ var require_channel_credentials = __commonJS({
             return Promise.resolve();
           },
           getCallCredentials: () => {
-            return callCredentials !== null && callCredentials !== void 0 ? callCredentials : call_credentials_1.CallCredentials.createEmpty();
+            return credentials;
           },
           destroy() {
           }
@@ -50019,7 +50379,9 @@ var require_backoff_timeout = __commonJS({
             this.maxDelay = options.maxDelay;
           }
         }
-        this.trace("constructed initialDelay=" + this.initialDelay + " multiplier=" + this.multiplier + " jitter=" + this.jitter + " maxDelay=" + this.maxDelay);
+        if (this.traceEnabled) {
+          this.trace("constructed initialDelay=" + this.initialDelay + " multiplier=" + this.multiplier + " jitter=" + this.jitter + " maxDelay=" + this.maxDelay);
+        }
         this.nextDelay = this.initialDelay;
         this.timerId = setTimeout(() => {
         }, 0);
@@ -50028,12 +50390,19 @@ var require_backoff_timeout = __commonJS({
       static getNextId() {
         return this.nextId++;
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "{" + this.id + "} " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "{" + this.id + "} " + text);
+        }
       }
       runTimer(delay) {
         var _a, _b;
-        this.trace("runTimer(delay=" + delay + ")");
+        if (this.traceEnabled) {
+          this.trace("runTimer(delay=" + delay + ")");
+        }
         this.endTime = this.startTime;
         this.endTime.setMilliseconds(this.endTime.getMilliseconds() + delay);
         clearTimeout(this.timerId);
@@ -50072,7 +50441,9 @@ var require_backoff_timeout = __commonJS({
        * retroactively apply that reset to the current timer.
        */
       reset() {
-        this.trace("reset() running=" + this.running);
+        if (this.traceEnabled) {
+          this.trace("reset() running=" + this.running);
+        }
         this.nextDelay = this.initialDelay;
         if (this.running) {
           const now = /* @__PURE__ */ new Date();
@@ -50259,6 +50630,7 @@ var require_resolving_load_balancer = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ResolvingLoadBalancer = void 0;
+    exports2.getDefaultConfigSelector = getDefaultConfigSelector;
     var load_balancer_1 = require_load_balancer();
     var service_config_1 = require_service_config();
     var connectivity_state_1 = require_connectivity_state();
@@ -50309,34 +50681,40 @@ var require_resolving_load_balancer = __commonJS({
       }
       return null;
     }
+    var MAX_CACHED_METHOD_CONFIGS = 100;
     function getDefaultConfigSelector(serviceConfig) {
+      const methodConfigCache = /* @__PURE__ */ new Map();
       return {
-        invoke(methodName, metadata) {
+        invoke(methodName, metadata, channelId) {
           var _a, _b;
-          const splitName = methodName.split("/").filter((x) => x.length > 0);
-          const service = (_a = splitName[0]) !== null && _a !== void 0 ? _a : "";
-          const method = (_b = splitName[1]) !== null && _b !== void 0 ? _b : "";
-          if (serviceConfig && serviceConfig.methodConfig) {
-            for (const matchLevel of NAME_MATCH_LEVEL_ORDER) {
-              const matchingConfig = findMatchingConfig(service, method, serviceConfig.methodConfig, matchLevel);
-              if (matchingConfig) {
-                return {
-                  methodConfig: matchingConfig,
-                  pickInformation: {},
-                  status: constants_1.Status.OK,
-                  dynamicFilterFactories: []
-                };
+          let matchingConfig = methodConfigCache.get(methodName);
+          if (matchingConfig === void 0) {
+            const splitName = methodName.split("/").filter((x) => x.length > 0);
+            const service = (_a = splitName[0]) !== null && _a !== void 0 ? _a : "";
+            const method = (_b = splitName[1]) !== null && _b !== void 0 ? _b : "";
+            matchingConfig = { name: [] };
+            if (serviceConfig && serviceConfig.methodConfig) {
+              for (const matchLevel of NAME_MATCH_LEVEL_ORDER) {
+                const foundConfig = findMatchingConfig(service, method, serviceConfig.methodConfig, matchLevel);
+                if (foundConfig) {
+                  matchingConfig = foundConfig;
+                  break;
+                }
               }
+            }
+            if (methodConfigCache.size < MAX_CACHED_METHOD_CONFIGS) {
+              methodConfigCache.set(methodName, matchingConfig);
             }
           }
           return {
-            methodConfig: { name: [] },
+            methodConfig: matchingConfig,
             pickInformation: {},
             status: constants_1.Status.OK,
             dynamicFilterFactories: []
           };
         },
         unref() {
+          methodConfigCache.clear();
         }
       };
     }
@@ -62146,6 +62524,7 @@ var require_channelz = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.registerChannelzSocket = exports2.registerChannelzServer = exports2.registerChannelzSubchannel = exports2.registerChannelzChannel = exports2.ChannelzCallTrackerStub = exports2.ChannelzCallTracker = exports2.ChannelzChildrenTrackerStub = exports2.ChannelzChildrenTracker = exports2.ChannelzTrace = exports2.ChannelzTraceStub = void 0;
     exports2.unregisterChannelzRef = unregisterChannelzRef;
+    exports2.dateToProtoTimestamp = dateToProtoTimestamp;
     exports2.getChannelzHandlers = getChannelzHandlers;
     exports2.getChannelzServiceDefinition = getChannelzServiceDefinition;
     exports2.setup = setup;
@@ -62302,7 +62681,7 @@ var require_channelz = __commonJS({
       }
       addCallStarted() {
         this.callsStarted += 1;
-        this.lastCallStartedTimestamp = /* @__PURE__ */ new Date();
+        this.lastCallStartedTimestamp = Date.now();
       }
       addCallSucceeded() {
         this.callsSucceeded += 1;
@@ -62444,12 +62823,12 @@ var require_channelz = __commonJS({
       }
     }
     function dateToProtoTimestamp(date) {
-      if (!date) {
+      if (date === null || date === void 0) {
         return null;
       }
-      const millisSinceEpoch = date.getTime();
+      const millisSinceEpoch = typeof date === "number" ? date : date.getTime();
       return {
-        seconds: millisSinceEpoch / 1e3 | 0,
+        seconds: Math.floor(millisSinceEpoch / 1e3),
         nanos: millisSinceEpoch % 1e3 * 1e6
       };
     }
@@ -63104,7 +63483,7 @@ var require_deadline = __commonJS({
       ["H", 60 * 60 * 1e3]
     ];
     function getDeadlineTimeoutString(deadline) {
-      const now = (/* @__PURE__ */ new Date()).getTime();
+      const now = Date.now();
       if (deadline instanceof Date) {
         deadline = deadline.getTime();
       }
@@ -63120,7 +63499,7 @@ var require_deadline = __commonJS({
     var MAX_TIMEOUT_TIME = 2147483647;
     function getRelativeTimeout(deadline) {
       const deadlineMs = deadline instanceof Date ? deadline.getTime() : deadline;
-      const now = (/* @__PURE__ */ new Date()).getTime();
+      const now = Date.now();
       const timeout = deadlineMs - now;
       if (timeout < 0) {
         return 0;
@@ -63143,7 +63522,9 @@ var require_deadline = __commonJS({
       }
     }
     function formatDateDifference(startDate, endDate) {
-      return ((endDate.getTime() - startDate.getTime()) / 1e3).toFixed(3) + "s";
+      const startMs = typeof startDate === "number" ? startDate : startDate.getTime();
+      const endMs = typeof endDate === "number" ? endDate : endDate.getTime();
+      return ((endMs - startMs) / 1e3).toFixed(3) + "s";
     }
   }
 });
@@ -63238,7 +63619,6 @@ var require_single_subchannel_channel = __commonJS({
     var uri_parser_1 = require_uri_parser();
     var SubchannelCallWrapper = class {
       constructor(subchannel, method, filterStackFactory, options, callNumber) {
-        var _a, _b;
         this.subchannel = subchannel;
         this.method = method;
         this.options = options;
@@ -63250,13 +63630,7 @@ var require_single_subchannel_channel = __commonJS({
         this.pendingStatus = null;
         this.readFilterPending = false;
         this.writeFilterPending = false;
-        const splitPath = this.method.split("/");
-        let serviceName = "";
-        if (splitPath.length >= 2) {
-          serviceName = splitPath[1];
-        }
-        const hostname = (_b = (_a = (0, uri_parser_1.splitHostPort)(this.options.host)) === null || _a === void 0 ? void 0 : _a.host) !== null && _b !== void 0 ? _b : "localhost";
-        this.serviceUrl = `https://${hostname}/${serviceName}`;
+        this.serviceUrl = (0, uri_parser_1.computeServiceUrl)(this.options.host, this.method);
         const timeout = (0, deadline_1.getRelativeTimeout)(options.deadline);
         if (timeout !== Infinity) {
           if (timeout <= 0) {
@@ -63334,7 +63708,7 @@ var require_single_subchannel_channel = __commonJS({
             }
           }
         };
-        this.childCall = this.subchannel.createCall(credsMetadata, this.options.host, this.method, childListener);
+        this.childCall = this.subchannel.createCall(credsMetadata, this.options.host, this.method, childListener, this.callNumber);
         if (this.readPending) {
           this.childCall.startRead();
         }
@@ -63504,7 +63878,9 @@ var require_subchannel = __commonJS({
         }
         this.channelzRef = (0, channelz_1.registerChannelzSubchannel)(this.subchannelAddressString, () => this.getChannelzInfo(), this.channelzEnabled);
         this.channelzTrace.addTrace("CT_INFO", "Subchannel created");
-        this.trace("Subchannel constructed with options " + JSON.stringify(options, void 0, 2));
+        if (this.traceEnabled) {
+          this.trace("Subchannel constructed with options " + JSON.stringify(options, void 0, 2));
+        }
         this.secureConnector = credentials._createSecureConnector(channelTarget, options);
       }
       getChannelzInfo() {
@@ -63516,11 +63892,21 @@ var require_subchannel = __commonJS({
           target: this.subchannelAddressString
         };
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
+      get refTraceEnabled() {
+        return logging.isTracerEnabled("subchannel_refcount");
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        }
       }
       refTrace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, "subchannel_refcount", "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        if (this.refTraceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, "subchannel_refcount", "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        }
       }
       handleBackoffTimer() {
         if (this.continueConnecting) {
@@ -63577,10 +63963,12 @@ var require_subchannel = __commonJS({
         if (oldStates.indexOf(this.connectivityState) === -1) {
           return false;
         }
-        if (errorMessage) {
-          this.trace(connectivity_state_1.ConnectivityState[this.connectivityState] + " -> " + connectivity_state_1.ConnectivityState[newState] + ' with error "' + errorMessage + '"');
-        } else {
-          this.trace(connectivity_state_1.ConnectivityState[this.connectivityState] + " -> " + connectivity_state_1.ConnectivityState[newState]);
+        if (this.traceEnabled) {
+          if (errorMessage) {
+            this.trace(connectivity_state_1.ConnectivityState[this.connectivityState] + " -> " + connectivity_state_1.ConnectivityState[newState] + ' with error "' + errorMessage + '"');
+          } else {
+            this.trace(connectivity_state_1.ConnectivityState[this.connectivityState] + " -> " + connectivity_state_1.ConnectivityState[newState]);
+          }
         }
         if (this.channelzEnabled) {
           this.channelzTrace.addTrace("CT_INFO", "Connectivity state change to " + connectivity_state_1.ConnectivityState[newState]);
@@ -63624,11 +64012,15 @@ var require_subchannel = __commonJS({
         return true;
       }
       ref() {
-        this.refTrace("refcount " + this.refcount + " -> " + (this.refcount + 1));
+        if (this.refTraceEnabled) {
+          this.refTrace("refcount " + this.refcount + " -> " + (this.refcount + 1));
+        }
         this.refcount += 1;
       }
       unref() {
-        this.refTrace("refcount " + this.refcount + " -> " + (this.refcount - 1));
+        if (this.refTraceEnabled) {
+          this.refTrace("refcount " + this.refcount + " -> " + (this.refcount - 1));
+        }
         this.refcount -= 1;
         if (this.refcount === 0) {
           this.channelzTrace.addTrace("CT_INFO", "Shutting down");
@@ -63646,7 +64038,7 @@ var require_subchannel = __commonJS({
         }
         return false;
       }
-      createCall(metadata, host, method, listener) {
+      createCall(metadata, host, method, listener, callId) {
         if (!this.transport) {
           throw new Error("Cannot create call, subchannel not READY");
         }
@@ -63666,7 +64058,7 @@ var require_subchannel = __commonJS({
         } else {
           statsTracker = {};
         }
-        return this.transport.createCall(metadata, host, method, listener, statsTracker);
+        return this.transport.createCall(metadata, host, method, listener, statsTracker, callId);
       }
       /**
        * If the subchannel is currently IDLE, start connecting and switch to the
@@ -63772,9 +64164,11 @@ var require_environment = __commonJS({
   "node_modules/@grpc/grpc-js/build/src/environment.js"(exports2) {
     "use strict";
     var _a;
+    var _b;
     Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.GRPC_NODE_USE_ALTERNATIVE_RESOLVER = void 0;
+    exports2.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS = exports2.GRPC_NODE_USE_ALTERNATIVE_RESOLVER = void 0;
     exports2.GRPC_NODE_USE_ALTERNATIVE_RESOLVER = ((_a = process.env.GRPC_NODE_USE_ALTERNATIVE_RESOLVER) !== null && _a !== void 0 ? _a : "false") === "true";
+    exports2.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS = ((_b = process.env.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) !== null && _b !== void 0 ? _b : "false") === "true";
   }
 });
 
@@ -64445,11 +64839,13 @@ var require_subchannel_call = __commonJS({
         const maxReceiveMessageLength = (_a = transport.getOptions()["grpc.max_receive_message_length"]) !== null && _a !== void 0 ? _a : constants_1.DEFAULT_MAX_RECEIVE_MESSAGE_LENGTH;
         this.decoder = new stream_decoder_1.StreamDecoder(maxReceiveMessageLength);
         http2Stream.on("response", (headers, flags) => {
-          let headersString = "";
-          for (const header of Object.keys(headers)) {
-            headersString += "		" + header + ": " + headers[header] + "\n";
+          if (this.traceEnabled) {
+            let headersString = "";
+            for (const header of Object.keys(headers)) {
+              headersString += "		" + header + ": " + headers[header] + "\n";
+            }
+            this.trace("Received server headers:\n" + headersString);
           }
-          this.trace("Received server headers:\n" + headersString);
           this.httpStatusCode = headers[":status"];
           if (flags & http2.constants.NGHTTP2_FLAG_END_STREAM) {
             this.handleTrailers(headers);
@@ -64475,7 +64871,9 @@ var require_subchannel_call = __commonJS({
           if (this.statusOutput) {
             return;
           }
-          this.trace("receive HTTP/2 data frame of length " + data.length);
+          if (this.traceEnabled) {
+            this.trace("receive HTTP/2 data frame of length " + data.length);
+          }
           let messages;
           try {
             messages = this.decoder.write(data);
@@ -64489,7 +64887,9 @@ var require_subchannel_call = __commonJS({
             return;
           }
           for (const message of messages) {
-            this.trace("parsed message of length " + message.length);
+            if (this.traceEnabled) {
+              this.trace("parsed message of length " + message.length);
+            }
             this.callEventTracker.addMessageReceived();
             this.tryPush(message);
           }
@@ -64502,7 +64902,9 @@ var require_subchannel_call = __commonJS({
           this.serverEndedCall = true;
           process.nextTick(() => {
             var _a2;
-            this.trace("HTTP/2 stream closed with code " + http2Stream.rstCode);
+            if (this.traceEnabled) {
+              this.trace("HTTP/2 stream closed with code " + http2Stream.rstCode);
+            }
             if (((_a2 = this.finalStatus) === null || _a2 === void 0 ? void 0 : _a2.code) === constants_1.Status.OK) {
               return;
             }
@@ -64570,7 +64972,9 @@ var require_subchannel_call = __commonJS({
         });
         http2Stream.on("error", (err) => {
           if (err.code !== "ERR_HTTP2_STREAM_ERROR") {
-            this.trace("Node error event: message=" + err.message + " code=" + err.code + " errno=" + getSystemErrorName(err.errno) + " syscall=" + err.syscall);
+            if (this.traceEnabled) {
+              this.trace("Node error event: message=" + err.message + " code=" + err.code + " errno=" + getSystemErrorName(err.errno) + " syscall=" + err.syscall);
+            }
             this.internalError = err;
           }
           this.callEventTracker.onStreamEnd(false);
@@ -64592,7 +64996,9 @@ var require_subchannel_call = __commonJS({
       outputStatus() {
         if (!this.statusOutput) {
           this.statusOutput = true;
-          this.trace("ended with status: code=" + this.finalStatus.code + ' details="' + this.finalStatus.details + '"');
+          if (this.traceEnabled) {
+            this.trace("ended with status: code=" + this.finalStatus.code + ' details="' + this.finalStatus.details + '"');
+          }
           this.callEventTracker.onCallEnd(this.finalStatus);
           process.nextTick(() => {
             this.listener.onReceiveStatus(this.finalStatus);
@@ -64600,8 +65006,13 @@ var require_subchannel_call = __commonJS({
           this.http2Stream.resume();
         }
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
       trace(text) {
-        logging.trace(constants_2.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callId + "] " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_2.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callId + "] " + text);
+        }
       }
       /**
        * On first call, emits a 'status' event with the given StatusObject.
@@ -64623,7 +65034,9 @@ var require_subchannel_call = __commonJS({
         }
       }
       push(message) {
-        this.trace("pushing to reader message of length " + (message instanceof Buffer ? message.length : null));
+        if (this.traceEnabled) {
+          this.trace("pushing to reader message of length " + (message instanceof Buffer ? message.length : null));
+        }
         this.canPush = false;
         this.isPushPending = true;
         process.nextTick(() => {
@@ -64640,39 +65053,49 @@ var require_subchannel_call = __commonJS({
           this.http2Stream.pause();
           this.push(messageBytes);
         } else {
-          this.trace("unpushedReadMessages.push message of length " + messageBytes.length);
+          if (this.traceEnabled) {
+            this.trace("unpushedReadMessages.push message of length " + messageBytes.length);
+          }
           this.unpushedReadMessages.push(messageBytes);
         }
       }
       handleTrailers(headers) {
         this.serverEndedCall = true;
         this.callEventTracker.onStreamEnd(true);
-        let headersString = "";
-        for (const header of Object.keys(headers)) {
-          headersString += "		" + header + ": " + headers[header] + "\n";
+        if (this.traceEnabled) {
+          let headersString = "";
+          for (const header of Object.keys(headers)) {
+            headersString += "		" + header + ": " + headers[header] + "\n";
+          }
+          this.trace("Received server trailers:\n" + headersString);
         }
-        this.trace("Received server trailers:\n" + headersString);
         let metadata;
         try {
           metadata = metadata_1.Metadata.fromHttp2Headers(headers);
         } catch (e) {
           metadata = new metadata_1.Metadata();
         }
-        const metadataMap = metadata.getMap();
+        const statusValues = metadata.get("grpc-status");
         let status;
-        if (typeof metadataMap["grpc-status"] === "string") {
-          const receivedStatus = Number(metadataMap["grpc-status"]);
-          this.trace("received status code " + receivedStatus + " from server");
+        if (statusValues.length > 0 && typeof statusValues[0] === "string") {
+          const receivedStatus = Number(statusValues[0]);
+          if (this.traceEnabled) {
+            this.trace("received status code " + receivedStatus + " from server");
+          }
           metadata.remove("grpc-status");
           let details = "";
-          if (typeof metadataMap["grpc-message"] === "string") {
+          const messageValues = metadata.get("grpc-message");
+          if (messageValues.length > 0 && typeof messageValues[0] === "string") {
+            const messageString = messageValues[0];
             try {
-              details = decodeURI(metadataMap["grpc-message"]);
-            } catch (e) {
-              details = metadataMap["grpc-message"];
+              details = decodeURI(messageString);
+            } catch (error2) {
+              details = messageString;
             }
             metadata.remove("grpc-message");
-            this.trace('received status details string "' + details + '" from server');
+            if (this.traceEnabled) {
+              this.trace('received status details string "' + details + '" from server');
+            }
           }
           status = {
             code: receivedStatus,
@@ -64697,7 +65120,9 @@ var require_subchannel_call = __commonJS({
           return;
         }
         if (this.serverEndedCall) {
-          this.http2Stream.end();
+          if (!this.http2Stream.writableEnded) {
+            this.http2Stream.end();
+          }
         } else {
           let code;
           if (((_a = this.finalStatus) === null || _a === void 0 ? void 0 : _a.code) === constants_1.Status.OK) {
@@ -64705,12 +65130,16 @@ var require_subchannel_call = __commonJS({
           } else {
             code = http2.constants.NGHTTP2_CANCEL;
           }
-          this.trace("close http2 stream with code " + code);
+          if (this.traceEnabled) {
+            this.trace("close http2 stream with code " + code);
+          }
           this.http2Stream.close(code);
         }
       }
       cancelWithStatus(status, details) {
-        this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        if (this.traceEnabled) {
+          this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        }
         this.endCall({ code: status, details, metadata: new metadata_1.Metadata() });
       }
       getStatus() {
@@ -64740,7 +65169,9 @@ var require_subchannel_call = __commonJS({
         this.http2Stream.resume();
       }
       sendMessageWithContext(context3, message) {
-        this.trace("write() called with message of length " + message.length);
+        if (this.traceEnabled) {
+          this.trace("write() called with message of length " + message.length);
+        }
         const cb = (error2) => {
           process.nextTick(() => {
             var _a;
@@ -64749,12 +65180,19 @@ var require_subchannel_call = __commonJS({
               code = constants_1.Status.INTERNAL;
             }
             if (error2) {
-              this.cancelWithStatus(code, `Write error: ${error2.message}`);
+              this.endCall({
+                code,
+                details: `Write error: ${error2.message}`,
+                metadata: new metadata_1.Metadata(),
+                rstCode: this.http2Stream.rstCode
+              });
             }
             (_a = context3.callback) === null || _a === void 0 ? void 0 : _a.call(context3);
           });
         };
-        this.trace("sending data chunk of length " + message.length);
+        if (this.traceEnabled) {
+          this.trace("sending data chunk of length " + message.length);
+        }
         this.callEventTracker.addMessageSent();
         try {
           this.http2Stream.write(message, cb);
@@ -64768,6 +65206,9 @@ var require_subchannel_call = __commonJS({
       }
       halfClose() {
         this.trace("end() called");
+        if (this.http2Stream.destroyed || this.http2Stream.writableEnded) {
+          return;
+        }
         this.trace("calling end() on HTTP/2 stream");
         this.http2Stream.end();
       }
@@ -64853,18 +65294,24 @@ var require_transport = __commonJS({
           if (errorCode === http2.constants.NGHTTP2_ENHANCE_YOUR_CALM && opaqueData && opaqueData.equals(tooManyPingsData)) {
             tooManyPings = true;
           }
-          this.trace("connection closed by GOAWAY with code " + errorCode + " and data " + (opaqueData === null || opaqueData === void 0 ? void 0 : opaqueData.toString()));
+          if (this.traceEnabled) {
+            this.trace("connection closed by GOAWAY with code " + errorCode + " and data " + (opaqueData === null || opaqueData === void 0 ? void 0 : opaqueData.toString()));
+          }
           this.reportDisconnectToOwner(tooManyPings);
         });
         session.once("error", (error2) => {
-          this.trace("connection closed with error " + error2.message);
+          if (this.traceEnabled) {
+            this.trace("connection closed with error " + error2.message);
+          }
           this.handleDisconnect();
         });
         session.socket.once("close", (hadError) => {
-          this.trace("connection closed. hadError=" + hadError);
+          if (this.traceEnabled) {
+            this.trace("connection closed. hadError=" + hadError);
+          }
           this.handleDisconnect();
         });
-        if (logging.isTracerEnabled(TRACER_NAME)) {
+        if (this.traceEnabled) {
           session.on("remoteSettings", (settings) => {
             this.trace("new settings received" + (this.session !== session ? " on the old connection" : "") + ": " + JSON.stringify(settings));
           });
@@ -64875,7 +65322,7 @@ var require_transport = __commonJS({
         if (this.keepaliveWithoutCalls) {
           this.maybeStartKeepalivePingTimer();
         }
-        if (session.socket instanceof tls_1.TLSSocket) {
+        if (session.socket instanceof tls_1.TLSSocket && session.socket.authorized) {
           this.authContext = {
             transportSecurityType: "ssl",
             sslPeerCertificate: session.socket.getPeerCertificate()
@@ -64924,17 +65371,37 @@ var require_transport = __commonJS({
         };
         return socketInfo;
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
+      get keepaliveTraceEnabled() {
+        return logging.isTracerEnabled("keepalive");
+      }
+      get flowControlTraceEnabled() {
+        return logging.isTracerEnabled(FLOW_CONTROL_TRACER_NAME);
+      }
+      get internalsTraceEnabled() {
+        return logging.isTracerEnabled("transport_internals");
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        }
       }
       keepaliveTrace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, "keepalive", "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        if (this.keepaliveTraceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, "keepalive", "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        }
       }
       flowControlTrace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, FLOW_CONTROL_TRACER_NAME, "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        if (this.flowControlTraceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, FLOW_CONTROL_TRACER_NAME, "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        }
       }
       internalsTrace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, "transport_internals", "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        if (this.internalsTraceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, "transport_internals", "(" + this.channelzRef.id + ") " + this.subchannelAddressString + " " + text);
+        }
       }
       /**
        * Indicate to the owner of this object that this transport should no longer
@@ -64984,7 +65451,9 @@ var require_transport = __commonJS({
         if (this.channelzEnabled) {
           this.keepalivesSent += 1;
         }
-        this.keepaliveTrace("Sending ping with timeout " + this.keepaliveTimeoutMs + "ms");
+        if (this.keepaliveTraceEnabled) {
+          this.keepaliveTrace("Sending ping with timeout " + this.keepaliveTimeoutMs + "ms");
+        }
         this.keepaliveTimer = setTimeout(() => {
           this.keepaliveTimer = null;
           this.keepaliveTrace("Ping timeout passed without response");
@@ -64996,7 +65465,9 @@ var require_transport = __commonJS({
           const pingSentSuccessfully = this.session.ping((err, duration, payload) => {
             this.clearKeepaliveTimeout();
             if (err) {
-              this.keepaliveTrace("Ping failed with error " + err.message);
+              if (this.keepaliveTraceEnabled) {
+                this.keepaliveTrace("Ping failed with error " + err.message);
+              }
               this.handleDisconnect();
             } else {
               this.keepaliveTrace("Received ping response");
@@ -65010,7 +65481,9 @@ var require_transport = __commonJS({
           pingSendError = (e instanceof Error ? e.message : "") || "Unknown error";
         }
         if (pingSendError) {
-          this.keepaliveTrace("Ping send failed: " + pingSendError);
+          if (this.keepaliveTraceEnabled) {
+            this.keepaliveTrace("Ping send failed: " + pingSendError);
+          }
           this.handleDisconnect();
         }
       }
@@ -65061,7 +65534,7 @@ var require_transport = __commonJS({
           }
         }
       }
-      createCall(metadata, host, method, listener, subchannelCallStatsTracker) {
+      createCall(metadata, host, method, listener, subchannelCallStatsTracker, callId) {
         const headers = metadata.toHttp2Headers();
         headers[HTTP2_HEADER_AUTHORITY] = host;
         headers[HTTP2_HEADER_USER_AGENT] = this.userAgent;
@@ -65076,8 +65549,12 @@ var require_transport = __commonJS({
           this.handleDisconnect();
           throw e;
         }
-        this.flowControlTrace("local window size: " + this.session.state.localWindowSize + " remote window size: " + this.session.state.remoteWindowSize);
-        this.internalsTrace("session.closed=" + this.session.closed + " session.destroyed=" + this.session.destroyed + " session.socket.destroyed=" + this.session.socket.destroyed);
+        if (this.flowControlTraceEnabled) {
+          this.flowControlTrace("local window size: " + this.session.state.localWindowSize + " remote window size: " + this.session.state.remoteWindowSize);
+        }
+        if (this.internalsTraceEnabled) {
+          this.internalsTrace("session.closed=" + this.session.closed + " session.destroyed=" + this.session.destroyed + " session.socket.destroyed=" + this.session.socket.destroyed);
+        }
         let eventTracker;
         let call;
         if (this.channelzEnabled) {
@@ -65086,13 +65563,13 @@ var require_transport = __commonJS({
             addMessageSent: () => {
               var _a;
               this.messagesSent += 1;
-              this.lastMessageSentTimestamp = /* @__PURE__ */ new Date();
+              this.lastMessageSentTimestamp = Date.now();
               (_a = subchannelCallStatsTracker.addMessageSent) === null || _a === void 0 ? void 0 : _a.call(subchannelCallStatsTracker);
             },
             addMessageReceived: () => {
               var _a;
               this.messagesReceived += 1;
-              this.lastMessageReceivedTimestamp = /* @__PURE__ */ new Date();
+              this.lastMessageReceivedTimestamp = Date.now();
               (_a = subchannelCallStatsTracker.addMessageReceived) === null || _a === void 0 ? void 0 : _a.call(subchannelCallStatsTracker);
             },
             onCallEnd: (status) => {
@@ -65131,7 +65608,7 @@ var require_transport = __commonJS({
             }
           };
         }
-        call = new subchannel_call_1.Http2SubchannelCall(http2Stream, eventTracker, listener, this, (0, call_number_1.getNextCallNumber)());
+        call = new subchannel_call_1.Http2SubchannelCall(http2Stream, eventTracker, listener, this, callId !== null && callId !== void 0 ? callId : (0, call_number_1.getNextCallNumber)());
         this.addActiveCall(call);
         return call;
       }
@@ -65158,8 +65635,13 @@ var require_transport = __commonJS({
         this.session = null;
         this.isShutdown = false;
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, (0, uri_parser_1.uriToString)(this.channelTarget) + " " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, (0, uri_parser_1.uriToString)(this.channelTarget) + " " + text);
+        }
       }
       createSession(secureConnectResult, address, options) {
         if (this.isShutdown) {
@@ -65196,7 +65678,9 @@ var require_transport = __commonJS({
             var _a2;
             (_a2 = this.session) === null || _a2 === void 0 ? void 0 : _a2.destroy();
             errorMessage = error2.message;
-            this.trace("connection failed with error " + errorMessage);
+            if (this.traceEnabled) {
+              this.trace("connection failed with error " + errorMessage);
+            }
             if (!reportedError) {
               reportedError = true;
               reject(`${errorMessage} (${(/* @__PURE__ */ new Date()).toISOString()})`);
@@ -65277,14 +65761,22 @@ var require_transport = __commonJS({
         let secureConnectResult = null;
         const addressString = (0, subchannel_address_1.subchannelAddressToString)(address);
         try {
-          this.trace(addressString + " Waiting for secureConnector to be ready");
+          if (this.traceEnabled) {
+            this.trace(addressString + " Waiting for secureConnector to be ready");
+          }
           await secureConnector.waitForReady();
-          this.trace(addressString + " secureConnector is ready");
+          if (this.traceEnabled) {
+            this.trace(addressString + " secureConnector is ready");
+          }
           tcpConnection = await this.tcpConnect(address, options);
           tcpConnection.setNoDelay();
-          this.trace(addressString + " Established TCP connection");
+          if (this.traceEnabled) {
+            this.trace(addressString + " Established TCP connection");
+          }
           secureConnectResult = await secureConnector.connect(tcpConnection);
-          this.trace(addressString + " Established secure connection");
+          if (this.traceEnabled) {
+            this.trace(addressString + " Established secure connection");
+          }
           return this.createSession(secureConnectResult, address, options);
         } catch (e) {
           tcpConnection === null || tcpConnection === void 0 ? void 0 : tcpConnection.destroy();
@@ -65407,19 +65899,19 @@ var require_load_balancing_call = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.LoadBalancingCall = void 0;
+    var call_credentials_1 = require_call_credentials();
     var connectivity_state_1 = require_connectivity_state();
     var constants_1 = require_constants7();
     var deadline_1 = require_deadline();
     var metadata_1 = require_metadata();
     var picker_1 = require_picker();
-    var uri_parser_1 = require_uri_parser();
     var logging = require_logging();
     var control_plane_status_1 = require_control_plane_status();
     var http2 = require("http2");
     var TRACER_NAME = "load_balancing_call";
+    var RESOLVED_EMPTY_METADATA = Promise.resolve(void 0);
     var LoadBalancingCall = class {
       constructor(channel, callConfig, methodName, host, credentials, deadline, callNumber) {
-        var _a, _b;
         this.channel = channel;
         this.callConfig = callConfig;
         this.methodName = methodName;
@@ -65436,19 +65928,13 @@ var require_load_balancing_call = __commonJS({
         this.listener = null;
         this.onCallEnded = null;
         this.childStartTime = null;
-        const splitPath = this.methodName.split("/");
-        let serviceName = "";
-        if (splitPath.length >= 2) {
-          serviceName = splitPath[1];
-        }
-        const hostname = (_b = (_a = (0, uri_parser_1.splitHostPort)(this.host)) === null || _a === void 0 ? void 0 : _a.host) !== null && _b !== void 0 ? _b : "localhost";
-        this.serviceUrl = `https://${hostname}/${serviceName}`;
-        this.startTime = /* @__PURE__ */ new Date();
+        this.serviceUrl = this.channel.getServiceUrl(this.host, this.methodName);
+        this.startTime = Date.now();
       }
       getDeadlineInfo() {
         var _a, _b;
         const deadlineInfo = [];
-        if (this.childStartTime) {
+        if (this.childStartTime !== null) {
           if (this.childStartTime > this.startTime) {
             if ((_a = this.metadata) === null || _a === void 0 ? void 0 : _a.getOptions().waitForReady) {
               deadlineInfo.push("wait_for_ready");
@@ -65465,18 +65951,35 @@ var require_load_balancing_call = __commonJS({
         }
         return deadlineInfo;
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callNumber + "] " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callNumber + "] " + text);
+        }
+      }
+      getSubchannelString(subchannel) {
+        return subchannel ? "(" + subchannel.getChannelzRef().id + ") " + subchannel.getAddress() : "" + subchannel;
       }
       outputStatus(status, progress) {
         var _a, _b;
         if (!this.ended) {
           this.ended = true;
-          this.trace("ended with status: code=" + status.code + ' details="' + status.details + '" start time=' + this.startTime.toISOString());
+          if (this.traceEnabled) {
+            this.trace("ended with status: code=" + status.code + ' details="' + status.details + '" start time=' + new Date(this.startTime).toISOString());
+          }
           const finalStatus = Object.assign(Object.assign({}, status), { progress });
           (_a = this.listener) === null || _a === void 0 ? void 0 : _a.onReceiveStatus(finalStatus);
           (_b = this.onCallEnded) === null || _b === void 0 ? void 0 : _b.call(this, finalStatus.code, finalStatus.details, finalStatus.metadata);
+          this.channel.removeCallFromPickQueue(this);
         }
+      }
+      generateCallCredentialsMetadata(callCredentials) {
+        return (0, call_credentials_1.isEmptyCallCredentials)(callCredentials) ? RESOLVED_EMPTY_METADATA : callCredentials.generateMetadata({
+          method_name: this.methodName,
+          service_url: this.serviceUrl
+        });
       }
       doPick() {
         var _a, _b;
@@ -65489,18 +65992,20 @@ var require_load_balancing_call = __commonJS({
         this.trace("Pick called");
         const finalMetadata = this.metadata.clone();
         const pickResult = this.channel.doPick(finalMetadata, this.callConfig.pickInformation);
-        const subchannelString = pickResult.subchannel ? "(" + pickResult.subchannel.getChannelzRef().id + ") " + pickResult.subchannel.getAddress() : "" + pickResult.subchannel;
-        this.trace("Pick result: " + picker_1.PickResultType[pickResult.pickResultType] + " subchannel: " + subchannelString + " status: " + ((_a = pickResult.status) === null || _a === void 0 ? void 0 : _a.code) + " " + ((_b = pickResult.status) === null || _b === void 0 ? void 0 : _b.details));
+        if (this.traceEnabled) {
+          this.trace("Pick result: " + picker_1.PickResultType[pickResult.pickResultType] + " subchannel: " + this.getSubchannelString(pickResult.subchannel) + " status: " + ((_a = pickResult.status) === null || _a === void 0 ? void 0 : _a.code) + " " + ((_b = pickResult.status) === null || _b === void 0 ? void 0 : _b.details));
+        }
         switch (pickResult.pickResultType) {
           case picker_1.PickResultType.COMPLETE:
-            const combinedCallCredentials = this.credentials.compose(pickResult.subchannel.getCallCredentials());
-            combinedCallCredentials.generateMetadata({ method_name: this.methodName, service_url: this.serviceUrl }).then((credsMetadata) => {
+            this.generateCallCredentialsMetadata(this.credentials.compose(pickResult.subchannel.getCallCredentials())).then((credsMetadata) => {
               var _a2;
               if (this.ended) {
                 this.trace("Credentials metadata generation finished after call ended");
                 return;
               }
-              finalMetadata.merge(credsMetadata);
+              if (credsMetadata) {
+                finalMetadata.merge(credsMetadata);
+              }
               if (finalMetadata.get("authorization").length > 1) {
                 this.outputStatus({
                   code: constants_1.Status.INTERNAL,
@@ -65509,7 +66014,9 @@ var require_load_balancing_call = __commonJS({
                 }, "PROCESSED");
               }
               if (pickResult.subchannel.getConnectivityState() !== connectivity_state_1.ConnectivityState.READY) {
-                this.trace("Picked subchannel " + subchannelString + " has state " + connectivity_state_1.ConnectivityState[pickResult.subchannel.getConnectivityState()] + " after getting credentials metadata. Retrying pick");
+                if (this.traceEnabled) {
+                  this.trace("Picked subchannel " + this.getSubchannelString(pickResult.subchannel) + " has state " + connectivity_state_1.ConnectivityState[pickResult.subchannel.getConnectivityState()] + " after getting credentials metadata. Retrying pick");
+                }
                 this.doPick();
                 return;
               }
@@ -65534,10 +66041,12 @@ var require_load_balancing_call = __commonJS({
                       this.outputStatus(status, "PROCESSED");
                     }
                   }
-                });
-                this.childStartTime = /* @__PURE__ */ new Date();
+                }, this.callNumber);
+                this.childStartTime = Date.now();
               } catch (error2) {
-                this.trace("Failed to start call on picked subchannel " + subchannelString + " with error " + error2.message);
+                if (this.traceEnabled) {
+                  this.trace("Failed to start call on picked subchannel " + this.getSubchannelString(pickResult.subchannel) + " with error " + error2.message);
+                }
                 this.outputStatus({
                   code: constants_1.Status.INTERNAL,
                   details: "Failed to start HTTP/2 stream with error " + error2.message,
@@ -65547,7 +66056,9 @@ var require_load_balancing_call = __commonJS({
               }
               (_a2 = pickResult.onCallStarted) === null || _a2 === void 0 ? void 0 : _a2.call(pickResult);
               this.onCallEnded = pickResult.onCallEnded;
-              this.trace("Created child call [" + this.child.getCallNumber() + "]");
+              if (this.traceEnabled) {
+                this.trace("Created child call [" + this.child.getCallNumber() + "]");
+              }
               if (this.readPending) {
                 this.child.startRead();
               }
@@ -65588,7 +66099,9 @@ var require_load_balancing_call = __commonJS({
       }
       cancelWithStatus(status, details) {
         var _a;
-        this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        if (this.traceEnabled) {
+          this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        }
         (_a = this.child) === null || _a === void 0 ? void 0 : _a.cancelWithStatus(status, details);
         this.outputStatus({ code: status, details, metadata: new metadata_1.Metadata() }, "PROCESSED");
       }
@@ -65603,7 +66116,9 @@ var require_load_balancing_call = __commonJS({
         this.doPick();
       }
       sendMessageWithContext(context3, message) {
-        this.trace("write() called with message of length " + message.length);
+        if (this.traceEnabled) {
+          this.trace("write() called with message of length " + message.length);
+        }
         if (this.child) {
           this.child.sendMessageWithContext(context3, message);
         } else {
@@ -65674,8 +66189,7 @@ var require_resolving_call = __commonJS({
         this.metadata = null;
         this.listener = null;
         this.statusWatchers = [];
-        this.deadlineTimer = setTimeout(() => {
-        }, 0);
+        this.deadlineTimer = null;
         this.filterStack = null;
         this.deadlineStartTime = null;
         this.configReceivedTime = null;
@@ -65690,36 +66204,51 @@ var require_resolving_call = __commonJS({
             });
           }
           if (options.flags & constants_1.Propagate.DEADLINE) {
-            this.trace("Propagating deadline from parent: " + options.parentCall.getDeadline());
+            if (this.traceEnabled) {
+              this.trace("Propagating deadline from parent: " + options.parentCall.getDeadline());
+            }
             this.deadline = (0, deadline_1.minDeadline)(this.deadline, options.parentCall.getDeadline());
           }
         }
         this.trace("Created");
         this.runDeadlineTimer();
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callNumber + "] " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callNumber + "] " + text);
+        }
       }
       runDeadlineTimer() {
-        clearTimeout(this.deadlineTimer);
-        this.deadlineStartTime = /* @__PURE__ */ new Date();
-        this.trace("Deadline: " + (0, deadline_1.deadlineToString)(this.deadline));
+        if (this.deadlineTimer) {
+          clearTimeout(this.deadlineTimer);
+          this.deadlineTimer = null;
+        }
+        this.deadlineStartTime = Date.now();
+        if (this.traceEnabled) {
+          this.trace("Deadline: " + (0, deadline_1.deadlineToString)(this.deadline));
+        }
         const timeout = (0, deadline_1.getRelativeTimeout)(this.deadline);
         if (timeout !== Infinity) {
-          this.trace("Deadline will be reached in " + timeout + "ms");
+          if (this.traceEnabled) {
+            this.trace("Deadline will be reached in " + timeout + "ms");
+          }
           const handleDeadline = () => {
-            if (!this.deadlineStartTime) {
+            this.deadlineTimer = null;
+            if (this.deadlineStartTime === null) {
               this.cancelWithStatus(constants_1.Status.DEADLINE_EXCEEDED, "Deadline exceeded");
               return;
             }
             const deadlineInfo = [];
-            const deadlineEndTime = /* @__PURE__ */ new Date();
+            const deadlineEndTime = Date.now();
             deadlineInfo.push(`Deadline exceeded after ${(0, deadline_1.formatDateDifference)(this.deadlineStartTime, deadlineEndTime)}`);
-            if (this.configReceivedTime) {
+            if (this.configReceivedTime !== null) {
               if (this.configReceivedTime > this.deadlineStartTime) {
                 deadlineInfo.push(`name resolution: ${(0, deadline_1.formatDateDifference)(this.deadlineStartTime, this.configReceivedTime)}`);
               }
-              if (this.childStartTime) {
+              if (this.childStartTime !== null) {
                 if (this.childStartTime > this.configReceivedTime) {
                   deadlineInfo.push(`metadata filters: ${(0, deadline_1.formatDateDifference)(this.configReceivedTime, this.childStartTime)}`);
                 }
@@ -65747,9 +66276,14 @@ var require_resolving_call = __commonJS({
           if (!this.filterStack) {
             this.filterStack = this.filterStackFactory.createFilter();
           }
-          clearTimeout(this.deadlineTimer);
+          if (this.deadlineTimer) {
+            clearTimeout(this.deadlineTimer);
+            this.deadlineTimer = null;
+          }
           const filteredStatus = this.filterStack.receiveTrailers(status);
-          this.trace("ended with status: code=" + filteredStatus.code + ' details="' + filteredStatus.details + '"');
+          if (this.traceEnabled) {
+            this.trace("ended with status: code=" + filteredStatus.code + ' details="' + filteredStatus.details + '"');
+          }
           this.statusWatchers.forEach((watcher) => watcher(filteredStatus));
           process.nextTick(() => {
             var _a;
@@ -65770,7 +66304,8 @@ var require_resolving_call = __commonJS({
             child.halfClose();
           }
         }, (status) => {
-          this.cancelWithStatus(status.code, status.details);
+          var _a, _b;
+          this.cancelWithStatus((_a = status.code) !== null && _a !== void 0 ? _a : constants_1.Status.INTERNAL, (_b = status.details) !== null && _b !== void 0 ? _b : "Failed to write message");
         });
       }
       getConfig() {
@@ -65792,7 +66327,7 @@ var require_resolving_call = __commonJS({
           }
           return;
         }
-        this.configReceivedTime = /* @__PURE__ */ new Date();
+        this.configReceivedTime = Date.now();
         const config = configResult.config;
         if (config.status !== constants_1.Status.OK) {
           const { code, details } = (0, control_plane_status_1.restrictControlPlaneStatusCode)(config.status, "Failed to route call to method " + this.method);
@@ -65804,18 +66339,19 @@ var require_resolving_call = __commonJS({
           return;
         }
         if (config.methodConfig.timeout) {
-          const configDeadline = /* @__PURE__ */ new Date();
-          configDeadline.setSeconds(configDeadline.getSeconds() + config.methodConfig.timeout.seconds);
-          configDeadline.setMilliseconds(configDeadline.getMilliseconds() + config.methodConfig.timeout.nanos / 1e6);
+          const timeoutMs = Math.floor(config.methodConfig.timeout.seconds * 1e3 + config.methodConfig.timeout.nanos / 1e6);
+          const configDeadline = Date.now() + timeoutMs;
           this.deadline = (0, deadline_1.minDeadline)(this.deadline, configDeadline);
           this.runDeadlineTimer();
         }
         this.filterStackFactory.push(config.dynamicFilterFactories);
         this.filterStack = this.filterStackFactory.createFilter();
         this.filterStack.sendMetadata(Promise.resolve(this.metadata)).then((filteredMetadata) => {
-          this.child = this.channel.createRetryingCall(config, this.method, this.host, this.credentials, this.deadline);
-          this.trace("Created child [" + this.child.getCallNumber() + "]");
-          this.childStartTime = /* @__PURE__ */ new Date();
+          this.child = this.channel.createRetryingCall(config, this.method, this.host, this.credentials, this.deadline, this.callNumber);
+          if (this.traceEnabled) {
+            this.trace("Created child [" + this.child.getCallNumber() + "]");
+          }
+          this.childStartTime = Date.now();
           this.child.start(filteredMetadata, {
             onReceiveMetadata: (metadata) => {
               this.trace("Received metadata");
@@ -65866,7 +66402,9 @@ var require_resolving_call = __commonJS({
       }
       cancelWithStatus(status, details) {
         var _a;
-        this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        if (this.traceEnabled) {
+          this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        }
         (_a = this.child) === null || _a === void 0 ? void 0 : _a.cancelWithStatus(status, details);
         this.outputStatus({
           code: status,
@@ -65885,7 +66423,9 @@ var require_resolving_call = __commonJS({
         this.getConfig();
       }
       sendMessageWithContext(context3, message) {
-        this.trace("write() called with message of length " + message.length);
+        if (this.traceEnabled) {
+          this.trace("write() called with message of length " + message.length);
+        }
         if (this.child) {
           this.sendMessageOnChild(context3, message);
         } else {
@@ -65939,6 +66479,7 @@ var require_retrying_call = __commonJS({
     var deadline_1 = require_deadline();
     var metadata_1 = require_metadata();
     var logging = require_logging();
+    var call_number_1 = require_call_number();
     var TRACER_NAME = "retrying_call";
     var RetryThrottler = class {
       constructor(maxTokens, tokenRatio, previousRetryThrottler) {
@@ -66024,6 +66565,7 @@ var require_retrying_call = __commonJS({
         this.transparentRetryUsed = false;
         this.attempts = 0;
         this.hedgingTimer = null;
+        this.retryTimer = null;
         this.committedCallIndex = null;
         this.initialRetryBackoffSec = 0;
         this.nextRetryBackoffSec = 0;
@@ -66043,7 +66585,7 @@ var require_retrying_call = __commonJS({
           this.state = "TRANSPARENT_ONLY";
           this.maxAttempts = 1;
         }
-        this.startTime = /* @__PURE__ */ new Date();
+        this.startTime = Date.now();
       }
       getDeadlineInfo() {
         if (this.underlyingCalls.length === 0) {
@@ -66063,11 +66605,18 @@ var require_retrying_call = __commonJS({
       getCallNumber() {
         return this.callNumber;
       }
+      get traceEnabled() {
+        return logging.isTracerEnabled(TRACER_NAME);
+      }
       trace(text) {
-        logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callNumber + "] " + text);
+        if (this.traceEnabled) {
+          logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, "[" + this.callNumber + "] " + text);
+        }
       }
       reportStatus(statusObject) {
-        this.trace("ended with status: code=" + statusObject.code + ' details="' + statusObject.details + '" start time=' + this.startTime.toISOString());
+        if (this.traceEnabled) {
+          this.trace("ended with status: code=" + statusObject.code + ' details="' + statusObject.details + '" start time=' + new Date(this.startTime).toISOString());
+        }
         this.bufferTracker.freeAll(this.callNumber);
         this.writeBufferOffset = this.writeBufferOffset + this.writeBuffer.length;
         this.writeBuffer = [];
@@ -66081,7 +66630,18 @@ var require_retrying_call = __commonJS({
         });
       }
       cancelWithStatus(status, details) {
-        this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        if (this.traceEnabled) {
+          this.trace("cancelWithStatus code: " + status + ' details: "' + details + '"');
+        }
+        this.state = "NO_RETRY";
+        if (this.retryTimer) {
+          clearTimeout(this.retryTimer);
+          this.retryTimer = null;
+        }
+        if (this.hedgingTimer) {
+          clearTimeout(this.hedgingTimer);
+          this.hedgingTimer = null;
+        }
         this.reportStatus({ code: status, details, metadata: new metadata_1.Metadata() });
         for (const { call } of this.underlyingCalls) {
           call.cancelWithStatus(status, details);
@@ -66128,7 +66688,9 @@ var require_retrying_call = __commonJS({
         if (this.state === "COMMITTED") {
           return;
         }
-        this.trace("Committing call [" + this.underlyingCalls[index].call.getCallNumber() + "] at index " + index);
+        if (this.traceEnabled) {
+          this.trace("Committing call [" + this.underlyingCalls[index].call.getCallNumber() + "] at index " + index);
+        }
         this.state = "COMMITTED";
         (_b = (_a = this.callConfig).onCommitted) === null || _b === void 0 ? void 0 : _b.call(_a);
         this.committedCallIndex = index;
@@ -66203,8 +66765,9 @@ var require_retrying_call = __commonJS({
           retryDelayMs = pushback;
           this.nextRetryBackoffSec = this.initialRetryBackoffSec;
         }
-        setTimeout(() => {
+        this.retryTimer = setTimeout(() => {
           var _a, _b;
+          this.retryTimer = null;
           if (this.state !== "RETRY") {
             callback(false);
             return;
@@ -66295,7 +66858,9 @@ var require_retrying_call = __commonJS({
         if (this.underlyingCalls[callIndex].state === "COMPLETED") {
           return;
         }
-        this.trace("state=" + this.state + " handling status with progress " + status.progress + " from child [" + this.underlyingCalls[callIndex].call.getCallNumber() + "] in state " + this.underlyingCalls[callIndex].state);
+        if (this.traceEnabled) {
+          this.trace("state=" + this.state + " handling status with progress " + status.progress + " from child [" + this.underlyingCalls[callIndex].call.getCallNumber() + "] in state " + this.underlyingCalls[callIndex].state);
+        }
         this.underlyingCalls[callIndex].state = "COMPLETED";
         if (status.code === constants_1.Status.OK) {
           (_a = this.retryThrottler) === null || _a === void 0 ? void 0 : _a.addCallSucceeded();
@@ -66371,24 +66936,30 @@ var require_retrying_call = __commonJS({
         (_c = (_b = this.hedgingTimer).unref) === null || _c === void 0 ? void 0 : _c.call(_b);
       }
       startNewAttempt() {
-        const child = this.channel.createLoadBalancingCall(this.callConfig, this.methodName, this.host, this.credentials, this.deadline);
-        this.trace("Created child call [" + child.getCallNumber() + "] for attempt " + this.attempts);
+        const childCallNumber = this.underlyingCalls.length > 0 ? (0, call_number_1.getNextCallNumber)() : this.callNumber;
+        const child = this.channel.createLoadBalancingCall(this.callConfig, this.methodName, this.host, this.credentials, this.deadline, childCallNumber);
+        if (this.traceEnabled) {
+          this.trace("Created child call [" + child.getCallNumber() + "] for attempt " + this.attempts);
+        }
         const index = this.underlyingCalls.length;
         this.underlyingCalls.push({
           state: "ACTIVE",
           call: child,
           nextMessageToSend: 0,
-          startTime: /* @__PURE__ */ new Date()
+          startTime: Date.now()
         });
         const previousAttempts = this.attempts - 1;
-        const initialMetadata = this.initialMetadata.clone();
+        let initialMetadata = this.initialMetadata;
         if (previousAttempts > 0) {
+          initialMetadata = initialMetadata.clone();
           initialMetadata.set(PREVIONS_RPC_ATTEMPTS_METADATA_KEY, `${previousAttempts}`);
         }
         let receivedMetadata = false;
         child.start(initialMetadata, {
           onReceiveMetadata: (metadata) => {
-            this.trace("Received metadata from child [" + child.getCallNumber() + "]");
+            if (this.traceEnabled) {
+              this.trace("Received metadata from child [" + child.getCallNumber() + "]");
+            }
             this.commitCall(index);
             receivedMetadata = true;
             if (previousAttempts > 0) {
@@ -66399,14 +66970,18 @@ var require_retrying_call = __commonJS({
             }
           },
           onReceiveMessage: (message) => {
-            this.trace("Received message from child [" + child.getCallNumber() + "]");
+            if (this.traceEnabled) {
+              this.trace("Received message from child [" + child.getCallNumber() + "]");
+            }
             this.commitCall(index);
             if (this.underlyingCalls[index].state === "ACTIVE") {
               this.listener.onReceiveMessage(message);
             }
           },
           onReceiveStatus: (status) => {
-            this.trace("Received status from child [" + child.getCallNumber() + "]");
+            if (this.traceEnabled) {
+              this.trace("Received status from child [" + child.getCallNumber() + "]");
+            }
             if (!receivedMetadata && previousAttempts > 0) {
               status.metadata.set(PREVIONS_RPC_ATTEMPTS_METADATA_KEY, `${previousAttempts}`);
             }
@@ -66451,7 +67026,9 @@ var require_retrying_call = __commonJS({
               }, bufferEntry.message.message);
               const nextEntry = this.getBufferEntry(messageIndex + 1);
               if (nextEntry.entryType === "HALF_CLOSE") {
-                this.trace("Sending halfClose immediately after message to child [" + childCall.call.getCallNumber() + "] - optimizing for unary/final message");
+                if (this.traceEnabled) {
+                  this.trace("Sending halfClose immediately after message to child [" + childCall.call.getCallNumber() + "] - optimizing for unary/final message");
+                }
                 childCall.nextMessageToSend += 1;
                 childCall.call.halfClose();
               }
@@ -66466,7 +67043,9 @@ var require_retrying_call = __commonJS({
         }
       }
       sendMessageWithContext(context3, message) {
-        this.trace("write() called with message of length " + message.length);
+        if (this.traceEnabled) {
+          this.trace("write() called with message of length " + message.length);
+        }
         const writeObj = {
           message,
           flags: context3.flags
@@ -66527,7 +67106,9 @@ var require_retrying_call = __commonJS({
         for (const call of this.underlyingCalls) {
           if ((call === null || call === void 0 ? void 0 : call.state) === "ACTIVE") {
             if (call.nextMessageToSend === halfCloseIndex || call.nextMessageToSend === halfCloseIndex - 1) {
-              this.trace("Sending halfClose immediately to child [" + call.call.getCallNumber() + "] - all messages already sent");
+              if (this.traceEnabled) {
+                this.trace("Sending halfClose immediately to child [" + call.call.getCallNumber() + "] - all messages already sent");
+              }
               call.nextMessageToSend += 1;
               call.call.halfClose();
             }
@@ -66749,7 +67330,7 @@ var require_internal_channel = __commonJS({
         };
       }
     };
-    var InternalChannel = class {
+    var InternalChannel = class _InternalChannel {
       constructor(target, credentials, options) {
         var _a, _b, _c, _d, _e, _f;
         this.credentials = credentials;
@@ -66757,7 +67338,7 @@ var require_internal_channel = __commonJS({
         this.connectivityState = connectivity_state_1.ConnectivityState.IDLE;
         this.currentPicker = new picker_1.UnavailablePicker();
         this.configSelectionQueue = [];
-        this.pickQueue = [];
+        this.pickQueue = /* @__PURE__ */ new Set();
         this.connectivityStateWatchers = [];
         this.callRefTimer = null;
         this.configSelector = null;
@@ -66767,6 +67348,7 @@ var require_internal_channel = __commonJS({
         this.idleTimer = null;
         this.channelzEnabled = true;
         this.randomChannelId = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+        this.serviceUrlCache = /* @__PURE__ */ new Map();
         if (typeof target !== "string") {
           throw new TypeError("Channel target must be a string");
         }
@@ -66824,9 +67406,9 @@ var require_internal_channel = __commonJS({
           },
           updateState: (connectivityState, picker) => {
             this.currentPicker = picker;
-            const queueCopy = this.pickQueue.slice();
-            this.pickQueue = [];
-            if (queueCopy.length > 0) {
+            const queueCopy = this.pickQueue;
+            this.pickQueue = /* @__PURE__ */ new Set();
+            if (queueCopy.size > 0) {
               this.callRefTimerUnref();
             }
             for (const call of queueCopy) {
@@ -66893,15 +67475,22 @@ var require_internal_channel = __commonJS({
         this.filterStackFactory = new filter_stack_1.FilterStackFactory([
           new compression_filter_1.CompressionFilterFactory(this, this.options)
         ]);
-        this.trace("Channel constructed with options " + JSON.stringify(options, void 0, 2));
-        const error2 = new Error();
+        if (this.traceEnabled) {
+          this.trace("Channel constructed with options " + JSON.stringify(options, void 0, 2));
+        }
         if ((0, logging_1.isTracerEnabled)("channel_stacktrace")) {
+          const error2 = new Error();
           (0, logging_1.trace)(constants_1.LogVerbosity.DEBUG, "channel_stacktrace", "(" + this.channelzRef.id + ") Channel constructed \n" + ((_f = error2.stack) === null || _f === void 0 ? void 0 : _f.substring(error2.stack.indexOf("\n") + 1)));
         }
-        this.lastActivityTimestamp = /* @__PURE__ */ new Date();
+        this.lastActivityTimestamp = Date.now();
+      }
+      get traceEnabled() {
+        return (0, logging_1.isTracerEnabled)("channel");
       }
       trace(text, verbosityOverride) {
-        (0, logging_1.trace)(verbosityOverride !== null && verbosityOverride !== void 0 ? verbosityOverride : constants_1.LogVerbosity.DEBUG, "channel", "(" + this.channelzRef.id + ") " + (0, uri_parser_1.uriToString)(this.target) + " " + text);
+        if (this.traceEnabled) {
+          (0, logging_1.trace)(verbosityOverride !== null && verbosityOverride !== void 0 ? verbosityOverride : constants_1.LogVerbosity.DEBUG, "channel", "(" + this.channelzRef.id + ") " + (0, uri_parser_1.uriToString)(this.target) + " " + text);
+        }
       }
       callRefTimerRef() {
         var _a, _b, _c, _d;
@@ -66910,14 +67499,18 @@ var require_internal_channel = __commonJS({
           }, MAX_TIMEOUT_TIME);
         }
         if (!((_b = (_a = this.callRefTimer).hasRef) === null || _b === void 0 ? void 0 : _b.call(_a))) {
-          this.trace("callRefTimer.ref | configSelectionQueue.length=" + this.configSelectionQueue.length + " pickQueue.length=" + this.pickQueue.length);
+          if (this.traceEnabled) {
+            this.trace("callRefTimer.ref | configSelectionQueue.length=" + this.configSelectionQueue.length + " pickQueue.length=" + this.pickQueue.size);
+          }
           (_d = (_c = this.callRefTimer).ref) === null || _d === void 0 ? void 0 : _d.call(_c);
         }
       }
       callRefTimerUnref() {
         var _a, _b, _c;
         if (!((_a = this.callRefTimer) === null || _a === void 0 ? void 0 : _a.hasRef) || this.callRefTimer.hasRef()) {
-          this.trace("callRefTimer.unref | configSelectionQueue.length=" + this.configSelectionQueue.length + " pickQueue.length=" + this.pickQueue.length);
+          if (this.traceEnabled) {
+            this.trace("callRefTimer.unref | configSelectionQueue.length=" + this.configSelectionQueue.length + " pickQueue.length=" + this.pickQueue.size);
+          }
           (_c = (_b = this.callRefTimer) === null || _b === void 0 ? void 0 : _b.unref) === null || _c === void 0 ? void 0 : _c.call(_b);
         }
       }
@@ -66969,8 +67562,14 @@ var require_internal_channel = __commonJS({
         });
       }
       queueCallForPick(call) {
-        this.pickQueue.push(call);
+        this.pickQueue.add(call);
         this.callRefTimerRef();
+      }
+      removeCallFromPickQueue(call) {
+        this.pickQueue.delete(call);
+        if (this.pickQueue.size === 0) {
+          this.callRefTimerUnref();
+        }
       }
       getConfig(method, metadata) {
         if (this.connectivityState !== connectivity_state_1.ConnectivityState.SHUTDOWN) {
@@ -67018,8 +67617,8 @@ var require_internal_channel = __commonJS({
             this.startIdleTimeout(this.idleTimeoutMs);
             return;
           }
-          const now = /* @__PURE__ */ new Date();
-          const timeSinceLastActivity = now.valueOf() - this.lastActivityTimestamp.valueOf();
+          const now = Date.now();
+          const timeSinceLastActivity = now - this.lastActivityTimestamp;
           if (timeSinceLastActivity >= this.idleTimeoutMs) {
             this.trace("Idle timer triggered after " + this.idleTimeoutMs + "ms of inactivity");
             this.enterIdle();
@@ -67049,22 +67648,54 @@ var require_internal_channel = __commonJS({
           }
         }
         this.callCount -= 1;
-        this.lastActivityTimestamp = /* @__PURE__ */ new Date();
+        this.lastActivityTimestamp = Date.now();
         this.maybeStartIdleTimer();
       }
-      createLoadBalancingCall(callConfig, method, host, credentials, deadline) {
-        const callNumber = (0, call_number_1.getNextCallNumber)();
-        this.trace("createLoadBalancingCall [" + callNumber + '] method="' + method + '"');
-        return new load_balancing_call_1.LoadBalancingCall(this, callConfig, method, host, credentials, deadline, callNumber);
+      /**
+       * Returns the precomputed service URL (`https://${hostname}/${serviceName}`)
+       * for the given host and method, using a bounded cache to avoid parsing on
+       * every RPC.
+       */
+      getServiceUrl(host, methodName) {
+        let methodMap = this.serviceUrlCache.get(host);
+        if (methodMap === void 0) {
+          if (this.serviceUrlCache.size < _InternalChannel.MAX_CACHED_HOSTS) {
+            methodMap = /* @__PURE__ */ new Map();
+            this.serviceUrlCache.set(host, methodMap);
+          }
+        }
+        if (methodMap !== void 0) {
+          const serviceUrl = methodMap.get(methodName);
+          if (serviceUrl !== void 0) {
+            return serviceUrl;
+          }
+          const computedServiceUrl = (0, uri_parser_1.computeServiceUrl)(host, methodName);
+          if (methodMap.size < _InternalChannel.MAX_METHODS_PER_HOST) {
+            methodMap.set(methodName, computedServiceUrl);
+          }
+          return computedServiceUrl;
+        }
+        return (0, uri_parser_1.computeServiceUrl)(host, methodName);
       }
-      createRetryingCall(callConfig, method, host, credentials, deadline) {
-        const callNumber = (0, call_number_1.getNextCallNumber)();
-        this.trace("createRetryingCall [" + callNumber + '] method="' + method + '"');
-        return new retrying_call_1.RetryingCall(this, callConfig, method, host, credentials, deadline, callNumber, this.retryBufferTracker, RETRY_THROTTLER_MAP.get(this.getTarget()));
+      createLoadBalancingCall(callConfig, method, host, credentials, deadline, callNumber) {
+        const finalCallNumber = callNumber !== null && callNumber !== void 0 ? callNumber : (0, call_number_1.getNextCallNumber)();
+        if (this.traceEnabled) {
+          this.trace("createLoadBalancingCall [" + finalCallNumber + '] method="' + method + '"');
+        }
+        return new load_balancing_call_1.LoadBalancingCall(this, callConfig, method, host, credentials, deadline, finalCallNumber);
+      }
+      createRetryingCall(callConfig, method, host, credentials, deadline, callNumber) {
+        const finalCallNumber = callNumber !== null && callNumber !== void 0 ? callNumber : (0, call_number_1.getNextCallNumber)();
+        if (this.traceEnabled) {
+          this.trace("createRetryingCall [" + finalCallNumber + '] method="' + method + '"');
+        }
+        return new retrying_call_1.RetryingCall(this, callConfig, method, host, credentials, deadline, finalCallNumber, this.retryBufferTracker, RETRY_THROTTLER_MAP.get(this.getTarget()));
       }
       createResolvingCall(method, deadline, host, parentCall, propagateFlags) {
         const callNumber = (0, call_number_1.getNextCallNumber)();
-        this.trace("createResolvingCall [" + callNumber + '] method="' + method + '", deadline=' + (0, deadline_1.deadlineToString)(deadline));
+        if (this.traceEnabled) {
+          this.trace("createResolvingCall [" + callNumber + '] method="' + method + '", deadline=' + (0, deadline_1.deadlineToString)(deadline));
+        }
         const finalOptions = {
           deadline,
           flags: propagateFlags !== null && propagateFlags !== void 0 ? propagateFlags : constants_1.Propagate.DEFAULTS,
@@ -67090,7 +67721,7 @@ var require_internal_channel = __commonJS({
         for (const call of this.pickQueue) {
           call.cancelWithStatus(constants_1.Status.UNAVAILABLE, "Channel closed before call started");
         }
-        this.pickQueue = [];
+        this.pickQueue.clear();
         if (this.callRefTimer) {
           clearInterval(this.callRefTimer);
         }
@@ -67103,6 +67734,7 @@ var require_internal_channel = __commonJS({
         this.subchannelPool.unrefUnusedSubchannels();
         (_a = this.configSelector) === null || _a === void 0 ? void 0 : _a.unref();
         this.configSelector = null;
+        this.serviceUrlCache.clear();
       }
       getTarget() {
         return (0, uri_parser_1.uriToString)(this.target);
@@ -67111,7 +67743,7 @@ var require_internal_channel = __commonJS({
         const connectivityState = this.connectivityState;
         if (tryToConnect) {
           this.resolvingLoadBalancer.exitIdle();
-          this.lastActivityTimestamp = /* @__PURE__ */ new Date();
+          this.lastActivityTimestamp = Date.now();
           this.maybeStartIdleTimer();
         }
         return connectivityState;
@@ -67165,6 +67797,8 @@ var require_internal_channel = __commonJS({
       }
     };
     exports2.InternalChannel = InternalChannel;
+    InternalChannel.MAX_CACHED_HOSTS = 5;
+    InternalChannel.MAX_METHODS_PER_HOST = 100;
   }
 });
 
@@ -68097,6 +68731,7 @@ var require_server_interceptors = __commonJS({
     var logging = require_logging();
     var tls_1 = require("tls");
     var orca_1 = require_orca();
+    var environment_1 = require_environment();
     var TRACER_NAME = "server_call";
     function trace(text) {
       logging.trace(constants_1.LogVerbosity.DEBUG, TRACER_NAME, text);
@@ -68495,8 +69130,7 @@ var require_server_interceptors = __commonJS({
           return;
         }
         const timeout = +match[1] * deadlineUnitsToMs[match[2]] | 0;
-        const now = /* @__PURE__ */ new Date();
-        this.deadline = now.setMilliseconds(now.getMilliseconds() + timeout);
+        this.deadline = Date.now() + timeout;
         this.deadlineTimer = setTimeout(() => {
           const status = {
             code: constants_1.Status.DEADLINE_EXCEEDED,
@@ -68612,9 +69246,15 @@ var require_server_interceptors = __commonJS({
         try {
           queueEntry.parsedMessage = this.handler.deserialize(decompressedMessage);
         } catch (err) {
+          let details;
+          if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+            details = `Error deserializing request: ${err.message}`;
+          } else {
+            details = "Error deserializing request";
+          }
           this.sendStatus({
             code: constants_1.Status.INTERNAL,
-            details: `Error deserializing request: ${err.message}`
+            details
           });
           return;
         }
@@ -68694,9 +69334,15 @@ var require_server_interceptors = __commonJS({
         try {
           response = this.serializeMessage(message);
         } catch (e) {
+          let details;
+          if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+            details = `Error serializing response: ${(0, error_1.getErrorMessage)(e)}`;
+          } else {
+            details = "Error serializing response";
+          }
           this.sendStatus({
             code: constants_1.Status.INTERNAL,
-            details: `Error serializing response: ${(0, error_1.getErrorMessage)(e)}`,
+            details,
             metadata: null
           });
           return;
@@ -68714,9 +69360,15 @@ var require_server_interceptors = __commonJS({
         this.stream.write(response, (error2) => {
           var _a;
           if (error2) {
+            let details;
+            if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+              details = `Error writing message: ${(0, error_1.getErrorMessage)(error2)}`;
+            } else {
+              details = "Internal server error";
+            }
             this.sendStatus({
               code: constants_1.Status.INTERNAL,
-              details: `Error writing message: ${(0, error_1.getErrorMessage)(error2)}`,
+              details,
               metadata: null
             });
             return;
@@ -68798,15 +69450,17 @@ var require_server_interceptors = __commonJS({
       }
       getAuthContext() {
         var _a;
-        if (((_a = this.stream.session) === null || _a === void 0 ? void 0 : _a.socket) instanceof tls_1.TLSSocket) {
-          const peerCertificate = this.stream.session.socket.getPeerCertificate();
-          return {
-            transportSecurityType: "ssl",
-            sslPeerCertificate: peerCertificate.raw ? peerCertificate : void 0
-          };
-        } else {
+        if (!(((_a = this.stream.session) === null || _a === void 0 ? void 0 : _a.socket) instanceof tls_1.TLSSocket)) {
           return {};
         }
+        if (!this.stream.session.socket.authorized) {
+          return {};
+        }
+        const peerCertificate = this.stream.session.socket.getPeerCertificate();
+        return {
+          transportSecurityType: "ssl",
+          sslPeerCertificate: peerCertificate.raw ? peerCertificate : void 0
+        };
       }
       getConnectionInfo() {
         return this.connectionInfo;
@@ -68888,6 +69542,7 @@ var require_server2 = __commonJS({
     var uri_parser_1 = require_uri_parser();
     var channelz_1 = require_channelz();
     var server_interceptors_1 = require_server_interceptors();
+    var environment_1 = require_environment();
     var UNLIMITED_CONNECTION_AGE_MS = ~(1 << 31);
     var KEEPALIVE_MAX_TIME_MS = ~(1 << 31);
     var KEEPALIVE_TIMEOUT_MS = 2e4;
@@ -69694,13 +70349,13 @@ var require_server2 = __commonJS({
             addMessageSent: () => {
               if (channelzSessionInfo) {
                 channelzSessionInfo.messagesSent += 1;
-                channelzSessionInfo.lastMessageSentTimestamp = /* @__PURE__ */ new Date();
+                channelzSessionInfo.lastMessageSentTimestamp = Date.now();
               }
             },
             addMessageReceived: () => {
               if (channelzSessionInfo) {
                 channelzSessionInfo.messagesReceived += 1;
-                channelzSessionInfo.lastMessageReceivedTimestamp = /* @__PURE__ */ new Date();
+                channelzSessionInfo.lastMessageReceivedTimestamp = Date.now();
               }
             },
             onCallEnd: (status) => {
@@ -70141,9 +70796,15 @@ var require_server2 = __commonJS({
           try {
             handler2.func(stream2, respond);
           } catch (err) {
+            let details;
+            if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+              details = `Server method handler threw error ${err.message}`;
+            } else {
+              details = "Unknown error";
+            }
             call.sendStatus({
               code: constants_1.Status.UNKNOWN,
-              details: `Server method handler threw error ${err.message}`,
+              details,
               metadata: null
             });
           }
@@ -70177,9 +70838,15 @@ var require_server2 = __commonJS({
           try {
             handler2.func(stream2, respond);
           } catch (err) {
+            let details;
+            if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+              details = `Server method handler threw error ${err.message}`;
+            } else {
+              details = "Unknown error";
+            }
             call.sendStatus({
               code: constants_1.Status.UNKNOWN,
-              details: `Server method handler threw error ${err.message}`,
+              details,
               metadata: null
             });
           }
@@ -70233,9 +70900,15 @@ var require_server2 = __commonJS({
           try {
             handler2.func(stream2);
           } catch (err) {
+            let details;
+            if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+              details = `Server method handler threw error ${err.message}`;
+            } else {
+              details = "Unknown error";
+            }
             call.sendStatus({
               code: constants_1.Status.UNKNOWN,
-              details: `Server method handler threw error ${err.message}`,
+              details,
               metadata: null
             });
           }
@@ -70257,9 +70930,15 @@ var require_server2 = __commonJS({
           try {
             handler2.func(stream2);
           } catch (err) {
+            let details;
+            if (environment_1.GRPC_NODE_DEBUG_SEND_ERROR_DETAILS) {
+              details = `Server method handler threw error ${err.message}`;
+            } else {
+              details = "Unknown error";
+            }
             call.sendStatus({
               code: constants_1.Status.UNKNOWN,
-              details: `Server method handler threw error ${err.message}`,
+              details,
               metadata: null
             });
           }
@@ -78338,9 +79017,17 @@ var require_cipherModes = __commonJS({
         return false;
       }
       var len = output.length();
+      if (len === 0) {
+        return true;
+      }
       var count = output.at(len - 1);
-      if (count > this.blockSize << 2) {
+      if (count === 0 || count > this.blockSize || count > len) {
         return false;
+      }
+      for (var i = 2; i <= count; ++i) {
+        if (output.at(len - i) !== count) {
+          return false;
+        }
       }
       output.truncate(count);
       return true;
@@ -78403,9 +79090,17 @@ var require_cipherModes = __commonJS({
         return false;
       }
       var len = output.length();
+      if (len === 0) {
+        return true;
+      }
       var count = output.at(len - 1);
-      if (count > this.blockSize << 2) {
+      if (count === 0 || count > this.blockSize || count > len) {
         return false;
+      }
+      for (var i = 2; i <= count; ++i) {
+        if (output.at(len - i) !== count) {
+          return false;
+        }
       }
       output.truncate(count);
       return true;
@@ -78664,10 +79359,13 @@ var require_cipherModes = __commonJS({
       } else {
         additionalData = forge.util.createBuffer();
       }
-      if ("tagLength" in options) {
-        this._tagLength = options.tagLength;
+      if (options.tagLength !== void 0 && options.tagLength !== null) {
+        this._tagLength = Number(options.tagLength);
       } else {
         this._tagLength = 128;
+      }
+      if ([128, 120, 112, 104, 96, 64, 32].indexOf(this._tagLength) === -1) {
+        throw new Error("Invalid tag length.");
       }
       this._tag = null;
       if (options.decrypt) {
@@ -79619,7 +80317,10 @@ var require_asn1 = __commonJS({
             var subOptions = {
               // enforce strict mode to avoid parsing ASN.1 from plain data
               strict: true,
-              decodeBitStrings: true
+              // only decode one level of BIT STRINGs, nested decoding has
+              // quadratic cost due to copies for change detection
+              decodeBitStrings: false,
+              maxDepth: options.maxDepth
             };
             var composed = _fromDer(bytes, remaining, depth + 1, subOptions);
             var used = start - bytes.length();
@@ -79723,12 +80424,16 @@ var require_asn1 = __commonJS({
     asn1.oidToDer = function(oid) {
       var values = oid.split(".");
       var bytes = forge.util.createBuffer();
-      bytes.putByte(40 * parseInt(values[0], 10) + parseInt(values[1], 10));
+      var first = parseInt(values[0], 10);
+      var second = parseInt(values[1], 10);
+      if (!(first >= 0 && first <= 2 && second >= 0) || first < 2 && second > 39) {
+        throw new Error("Invalid OID; the first two arcs are out of range.");
+      }
       var last, valueBytes, value, b;
-      for (var i = 2; i < values.length; ++i) {
+      for (var i = 1; i < values.length; ++i) {
         last = true;
         valueBytes = [];
-        value = parseInt(values[i], 10);
+        value = i === 1 ? 40 * first + second : parseInt(values[i], 10);
         if (value > 4294967295) {
           throw new Error("OID value too large; max is 32-bits.");
         }
@@ -79752,9 +80457,9 @@ var require_asn1 = __commonJS({
       if (typeof bytes === "string") {
         bytes = forge.util.createBuffer(bytes);
       }
-      var b = bytes.getByte();
-      oid = Math.floor(b / 40) + "." + b % 40;
+      var b;
       var value = 0;
+      var first = true;
       while (bytes.length() > 0) {
         if (value > 70368744177663) {
           throw new Error("OID value too large; max is 53-bits.");
@@ -79764,7 +80469,13 @@ var require_asn1 = __commonJS({
         if (b & 128) {
           value += b & 127;
         } else {
-          oid += "." + (value + b);
+          value += b;
+          if (first) {
+            oid = value < 80 ? Math.floor(value / 40) + "." + value % 40 : "2." + (value - 80);
+            first = false;
+          } else {
+            oid += "." + value;
+          }
           value = 0;
         }
       }
@@ -80600,12 +81311,12 @@ var require_pem = __commonJS({
     };
     pem.decode = function(str) {
       var rval = [];
-      var rMessage = /\s*-----BEGIN ([A-Z0-9- ]+)-----\r?\n?([\x21-\x7e\s]+?(?:\r?\n\r?\n))?([:A-Za-z0-9+\/=\s]+?)-----END \1-----/g;
-      var rHeader = /([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
+      var messages = _pemMessageScanner(str);
+      var rHeader = /(?:^|[^\x21-\x7e])([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
       var rCRLF = /\r?\n/;
       var match;
       while (true) {
-        match = rMessage.exec(str);
+        match = messages.next();
         if (!match) {
           break;
         }
@@ -80628,7 +81339,7 @@ var require_pem = __commonJS({
         var lines = match[2].split(rCRLF);
         var li = 0;
         while (match && li < lines.length) {
-          var line = lines[li].replace(/\s+$/, "");
+          var line = rtrim(lines[li]);
           for (var nl = li + 1; nl < lines.length; ++nl) {
             var next = lines[nl];
             if (!/\s/.test(next[0])) {
@@ -80705,6 +81416,140 @@ var require_pem = __commonJS({
     }
     function ltrim(str) {
       return str.replace(/^\s+/, "");
+    }
+    function rtrim(str) {
+      var end = str.length;
+      while (end > 0 && /\s/.test(str.charAt(end - 1))) {
+        --end;
+      }
+      return str.substring(0, end);
+    }
+    function _pemMessageScanner(str) {
+      var rBody = /[:A-Za-z0-9+\/=\s]/;
+      var rNotBody = /[^:A-Za-z0-9+\/=\s]/g;
+      var rNotHeader = /[^\x21-\x7e\s]/g;
+      var rLabel = /[A-Z0-9- ]/;
+      function indexOfRegex(regex, i) {
+        regex.lastIndex = i;
+        var match = regex.exec(str);
+        return match ? match.index : str.length;
+      }
+      function labelAt(i) {
+        for (var j = i; j < str.length && rLabel.test(str.charAt(j)); ++j) {
+          if (j > i && str.substr(j, 5) === "-----") {
+            return str.substring(i, j);
+          }
+        }
+        return null;
+      }
+      function blankLineEnd(i) {
+        if (str.charAt(i) === "\r") {
+          ++i;
+        }
+        if (str.charAt(i) !== "\n") {
+          return -1;
+        }
+        if (str.charAt(++i) === "\r") {
+          ++i;
+        }
+        return str.charAt(i) === "\n" ? i + 1 : -1;
+      }
+      function firstBlankLine(start2, end2) {
+        for (var i = start2; i < end2; ++i) {
+          var v = blankLineEnd(i);
+          if (v !== -1 && v < end2) {
+            return i;
+          }
+        }
+        return -1;
+      }
+      var ends = {};
+      for (var end = str.indexOf("-----END "); end !== -1; end = str.indexOf("-----END ", end + 1)) {
+        var endLabel = labelAt(end + 9);
+        var start = end;
+        while (start > 0 && rBody.test(str.charAt(start - 1))) {
+          --start;
+        }
+        var blank = firstBlankLine(start, end);
+        if (endLabel !== null && blank !== -1) {
+          var key = "$" + endLabel;
+          (ends[key] = ends[key] || []).push({ end, blank });
+        }
+      }
+      var pos = 0;
+      var headerEnd = -1;
+      return {
+        next: function() {
+          var begin;
+          while ((begin = str.indexOf("-----BEGIN ", pos)) !== -1) {
+            pos = begin + 1;
+            var label = labelAt(begin + 11);
+            if (label === null) {
+              continue;
+            }
+            var q = begin + 16 + label.length;
+            var bodyEnd = indexOfRegex(rNotBody, q);
+            var bodyEndOk = str.substr(bodyEnd, 9) === "-----END " && labelAt(bodyEnd + 9) === label;
+            if (q > headerEnd) {
+              headerEnd = indexOfRegex(rNotHeader, q);
+            }
+            var later = null;
+            var list = ends["$" + label];
+            if (list) {
+              var lo = 0;
+              var hi = list.length;
+              while (lo < hi) {
+                var mid = lo + hi >> 1;
+                if (list[mid].end > bodyEnd) {
+                  hi = mid;
+                } else {
+                  lo = mid + 1;
+                }
+              }
+              later = list[lo] || null;
+            }
+            var starts = [];
+            if (str.charAt(q) === "\r") {
+              if (str.charAt(q + 1) === "\n") {
+                starts.push(q + 2);
+              }
+              starts.push(q + 1);
+            } else if (str.charAt(q) === "\n") {
+              starts.push(q + 1);
+            }
+            starts.push(q);
+            for (var i = 0; i < starts.length; ++i) {
+              var t = starts[i];
+              var blank2 = bodyEndOk ? firstBlankLine(t + 1, bodyEnd) : -1;
+              var end2 = bodyEnd;
+              if (blank2 === -1 && later) {
+                blank2 = later.blank;
+                end2 = later.end;
+              }
+              if (blank2 !== -1 && blank2 <= headerEnd) {
+                var v = blankLineEnd(blank2);
+                pos = end2 + 14 + label.length;
+                return [
+                  str.substring(begin, pos),
+                  label,
+                  str.substring(t, v),
+                  str.substring(v, end2)
+                ];
+              }
+              if (bodyEndOk && t < bodyEnd) {
+                pos = bodyEnd + 14 + label.length;
+                return [
+                  str.substring(begin, pos),
+                  label,
+                  void 0,
+                  str.substring(t, bodyEnd)
+                ];
+              }
+            }
+          }
+          return null;
+        }
+      };
     }
   }
 });
@@ -83143,7 +83988,7 @@ var require_jsbn = __commonJS({
       return r;
     }
     function bnModInverse(m) {
-      if (this.signum() == 0) {
+      if (this.signum() <= 0 || m.signum() <= 0) {
         return BigInteger.ZERO;
       }
       var ac = m.isEven();
@@ -84022,6 +84867,41 @@ var require_rsa = __commonJS({
         capture: "digest"
       }]
     };
+    var _encodeDigestInfo = function(oid, digest, withParameters) {
+      var digestAlgorithm = [asn1.create(
+        asn1.Class.UNIVERSAL,
+        asn1.Type.OID,
+        false,
+        asn1.oidToDer(oid).getBytes()
+      )];
+      if (withParameters) {
+        digestAlgorithm.push(asn1.create(
+          asn1.Class.UNIVERSAL,
+          asn1.Type.NULL,
+          false,
+          ""
+        ));
+      }
+      return asn1.toDer(asn1.create(
+        asn1.Class.UNIVERSAL,
+        asn1.Type.SEQUENCE,
+        true,
+        [
+          asn1.create(
+            asn1.Class.UNIVERSAL,
+            asn1.Type.SEQUENCE,
+            true,
+            digestAlgorithm
+          ),
+          asn1.create(
+            asn1.Class.UNIVERSAL,
+            asn1.Type.OCTETSTRING,
+            false,
+            digest
+          )
+        ]
+      )).getBytes();
+    };
     var emsaPkcs1v15encode = function(md2) {
       var oid;
       if (md2.algorithm in pki2.oids) {
@@ -84524,6 +85404,13 @@ var require_rsa = __commonJS({
                     "ASN.1 object does not contain a valid RSASSA-PKCS1-v1_5 DigestInfo value. Missing algorithm identifier NULL parameters."
                   );
                 }
+              }
+              var withParameters = _encodeDigestInfo(oid, capture.digest, true);
+              var withoutParameters = _encodeDigestInfo(oid, capture.digest, false);
+              if (d2.substring(0, withParameters.length) !== withParameters && d2.substring(0, withoutParameters.length) !== withoutParameters) {
+                throw new Error(
+                  "ASN.1 object does not contain a valid RSASSA-PKCS1-v1_5 DigestInfo value."
+                );
               }
               return digest2 === capture.digest;
             }
@@ -85485,6 +86372,9 @@ var require_pbe = __commonJS({
     };
     pki2.pbe.generatePkcs12Key = function(password, salt, id, iter, n, md2) {
       var j, l;
+      if (!(iter >= 1)) {
+        throw new Error("PKCS#12 key derivation iteration count must be >= 1.");
+      }
       if (typeof md2 === "undefined" || md2 === null) {
         if (!("sha1" in forge.md)) {
           throw new Error('"sha1" hash algorithm unavailable.');
@@ -86770,6 +87660,7 @@ var require_x509 = __commonJS({
     };
     var _verifySignature = function(options) {
       var cert = options.certificate;
+      var publicKey = options.publicKey || cert.publicKey;
       var scheme;
       switch (cert.signatureOid) {
         case oids.sha1WithRSAEncryption:
@@ -86807,7 +87698,7 @@ var require_x509 = __commonJS({
           );
           break;
       }
-      return cert.publicKey.verify(
+      return publicKey.verify(
         options.md.digest().getBytes(),
         options.signature,
         scheme
@@ -87027,7 +87918,8 @@ var require_x509 = __commonJS({
         }
         if (md2 !== null) {
           rval = _verifySignature({
-            certificate: cert,
+            certificate: child,
+            publicKey: cert.publicKey,
             md: md2,
             signature: child.signature
           });
@@ -88262,10 +89154,7 @@ var require_x509 = __commonJS({
             }
           }
           if (parent) {
-            var parents = parent;
-            if (!forge.util.isArray(parents)) {
-              parents = [parents];
-            }
+            var parents = forge.util.isArray(parent) ? parent.slice() : [parent];
             var verified = false;
             while (!verified && parents.length > 0) {
               parent = parents.shift();
@@ -88310,7 +89199,7 @@ var require_x509 = __commonJS({
           }
         }
         if (error2 === null && (!first || chain.length === 0 && (!parent || selfSigned))) {
-          var bcExt = cert.getExtension("basicConstraints");
+          var bcExt = cert.getExtension({ id: "2.5.29.19" });
           var keyUsageExt = cert.getExtension("keyUsage");
           if (keyUsageExt !== null) {
             if (!keyUsageExt.keyCertSign || bcExt === null) {
@@ -88332,7 +89221,7 @@ var require_x509 = __commonJS({
               error: pki2.certificateError.bad_certificate
             };
           }
-          if (error2 === null && keyUsageExt !== null && "pathLenConstraint" in bcExt) {
+          if (error2 === null && bcExt !== null && "pathLenConstraint" in bcExt) {
             var pathLen = depth - 1;
             if (pathLen > bcExt.pathLenConstraint) {
               error2 = {
@@ -88716,6 +89605,9 @@ var require_pkcs12 = __commonJS({
         }
         var macSalt = new forge.util.ByteBuffer(capture.macSalt);
         var macIterations = "macIterations" in capture ? parseInt(forge.util.bytesToHex(capture.macIterations), 16) : 1;
+        if (!(macIterations >= 1)) {
+          throw new Error("PKCS#12 MAC iteration count must be >= 1.");
+        }
         var macKey = p12.generateKey(
           password,
           macSalt,
@@ -89977,7 +90869,7 @@ var require_tls = __commonJS({
           }
         });
       }
-      if (c.serverCertificate === null) {
+      if (c.session.serverCertificate === null) {
         var error2 = {
           message: "No server certificate provided. Not enough security.",
           send: true,
@@ -90001,8 +90893,8 @@ var require_tls = __commonJS({
               error2.alert.description = ret;
             }
           }
-          return c.error(c, error2);
         }
+        return c.error(c, error2);
       }
       if (c.session.certificateRequest !== null) {
         record = tls.createRecord(c, {
@@ -90258,7 +91150,7 @@ var require_tls = __commonJS({
       var length = b.getInt16();
       var payload = b.getBytes(length);
       if (type === tls.HeartbeatMessageType.heartbeat_request) {
-        if (c.handshaking || length > payload.length) {
+        if (c.handshakes === 0 || c.handshaking || length > payload.length) {
           return c.process();
         }
         tls.queue(c, tls.createRecord(c, {
@@ -91173,6 +92065,7 @@ var require_tls = __commonJS({
                     description: tls.Alert.Description.unexpected_message
                   }
                 });
+                return rval;
               }
             }
             c2.record.ready = true;
@@ -91237,24 +92130,48 @@ var require_tls = __commonJS({
           tls.flush(c);
         }
       };
+      var _processing = false;
+      var _processNext = false;
+      var _processRecord = function(c2) {
+        var rval = 0;
+        if (!c2.fail) {
+          if (c2.record !== null && c2.record.ready && c2.record.fragment.isEmpty()) {
+            c2.record = null;
+          }
+          if (c2.record === null) {
+            rval = _readRecordHeader(c2);
+          }
+          if (!c2.fail && c2.record !== null && !c2.record.ready) {
+            rval = _readRecord(c2);
+          }
+          if (!c2.fail && c2.record !== null && c2.record.ready) {
+            _update(c2, c2.record);
+          }
+        }
+        return rval;
+      };
       c.process = function(data) {
         var rval = 0;
         if (data) {
           c.input.putBytes(data);
         }
-        if (!c.fail) {
-          if (c.record !== null && c.record.ready && c.record.fragment.isEmpty()) {
-            c.record = null;
+        if (_processing && typeof data === "undefined") {
+          _processNext = true;
+          return rval;
+        }
+        var processing = _processing;
+        var processNext = _processNext;
+        _processing = true;
+        _processNext = false;
+        try {
+          rval = _processRecord(c);
+          while (_processNext) {
+            _processNext = false;
+            _processRecord(c);
           }
-          if (c.record === null) {
-            rval = _readRecordHeader(c);
-          }
-          if (!c.fail && c.record !== null && !c.record.ready) {
-            rval = _readRecord(c);
-          }
-          if (!c.fail && c.record !== null && c.record.ready) {
-            _update(c, c.record);
-          }
+        } finally {
+          _processing = processing;
+          _processNext = processNext;
         }
         return rval;
       };
@@ -99846,40 +100763,41 @@ var ApiClient = class {
 
 // docker/containers.json
 var containers_default = {
-  proxy: "ghcr.io/dependabot/proxy:v2.0.20260929055832@sha256:45fa12e4fdbeb668d70389b231fe60ce9ef755949f52c64828b9ecbc14f2305f",
-  bundler: "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20260928225144@sha256:4a2c021ac0ad95d3a17fd9b27b95f5045818dc8b8caf9a624c182d8f32e0f814",
-  cargo: "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20260928225144@sha256:3ad165658e638d7c2df5b7474a690ba5e194fa457b4b1fc10b0b67baa563f314",
-  composer: "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20260928225144@sha256:38a6b299f917ddad686e1b3702053a28e54cb2ea9b5e3f88277168c8c74ef3fd",
-  pub: "ghcr.io/dependabot/dependabot-updater-pub:v2.0.20260928225144@sha256:1e2414982decfd9570b82935cf6a1837194cb9720c550fdcc40cc249742ff50a",
-  docker: "ghcr.io/dependabot/dependabot-updater-docker:v2.0.20260928225144@sha256:66f8f621c1aebf528498ed8bb8be77841f75ea91396d17e068ead19f7e5ddedd",
-  elm: "ghcr.io/dependabot/dependabot-updater-elm:v2.0.20260928225144@sha256:e00bc1d17120583d8bc1c11721e69e278ed40c90292adbcead81eb9647e48843",
-  github_actions: "ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20260928225144@sha256:3054a7b4b61a879eedff56578dfad0afe31e87a2e4fee276051f1e9d6d03aa0d",
-  submodules: "ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20260928225144@sha256:acc8ba57853dabae456c84bf96bba974ff420a49fd06c072280af63b77840360",
-  go_modules: "ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20260928225144@sha256:29ca39f465b0abde1dd26b4c104361d3c255d0f55df8ce2cecf1fc6551630220",
-  gradle: "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20260928225144@sha256:ab09856ba7f2614d16095e6469ce3d8f32289e96462eb0285e57aa243ae8e00f",
-  maven: "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20260928225144@sha256:70195c8ecc3af36a828555186ebd30902cdfdfd9d7d0fa1a5346c31f679f3fd2",
-  hex: "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20260928225144@sha256:72be3e23c7b211136cd2affbdbb01de4325cf8de5bf1da7e6c0aa3d84109ef66",
-  nuget: "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20260928225144@sha256:e2a33f72c1cdb9c569727e229e4064a07ed5fa9d822459fbfbb8124d368f254f",
-  npm_and_yarn: "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20260928225144@sha256:4b22452e99aad4e39b34efdffb5a410660a084e45fc882fc288ba507fcdf25f0",
-  pip: "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20260928225144@sha256:92f91afeffeb62acb4bd2056fd3452272b9cc639e51bb849bb569c80ab578ef4",
-  rust_toolchain: "ghcr.io/dependabot/dependabot-updater-rust-toolchain:v2.0.20260928225144@sha256:8d5296dabd3a346dc6d2ecc6ca860a937fb80e2380f573fee73076d096539c00",
-  swift: "ghcr.io/dependabot/dependabot-updater-swift:v2.0.20260928225144@sha256:0d0cd987a22e4338e1191e4e3767acd48f7c135b8ba9f10f598a73c3b89db9ee",
-  terraform: "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20260928225144@sha256:9a26c782c321169083c8564f6be2d6cdd5d30625a6a7daff0d5fb451e2236b0e",
-  devcontainers: "ghcr.io/dependabot/dependabot-updater-devcontainers:v2.0.20260928225144@sha256:f7ff1da5af87d3e40946db6c51d55ebf08d87395dcf7153b297d918aa40a52b4",
-  dotnet_sdk: "ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20260928225144@sha256:ba2965bb48a1833fcb274c695c5ca23d2483d55839004c06efa7fb9461f66419",
-  bun: "ghcr.io/dependabot/dependabot-updater-bun:v2.0.20260928225144@sha256:d9ec687d1f8ef7399afcc38f3b401100a5bec7b70d4c2c7a8607ebe9c9346c3b",
-  docker_compose: "ghcr.io/dependabot/dependabot-updater-docker-compose:v2.0.20260928225144@sha256:75af7c23d0b4d17d8fc54cb355be836451cfa86c173ae742683c3f33f66455e1",
-  uv: "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20260928225144@sha256:d6b55592e148e771c49862aa74e68a1dda739c95629a4084fc556141762f1105",
-  vcpkg: "ghcr.io/dependabot/dependabot-updater-vcpkg:v2.0.20260928225144@sha256:6d498ed4129bb4665af4747997d5d0f5305280a15dcc024e0fe0de61489e242d",
-  helm: "ghcr.io/dependabot/dependabot-updater-helm:v2.0.20260928225144@sha256:1452f9601e0a9498ee36c1a4811713aaef4b49f0405621713f3850be587b5529",
-  julia: "ghcr.io/dependabot/dependabot-updater-julia:v2.0.20260928225144@sha256:f11c73f8745d19dcb3b8aa896d85590399e1d2599a348e6832b4966bcd7c682c",
-  bazel: "ghcr.io/dependabot/dependabot-updater-bazel:v2.0.20260928225144@sha256:78ad120d71a45cbe612d58c4aefc21b4ae7af0186a1bd7cea8e903b539209b1d",
-  opentofu: "ghcr.io/dependabot/dependabot-updater-opentofu:v2.0.20260928225144@sha256:131e780464b82bcbb7d0dbe0c2d26325c4576d232bd827d43ccf43ca3a001951",
-  pre_commit: "ghcr.io/dependabot/dependabot-updater-pre-commit:v2.0.20260928225144@sha256:adae3f3dceb838505dd5e5a76bb0f42681d88b646cd75e8dc6284248ecfd2271",
-  conda: "ghcr.io/dependabot/dependabot-updater-conda:v2.0.20260928225144@sha256:156856b1e4c9e7c5862e3300fc219fcac79d85fd9f542451949e962dcb74619d",
-  deno: "ghcr.io/dependabot/dependabot-updater-deno:v2.0.20260928225144@sha256:29590be76b0333c56c1d2d7bdf4dbd65c97291199a3d25aeb257cf2f8e3d35a8",
-  nix: "ghcr.io/dependabot/dependabot-updater-nix:v2.0.20260928225144@sha256:4e7dbaa563010093ea829bc9af92dee53ef8d616fa6f756448d9cac752b33a79",
-  sbt: "ghcr.io/dependabot/dependabot-updater-sbt:v2.0.20260928225144@sha256:7dc8458d07c6f512aecfd9c9d15ebb7d2dc4d61b068e862fc9071a5d59516947"
+  proxy: "ghcr.io/dependabot/proxy:v2.0.20261103195546@sha256:13982e0447ae292382c4240f36b4b1589154688dce9a79a14087888e97e080e7",
+  bundler: "ghcr.io/dependabot/dependabot-updater-bundler:v2.0.20261103182141@sha256:60ab7ada5747cd9a39929315d71cb982fa4ba8dab101e280ed238fd8642ab570",
+  cargo: "ghcr.io/dependabot/dependabot-updater-cargo:v2.0.20261103182141@sha256:a49f8e5edbcbd179325a7cffbde6541cbc17b9ade1d86f61ff8d217b1eca5983",
+  composer: "ghcr.io/dependabot/dependabot-updater-composer:v2.0.20261103182141@sha256:30c76e64b6ae1225f8570648d52faa7b3fbb3e956717b48a967a99e8a0a61a12",
+  pub: "ghcr.io/dependabot/dependabot-updater-pub:v2.0.20261103182141@sha256:c2f95ab107b59a1f3e65b67695e6556092d0ce1b42bbf0c7004b8f4bf8e10253",
+  docker: "ghcr.io/dependabot/dependabot-updater-docker:v2.0.20261103182141@sha256:d28c28f10541ca1fd0601ae8a78de37ed408be660416f5bcbb425e4bf122af8f",
+  elm: "ghcr.io/dependabot/dependabot-updater-elm:v2.0.20261103182141@sha256:5b7d86bb552834fc1c6147888c2949a3d5cb73bfbb0c7f181add94c963b06dd6",
+  github_actions: "ghcr.io/dependabot/dependabot-updater-github-actions:v2.0.20261103182141@sha256:1621aa5ba9be9207a72315272531283b2f2a665aa274da9bda71bee503f93905",
+  submodules: "ghcr.io/dependabot/dependabot-updater-gitsubmodule:v2.0.20261103182141@sha256:145263ab3459973e6a043738cadb94ed9c70275fb4ea7fdbf7fbf771844222ad",
+  go_modules: "ghcr.io/dependabot/dependabot-updater-gomod:v2.0.20261103182141@sha256:e1dc2820203953bf4569fa00e70e6bce5b40086037a7d85d2d4bc55579ac5cae",
+  gradle: "ghcr.io/dependabot/dependabot-updater-gradle:v2.0.20261103182141@sha256:b0e73a8f642c1a019588cc7a731b1992637490ec70915d5bf7cd931a3c73902b",
+  maven: "ghcr.io/dependabot/dependabot-updater-maven:v2.0.20261103182141@sha256:77ae6cab7e773b3ff1c2a4d00f68e44f819135f18e1a2ae3c5649960cacdace0",
+  hex: "ghcr.io/dependabot/dependabot-updater-mix:v2.0.20261103182141@sha256:54063a96e687ab737c01c62a6aee6273122d91c10a265869fabea307c4289d61",
+  nuget: "ghcr.io/dependabot/dependabot-updater-nuget:v2.0.20261103182141@sha256:b4013c86afedb0b32e7fe0508bbf32833d0125e5412eae3830135d24f1df67f1",
+  npm_and_yarn: "ghcr.io/dependabot/dependabot-updater-npm:v2.0.20261103182141@sha256:fa744002e3f25886dd92b2a0034e88249b634a6ebcafd2e3ec7e21c2f105fc10",
+  pip: "ghcr.io/dependabot/dependabot-updater-pip:v2.0.20261103182141@sha256:f11e4f54ffe13ae609048a28bff0b5ef0d2e3817e4884ff174ed95da152232b5",
+  rust_toolchain: "ghcr.io/dependabot/dependabot-updater-rust-toolchain:v2.0.20261103182141@sha256:cf36372b1f0064155d95d4200f976172bb087e8043d593392f6a6a55cd70378e",
+  swift: "ghcr.io/dependabot/dependabot-updater-swift:v2.0.20261103182141@sha256:9a2e85476cbb92dee7ac6b1d3aee87aa9c5366a63dd536f1e33b4c4ed2e09e6f",
+  terraform: "ghcr.io/dependabot/dependabot-updater-terraform:v2.0.20261103182141@sha256:86224cd8483d15a9b2f061a725632741fa0e9c62fd13e02bcf70770451d924b9",
+  devcontainers: "ghcr.io/dependabot/dependabot-updater-devcontainers:v2.0.20261103182141@sha256:ee6bb368ce3aa5261b3a75cf0110963de2dc5894e7867f98dde8b36f995a7bf0",
+  dotnet_sdk: "ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20261103182141@sha256:491c8ff147ec45cd37bc91ce13717ea584e03b00e87ce7ada08524e1e3056e58",
+  bun: "ghcr.io/dependabot/dependabot-updater-bun:v2.0.20261103182141@sha256:82e7f69a6748967df39a1c5d802e2ab862928ce9e02cec4d8e844d41316578fb",
+  docker_compose: "ghcr.io/dependabot/dependabot-updater-docker-compose:v2.0.20261103182141@sha256:8c0f497626b84720213c8c9ff6651ae78102af84bedc8357b939f754e23d6cd0",
+  uv: "ghcr.io/dependabot/dependabot-updater-uv:v2.0.20261103182141@sha256:b898d947fbb5e36f2ea7bde32d691dd766760ed669e99f79681ce6944189a09a",
+  vcpkg: "ghcr.io/dependabot/dependabot-updater-vcpkg:v2.0.20261103182141@sha256:b8badc9cfcfdb1123c82906580aa2fe0c4a71dcea583255d8dfa6121c5979027",
+  helm: "ghcr.io/dependabot/dependabot-updater-helm:v2.0.20261103182141@sha256:f3e164dd8620c43418ea509f5e7aa91e6bc856311cd54a8ca068d6f59e8bb8f8",
+  julia: "ghcr.io/dependabot/dependabot-updater-julia:v2.0.20261103182141@sha256:e14fe78ba8252e1978d36f5685870ff756331ee5c573e155b126c9b6a882fd4e",
+  bazel: "ghcr.io/dependabot/dependabot-updater-bazel:v2.0.20261103182141@sha256:c27eb9c8309d67917ed71f26ee8e65a6e3e31088e9d9f30fe32ba963c64b66c7",
+  opentofu: "ghcr.io/dependabot/dependabot-updater-opentofu:v2.0.20261103182141@sha256:3a90acb447b5503dae85623266f148279c729098105be80c40961d0c75b7dd99",
+  pre_commit: "ghcr.io/dependabot/dependabot-updater-pre-commit:v2.0.20261103182141@sha256:9cdf6a05e6e3989ee34679e46f3ae57057ad0a6f50d2a12785b9f6a253ab2827",
+  conda: "ghcr.io/dependabot/dependabot-updater-conda:v2.0.20261103182141@sha256:e3ad6409ebf883daa950db63cad5aee431db368e781f7b32b434a4e5b97938bc",
+  deno: "ghcr.io/dependabot/dependabot-updater-deno:v2.0.20261103182141@sha256:d08f38d25fa68254e935f0a9ca0315354cd79455371a4c74a8bbcb92187960bd",
+  nix: "ghcr.io/dependabot/dependabot-updater-nix:v2.0.20261103182141@sha256:04b7ae10677a9e434ec83135093b34a7b4b76e1e1cd62835c1a5b15c7f24e839",
+  sbt: "ghcr.io/dependabot/dependabot-updater-sbt:v2.0.20261103182141@sha256:7d4d55e0af680e7b3af69755b2bb15dfe05acab27e27a7beb1694e4d4ace3d13",
+  apm: "ghcr.io/dependabot/dependabot-updater-apm:v2.0.20261103182141@sha256:c1e154f643f29de6ca43f1c450014d8da58ac8baf22b7294dd2e344309982165"
 };
 
 // src/docker-tags.ts
@@ -100661,6 +101579,9 @@ var Updater = class {
       if (credential["public-key-fingerprint"] !== void 0) {
         obj["public-key-fingerprint"] = credential["public-key-fingerprint"];
       }
+      if (credential["public-key"] !== void 0) {
+        obj["public-key"] = credential["public-key"];
+      }
       if (credential.repo !== void 0) {
         obj.repo = credential.repo;
       }
@@ -100955,8 +101876,17 @@ function isHostWideCredentialLocation(value, host) {
   const path = match[2] ?? "";
   return (authority === host || authority === `${host}:443`) && path.replace(/\/+$/, "") === "";
 }
+function getPackagesHost(registry) {
+  const tenant = process.env.GITHUB_SERVER_URL?.match(
+    /^https:\/\/([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.ghe\.com)(?::443)?\/?$/i
+  );
+  if (tenant) {
+    return `${registry}.${tenant[1].toLowerCase()}`;
+  }
+  return registry === "containers" ? "ghcr.io" : `${registry}.pkg.github.com`;
+}
 function getRubyGemsPackagesCredential(jobDetails, actor, githubToken) {
-  const host = "rubygems.pkg.github.com";
+  const host = getPackagesHost("rubygems");
   if (hasCredentialForHost(jobDetails, "rubygems_server", host)) {
     return null;
   }
@@ -100967,7 +101897,7 @@ function getRubyGemsPackagesCredential(jobDetails, actor, githubToken) {
   };
 }
 function getDockerPackagesCredential(jobDetails, actor, githubToken) {
-  const registry = "ghcr.io";
+  const registry = getPackagesHost("containers");
   if (hasCredentialForHost(jobDetails, "docker_registry", registry)) {
     return null;
   }
@@ -100991,7 +101921,7 @@ function getMavenPackagesCredential(jobDetails, actor, githubToken) {
   };
 }
 function getNpmPackagesCredential(jobDetails, actor, githubToken) {
-  const registry = "npm.pkg.github.com";
+  const registry = getPackagesHost("npm");
   if (hasCredentialForHost(jobDetails, "npm_registry", registry)) {
     return null;
   }
@@ -101002,7 +101932,7 @@ function getNpmPackagesCredential(jobDetails, actor, githubToken) {
   };
 }
 function getNuGetPackagesCredential(jobDetails, actor, githubToken) {
-  const host = "nuget.pkg.github.com";
+  const host = getPackagesHost("nuget");
   if (hasCredentialForHost(jobDetails, "nuget_feed", host)) {
     return null;
   }
