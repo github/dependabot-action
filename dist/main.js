@@ -75223,32 +75223,59 @@ var require_b4a = __commonJS({
     function toString(buffer, encoding, start, end) {
       return toBuffer(buffer).toString(encoding, start, end);
     }
+    function toHex(buffer, start, end) {
+      return toBuffer(buffer).toString("hex", start, end);
+    }
     function write(buffer, string, offset, length, encoding) {
       return toBuffer(buffer).write(string, offset, length, encoding);
     }
-    function writeDoubleLE(buffer, value, offset) {
-      return toBuffer(buffer).writeDoubleLE(value, offset);
-    }
-    function writeFloatLE(buffer, value, offset) {
-      return toBuffer(buffer).writeFloatLE(value, offset);
-    }
-    function writeUInt32LE(buffer, value, offset) {
-      return toBuffer(buffer).writeUInt32LE(value, offset);
-    }
-    function writeInt32LE(buffer, value, offset) {
-      return toBuffer(buffer).writeInt32LE(value, offset);
+    function readDoubleBE(buffer, offset) {
+      return toBuffer(buffer).readDoubleBE(offset);
     }
     function readDoubleLE(buffer, offset) {
       return toBuffer(buffer).readDoubleLE(offset);
     }
+    function readFloatBE(buffer, offset) {
+      return toBuffer(buffer).readFloatBE(offset);
+    }
     function readFloatLE(buffer, offset) {
       return toBuffer(buffer).readFloatLE(offset);
+    }
+    function readInt32BE(buffer, offset) {
+      return toBuffer(buffer).readInt32BE(offset);
+    }
+    function readInt32LE(buffer, offset) {
+      return toBuffer(buffer).readInt32LE(offset);
+    }
+    function readUInt32BE(buffer, offset) {
+      return toBuffer(buffer).readUInt32BE(offset);
     }
     function readUInt32LE(buffer, offset) {
       return toBuffer(buffer).readUInt32LE(offset);
     }
-    function readInt32LE(buffer, offset) {
-      return toBuffer(buffer).readInt32LE(offset);
+    function writeDoubleBE(buffer, value, offset) {
+      return toBuffer(buffer).writeDoubleBE(value, offset);
+    }
+    function writeDoubleLE(buffer, value, offset) {
+      return toBuffer(buffer).writeDoubleLE(value, offset);
+    }
+    function writeFloatBE(buffer, value, offset) {
+      return toBuffer(buffer).writeFloatBE(value, offset);
+    }
+    function writeFloatLE(buffer, value, offset) {
+      return toBuffer(buffer).writeFloatLE(value, offset);
+    }
+    function writeInt32BE(buffer, value, offset) {
+      return toBuffer(buffer).writeInt32BE(value, offset);
+    }
+    function writeInt32LE(buffer, value, offset) {
+      return toBuffer(buffer).writeInt32LE(value, offset);
+    }
+    function writeUInt32BE(buffer, value, offset) {
+      return toBuffer(buffer).writeUInt32BE(value, offset);
+    }
+    function writeUInt32LE(buffer, value, offset) {
+      return toBuffer(buffer).writeUInt32LE(value, offset);
     }
     module2.exports = {
       isBuffer,
@@ -75271,15 +75298,24 @@ var require_b4a = __commonJS({
       swap64,
       toBuffer,
       toString,
+      toHex,
       write,
-      writeDoubleLE,
-      writeFloatLE,
-      writeUInt32LE,
-      writeInt32LE,
+      readDoubleBE,
       readDoubleLE,
+      readFloatBE,
       readFloatLE,
+      readInt32BE,
+      readInt32LE,
+      readUInt32BE,
       readUInt32LE,
-      readInt32LE
+      writeDoubleBE,
+      writeDoubleLE,
+      writeFloatBE,
+      writeFloatLE,
+      writeInt32BE,
+      writeInt32LE,
+      writeUInt32BE,
+      writeUInt32LE
     };
   }
 });
@@ -75514,14 +75550,55 @@ var require_text_decoder = __commonJS({
   }
 });
 
+// node_modules/streamx/lib/errors.js
+var require_errors4 = __commonJS({
+  "node_modules/streamx/lib/errors.js"(exports2, module2) {
+    module2.exports = class StreamError extends Error {
+      constructor(msg, code, fn = StreamError) {
+        super(msg);
+        this.code = code;
+        if (Error.captureStackTrace) {
+          Error.captureStackTrace(this, fn);
+        }
+      }
+      static isStreamDestroyed(err) {
+        return err && err.code === "STREAM_DESTROYED";
+      }
+      static isPrematureClose(err) {
+        return err && err.code === "PREMATURE_CLOSE";
+      }
+      static isAborted(err) {
+        return err && err.code === "ABORTED";
+      }
+      static isBadArgument(err) {
+        return err && err.code === "BAD_ARGUMENT";
+      }
+      get name() {
+        return "StreamError";
+      }
+      static STREAM_DESTROYED() {
+        return new StreamError("Stream was destroyed", "STREAM_DESTROYED", StreamError.STREAM_DESTROYED);
+      }
+      static PREMATURE_CLOSE(msg = "Premature close") {
+        return new StreamError(msg, "PREMATURE_CLOSE", StreamError.PREMATURE_CLOSE);
+      }
+      static ABORTED() {
+        return new StreamError("Stream aborted", "ABORTED", StreamError.ABORTED);
+      }
+      static BAD_ARGUMENT(msg = "Bad argument") {
+        return new StreamError(msg, "BAD_ARGUMENT", StreamError.BAD_ARGUMENT);
+      }
+    };
+  }
+});
+
 // node_modules/streamx/index.js
 var require_streamx = __commonJS({
   "node_modules/streamx/index.js"(exports2, module2) {
     var { EventEmitter } = require_default();
-    var STREAM_DESTROYED = new Error("Stream was destroyed");
-    var PREMATURE_CLOSE = new Error("Premature close");
     var FIFO = require_fast_fifo();
     var TextDecoder2 = require_text_decoder();
+    var StreamError = require_errors4();
     var qmt = typeof queueMicrotask === "undefined" ? (fn) => global.process.nextTick(fn) : queueMicrotask;
     var MAX = (1 << 29) - 1;
     var OPENING = 1;
@@ -75624,6 +75701,9 @@ var require_streamx = __commonJS({
         this.afterWrite = afterWrite.bind(this);
         this.afterUpdateNextTick = updateWriteNT.bind(this);
       }
+      get ending() {
+        return (this.stream._duplexState & WRITE_FINISHING) !== 0;
+      }
       get ended() {
         return (this.stream._duplexState & WRITE_DONE) !== 0;
       }
@@ -75646,8 +75726,11 @@ var require_streamx = __commonJS({
         return data;
       }
       end(data) {
-        if (typeof data === "function") this.stream.once("finish", data);
-        else if (data !== void 0 && data !== null) this.push(data);
+        if (typeof data === "function") {
+          this.stream.once("finish", data);
+        } else if (data !== void 0 && data !== null) {
+          this.push(data);
+        }
         this.stream._duplexState = (this.stream._duplexState | WRITE_FINISHING) & WRITE_NON_PRIMARY;
       }
       autoBatch(data, cb) {
@@ -75698,8 +75781,11 @@ var require_streamx = __commonJS({
         return true;
       }
       updateCallback() {
-        if ((this.stream._duplexState & WRITE_UPDATE_SYNC_STATUS) === WRITE_PRIMARY) this.update();
-        else this.updateNextTick();
+        if ((this.stream._duplexState & WRITE_UPDATE_SYNC_STATUS) === WRITE_PRIMARY) {
+          this.update();
+        } else {
+          this.updateNextTick();
+        }
       }
       updateNextTick() {
         if ((this.stream._duplexState & WRITE_NEXT_TICK) !== 0) return;
@@ -75722,11 +75808,14 @@ var require_streamx = __commonJS({
         this.afterRead = afterRead.bind(this);
         this.afterUpdateNextTick = updateReadNT.bind(this);
       }
+      get ending() {
+        return (this.stream._duplexState & READ_ENDING) !== 0;
+      }
       get ended() {
         return (this.stream._duplexState & READ_DONE) !== 0;
       }
       pipe(pipeTo, cb) {
-        if (this.pipeTo !== null) throw new Error("Can only pipe to one destination");
+        if (this.pipeTo !== null) throw StreamError.BAD_ARGUMENT("Can only pipe to one destination");
         if (typeof cb !== "function") cb = null;
         this.stream._duplexState |= READ_PIPE_DRAINED;
         this.pipeTo = pipeTo;
@@ -75769,7 +75858,9 @@ var require_streamx = __commonJS({
       shift() {
         const data = this.queue.shift();
         this.buffered -= this.byteLength(data);
-        if (this.buffered === 0) this.stream._duplexState &= READ_NOT_QUEUED;
+        if (this.buffered === 0) {
+          this.stream._duplexState &= READ_NOT_QUEUED;
+        }
         return data;
       }
       unshift(data) {
@@ -75786,8 +75877,12 @@ var require_streamx = __commonJS({
         const stream2 = this.stream;
         if ((stream2._duplexState & READ_STATUS) === READ_QUEUED) {
           const data = this.shift();
-          if (this.pipeTo !== null && this.pipeTo.write(data) === false) stream2._duplexState &= READ_PIPE_NOT_DRAINED;
-          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) stream2.emit("data", data);
+          if (this.pipeTo !== null && this.pipeTo.write(data) === false) {
+            stream2._duplexState &= READ_PIPE_NOT_DRAINED;
+          }
+          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) {
+            stream2.emit("data", data);
+          }
           return data;
         }
         if (this.readAhead === false) {
@@ -75800,8 +75895,12 @@ var require_streamx = __commonJS({
         const stream2 = this.stream;
         while ((stream2._duplexState & READ_STATUS) === READ_QUEUED && (stream2._duplexState & READ_FLOWING) !== 0) {
           const data = this.shift();
-          if (this.pipeTo !== null && this.pipeTo.write(data) === false) stream2._duplexState &= READ_PIPE_NOT_DRAINED;
-          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) stream2.emit("data", data);
+          if (this.pipeTo !== null && this.pipeTo.write(data) === false) {
+            stream2._duplexState &= READ_PIPE_NOT_DRAINED;
+          }
+          if ((stream2._duplexState & READ_EMIT_DATA) !== 0) {
+            stream2.emit("data", data);
+          }
         }
       }
       update() {
@@ -75818,7 +75917,9 @@ var require_streamx = __commonJS({
             stream2._duplexState |= READ_EMITTED_READABLE;
             stream2.emit("readable");
           }
-          if ((stream2._duplexState & READ_PRIMARY_AND_ACTIVE) === 0) this.updateNonPrimary();
+          if ((stream2._duplexState & READ_PRIMARY_AND_ACTIVE) === 0) {
+            this.updateNonPrimary();
+          }
         } while (this.continueUpdate() === true);
         stream2._duplexState &= READ_NOT_UPDATING;
       }
@@ -75827,8 +75928,12 @@ var require_streamx = __commonJS({
         if ((stream2._duplexState & READ_ENDING_STATUS) === READ_ENDING) {
           stream2._duplexState = (stream2._duplexState | READ_DONE) & READ_NOT_ENDING;
           stream2.emit("end");
-          if ((stream2._duplexState & AUTO_DESTROY) === DONE) stream2._duplexState |= DESTROYING;
-          if (this.pipeTo !== null) this.pipeTo.end();
+          if ((stream2._duplexState & AUTO_DESTROY) === DONE) {
+            stream2._duplexState |= DESTROYING;
+          }
+          if (this.pipeTo !== null) {
+            this.pipeTo.end();
+          }
         }
         if ((stream2._duplexState & DESTROY_STATUS) === DESTROYING) {
           if ((stream2._duplexState & ACTIVE_OR_TICKING) === 0) {
@@ -75848,8 +75953,11 @@ var require_streamx = __commonJS({
         return true;
       }
       updateCallback() {
-        if ((this.stream._duplexState & READ_UPDATE_SYNC_STATUS) === READ_PRIMARY) this.update();
-        else this.updateNextTick();
+        if ((this.stream._duplexState & READ_UPDATE_SYNC_STATUS) === READ_PRIMARY) {
+          this.update();
+        } else {
+          this.updateNextTick();
+        }
       }
       updateNextTickIfOpen() {
         if ((this.stream._duplexState & READ_NEXT_TICK_OR_OPENING) !== 0) return;
@@ -75886,7 +75994,7 @@ var require_streamx = __commonJS({
           this.to = null;
           if (this.from !== null) {
             if ((this.from._duplexState & READ_DONE) === 0 || !this.pipeToFinished) {
-              this.from.destroy(this.error || new Error("Writable stream closed prematurely"));
+              this.from.destroy(this.error || StreamError.PREMATURE_CLOSE("Writable stream closed"));
             }
             return;
           }
@@ -75895,7 +76003,7 @@ var require_streamx = __commonJS({
           this.from = null;
           if (this.to !== null) {
             if ((stream2._duplexState & READ_DONE) === 0) {
-              this.to.destroy(this.error || new Error("Readable stream closed before ending"));
+              this.to.destroy(this.error || StreamError.PREMATURE_CLOSE("Readable stream closed"));
             }
             return;
           }
@@ -75919,21 +76027,30 @@ var require_streamx = __commonJS({
         stream2._duplexState |= DESTROYING;
       }
       stream2._duplexState &= WRITE_NOT_FINISHING;
-      if ((stream2._duplexState & WRITE_UPDATING) === 0) this.update();
-      else this.updateNextTick();
+      if ((stream2._duplexState & WRITE_UPDATING) === 0) {
+        this.update();
+      } else {
+        this.updateNextTick();
+      }
     }
     function afterDestroy(err) {
       const stream2 = this.stream;
-      if (!err && this.error !== STREAM_DESTROYED) err = this.error;
+      if (!err && !StreamError.isStreamDestroyed(this.error)) err = this.error;
       if (err) stream2.emit("error", err);
       stream2._duplexState |= DESTROYED;
       stream2.emit("close");
       const rs = stream2._readableState;
       const ws = stream2._writableState;
-      if (rs !== null && rs.pipeline !== null) rs.pipeline.done(stream2, err);
+      if (rs !== null && rs.pipeline !== null) {
+        rs.pipeline.done(stream2, err);
+      }
       if (ws !== null) {
-        while (ws.drains !== null && ws.drains.length > 0) ws.drains.shift().resolve(false);
-        if (ws.pipeline !== null) ws.pipeline.done(stream2, err);
+        while (ws.drains !== null && ws.drains.length > 0) {
+          ws.drains.shift().resolve(false);
+        }
+        if (ws.pipeline !== null) {
+          ws.pipeline.done(stream2, err);
+        }
       }
     }
     function afterWrite(err) {
@@ -75952,7 +76069,9 @@ var require_streamx = __commonJS({
     function afterRead(err) {
       if (err) this.stream.destroy(err);
       this.stream._duplexState &= READ_NOT_ACTIVE;
-      if (this.readAhead === false && (this.stream._duplexState & READ_RESUMED) === 0) this.stream._duplexState &= READ_NO_READ_AHEAD;
+      if (this.readAhead === false && (this.stream._duplexState & READ_RESUMED) === 0) {
+        this.stream._duplexState &= READ_NO_READ_AHEAD;
+      }
       this.updateCallback();
     }
     function updateReadNT() {
@@ -75979,8 +76098,12 @@ var require_streamx = __commonJS({
       const stream2 = this.stream;
       if (err) stream2.destroy(err);
       if ((stream2._duplexState & DESTROYING) === 0) {
-        if ((stream2._duplexState & READ_PRIMARY_STATUS) === 0) stream2._duplexState |= READ_PRIMARY;
-        if ((stream2._duplexState & WRITE_PRIMARY_STATUS) === 0) stream2._duplexState |= WRITE_PRIMARY;
+        if ((stream2._duplexState & READ_PRIMARY_STATUS) === 0) {
+          stream2._duplexState |= READ_PRIMARY;
+        }
+        if ((stream2._duplexState & WRITE_PRIMARY_STATUS) === 0) {
+          stream2._duplexState |= WRITE_PRIMARY;
+        }
         stream2.emit("open");
       }
       stream2._duplexState &= NOT_ACTIVE;
@@ -76023,9 +76146,7 @@ var require_streamx = __commonJS({
           if (opts.open) this._open = opts.open;
           if (opts.destroy) this._destroy = opts.destroy;
           if (opts.predestroy) this._predestroy = opts.predestroy;
-          if (opts.signal) {
-            opts.signal.addEventListener("abort", abort.bind(this));
-          }
+          if (opts.signal) opts.signal.addEventListener("abort", abort.bind(this));
         }
         this.on("newListener", newListener);
       }
@@ -76051,7 +76172,7 @@ var require_streamx = __commonJS({
       }
       destroy(err) {
         if ((this._duplexState & DESTROY_STATUS) === 0) {
-          if (!err) err = STREAM_DESTROYED;
+          if (!err) err = StreamError.STREAM_DESTROYED();
           this._duplexState = (this._duplexState | DESTROYING) & NON_PRIMARY;
           if (this._readableState !== null) {
             this._readableState.highWaterMark = 0;
@@ -76064,8 +76185,12 @@ var require_streamx = __commonJS({
           this._duplexState |= PREDESTROYING;
           this._predestroy();
           this._duplexState &= NOT_PREDESTROYING;
-          if (this._readableState !== null) this._readableState.updateNextTick();
-          if (this._writableState !== null) this._writableState.updateNextTick();
+          if (this._readableState !== null) {
+            this._readableState.updateNextTick();
+          }
+          if (this._writableState !== null) {
+            this._writableState.updateNextTick();
+          }
         }
       }
     };
@@ -76080,6 +76205,15 @@ var require_streamx = __commonJS({
           if (opts.eagerOpen) this._readableState.updateNextTick();
           if (opts.encoding) this.setEncoding(opts.encoding);
         }
+      }
+      static deferred(fn, opts) {
+        const out = new PassThrough(opts);
+        fn().then((src) => {
+          if (src === null) return out.end();
+          if (out.destroying) return;
+          pipeline(src, out, noop3);
+        }).catch((err) => out.destroy(err));
+        return out;
       }
       setEncoding(encoding) {
         const dec = new TextDecoder2(encoding);
@@ -76198,9 +76332,13 @@ var require_streamx = __commonJS({
         }
         function ondata(data) {
           if (promiseReject === null) return;
-          if (error2) promiseReject(error2);
-          else if (data === null && (stream2._duplexState & READ_DONE) === 0) promiseReject(STREAM_DESTROYED);
-          else promiseResolve({ value: data, done: data === null });
+          if (error2) {
+            promiseReject(error2);
+          } else if (data === null && (stream2._duplexState & READ_DONE) === 0) {
+            promiseReject(StreamError.STREAM_DESTROYED());
+          } else {
+            promiseResolve({ value: data, done: data === null });
+          }
           promiseReject = promiseResolve = null;
         }
         function destroy(err) {
@@ -76369,7 +76507,7 @@ var require_streamx = __commonJS({
     function pipeline(stream2, ...streams) {
       const all = Array.isArray(stream2) ? [...stream2, ...streams] : [stream2, ...streams];
       const done = all.length && typeof all[all.length - 1] === "function" ? all.pop() : null;
-      if (all.length < 2) throw new Error("Pipeline requires at least 2 streams");
+      if (all.length < 2) throw StreamError.BAD_ARGUMENT("Pipeline requires at least 2 streams");
       let src = all[0];
       let dest = null;
       let error2 = null;
@@ -76394,7 +76532,7 @@ var require_streamx = __commonJS({
           if (!autoDestroy) done(error2);
         });
         if (autoDestroy) {
-          dest.on("close", () => done(error2 || (fin ? null : PREMATURE_CLOSE)));
+          dest.on("close", () => done(error2 || (fin ? null : StreamError.PREMATURE_CLOSE())));
         }
       }
       return dest;
@@ -76402,8 +76540,12 @@ var require_streamx = __commonJS({
         s.on("error", onerror2);
         s.on("close", onclose);
         function onclose() {
-          if (rd && s._readableState && !s._readableState.ended) return onerror2(PREMATURE_CLOSE);
-          if (wr && s._writableState && !s._writableState.ended) return onerror2(PREMATURE_CLOSE);
+          if (rd && s._readableState && !s._readableState.ended) {
+            return onerror2(StreamError.PREMATURE_CLOSE());
+          }
+          if (wr && s._writableState && !s._writableState.ended) {
+            return onerror2(StreamError.PREMATURE_CLOSE());
+          }
         }
       }
       function onerror(err) {
@@ -76423,21 +76565,27 @@ var require_streamx = __commonJS({
     function isStreamx(stream2) {
       return typeof stream2._duplexState === "number" && isStream(stream2);
     }
+    function isEnding(stream2) {
+      return !!stream2._readableState && stream2._readableState.ending;
+    }
     function isEnded(stream2) {
       return !!stream2._readableState && stream2._readableState.ended;
+    }
+    function isFinishing(stream2) {
+      return !!stream2._writableState && stream2._writableState.ending;
     }
     function isFinished(stream2) {
       return !!stream2._writableState && stream2._writableState.ended;
     }
     function getStreamError(stream2, opts = {}) {
       const err = stream2._readableState && stream2._readableState.error || stream2._writableState && stream2._writableState.error;
-      return !opts.all && err === STREAM_DESTROYED ? null : err;
+      return !opts.all && StreamError.isStreamDestroyed(err) ? null : err;
     }
     function isReadStreamx(stream2) {
       return isStreamx(stream2) && stream2.readable;
     }
     function isDisturbed(stream2) {
-      return (stream2._duplexState & OPENING) !== OPENING || (stream2._duplexState & ACTIVE_OR_TICKING) !== 0;
+      return (stream2._duplexState & OPENING) !== OPENING || (stream2._duplexState & DESTROYING) === DESTROYING || (stream2._duplexState & ACTIVE_OR_TICKING) !== 0;
     }
     function isTypedArray(data) {
       return typeof data === "object" && data !== null && typeof data.byteLength === "number";
@@ -76448,7 +76596,7 @@ var require_streamx = __commonJS({
     function noop3() {
     }
     function abort() {
-      this.destroy(new Error("Stream aborted."));
+      this.destroy(StreamError.ABORTED());
     }
     function isWritev(s) {
       return s._writev !== Writable2.prototype._writev && s._writev !== Duplex.prototype._writev;
@@ -76458,7 +76606,9 @@ var require_streamx = __commonJS({
       pipelinePromise,
       isStream,
       isStreamx,
+      isEnding,
       isEnded,
+      isFinishing,
       isFinished,
       isDisturbed,
       getStreamError,
@@ -81311,6 +81461,7 @@ var require_pem = __commonJS({
     };
     pem.decode = function(str) {
       var rval = [];
+      str = String(str);
       var messages = _pemMessageScanner(str);
       var rHeader = /(?:^|[^\x21-\x7e])([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
       var rCRLF = /\r?\n/;
@@ -88174,6 +88325,14 @@ var require_x509 = __commonJS({
               default:
             }
           }
+        } else if (e.name === "nameConstraints" && e.id === "2.5.29.30") {
+          try {
+            var nc = _readNameConstraints(asn1.fromDer(e.value));
+            e.permittedSubtrees = nc.permittedSubtrees;
+            e.excludedSubtrees = nc.excludedSubtrees;
+            e.unsupportedSubtreeRange = nc.unsupportedSubtreeRange;
+          } catch (ex) {
+          }
         } else if (e.name === "subjectKeyIdentifier") {
           var ev = asn1.fromDer(e.value);
           e.subjectKeyIdentifier = forge.util.bytesToHex(ev.value);
@@ -88181,6 +88340,60 @@ var require_x509 = __commonJS({
       }
       return e;
     };
+    function _readNameConstraints(ev) {
+      var rval = {
+        permittedSubtrees: [],
+        excludedSubtrees: [],
+        unsupportedSubtreeRange: false
+      };
+      if (ev.tagClass !== asn1.Class.UNIVERSAL || ev.type !== asn1.Type.SEQUENCE || !forge.util.isArray(ev.value)) {
+        throw new Error("Invalid nameConstraints extension.");
+      }
+      for (var i = 0; i < ev.value.length; ++i) {
+        var trees = ev.value[i];
+        var list;
+        if (trees.tagClass === asn1.Class.CONTEXT_SPECIFIC && trees.type === 0) {
+          list = rval.permittedSubtrees;
+        } else if (trees.tagClass === asn1.Class.CONTEXT_SPECIFIC && trees.type === 1) {
+          list = rval.excludedSubtrees;
+        } else {
+          throw new Error("Invalid nameConstraints extension.");
+        }
+        if (!forge.util.isArray(trees.value)) {
+          throw new Error("Invalid nameConstraints extension.");
+        }
+        for (var n = 0; n < trees.value.length; ++n) {
+          var subtree = trees.value[n];
+          if (subtree.type !== asn1.Type.SEQUENCE || !forge.util.isArray(subtree.value) || subtree.value.length === 0 || subtree.value[0].tagClass !== asn1.Class.CONTEXT_SPECIFIC) {
+            throw new Error("Invalid nameConstraints extension.");
+          }
+          var gn = subtree.value[0];
+          var base = {
+            type: gn.type,
+            value: gn.value
+          };
+          if (gn.type === 4 && forge.util.isArray(gn.value) && gn.value.length === 1 && gn.value[0].type === asn1.Type.SEQUENCE && forge.util.isArray(gn.value[0].value)) {
+            base.attributes = pki2.RDNAttributesAsArray(gn.value[0]);
+          }
+          for (var m = 1; m < subtree.value.length; ++m) {
+            var bd = subtree.value[m];
+            if (bd.tagClass === asn1.Class.CONTEXT_SPECIFIC && bd.type === 0) {
+              base.minimum = asn1.derToInteger(bd.value);
+              if (base.minimum !== 0) {
+                rval.unsupportedSubtreeRange = true;
+              }
+            } else if (bd.tagClass === asn1.Class.CONTEXT_SPECIFIC && bd.type === 1) {
+              base.maximum = asn1.derToInteger(bd.value);
+              rval.unsupportedSubtreeRange = true;
+            } else {
+              throw new Error("Invalid nameConstraints extension.");
+            }
+          }
+          list.push(base);
+        }
+      }
+      return rval;
+    }
     pki2.certificationRequestFromAsn1 = function(obj, computeHash) {
       var capture = {};
       var errors = [];
@@ -89114,6 +89327,382 @@ var require_x509 = __commonJS({
       certificate_unknown: "forge.pki.CertificateUnknown",
       unknown_ca: "forge.pki.UnknownCertificateAuthority"
     };
+    var _generalNameTypes = {
+      0: "otherName",
+      1: "rfc822Name",
+      2: "dNSName",
+      3: "x400Address",
+      4: "directoryName",
+      5: "ediPartyName",
+      6: "uniformResourceIdentifier",
+      7: "iPAddress",
+      8: "registeredID"
+    };
+    var _maxNameConstraintChecks = 1 << 20;
+    function _getNameConstraints(cert) {
+      var rval = [];
+      for (var i = 0; i < cert.extensions.length; ++i) {
+        var ext = cert.extensions[i];
+        if (ext.id !== "2.5.29.30") {
+          continue;
+        }
+        var nc;
+        try {
+          var value = ext.value;
+          if (typeof value === "string") {
+            value = asn1.fromDer(value);
+          }
+          nc = _readNameConstraints(value);
+        } catch (ex) {
+          rval.push({ invalid: true });
+          continue;
+        }
+        rval.push({
+          permitted: _prepareSubtrees(nc.permittedSubtrees),
+          excluded: _prepareSubtrees(nc.excludedSubtrees)
+        });
+      }
+      return rval;
+    }
+    function _prepareSubtrees(subtrees) {
+      var rval = [];
+      for (var i = 0; i < subtrees.length; ++i) {
+        var subtree = subtrees[i];
+        var st = { type: subtree.type, supported: _isSupportedSubtree(subtree) };
+        if (st.supported) {
+          switch (st.type) {
+            case 1:
+              var at = subtree.value.lastIndexOf("@");
+              st.local = at === -1 ? null : subtree.value.substr(0, at);
+              st.host = subtree.value.substr(at + 1).toLowerCase();
+              break;
+            case 2:
+            case 6:
+              st.host = subtree.value.toLowerCase();
+              break;
+            case 4:
+              st.attributes = _canonicalAttributes(subtree.attributes);
+              break;
+            case 7:
+              st.value = subtree.value;
+              break;
+          }
+        }
+        rval.push(st);
+      }
+      return rval;
+    }
+    function _isSupportedSubtree(subtree) {
+      if (subtree.minimum && subtree.minimum !== 0 || "maximum" in subtree) {
+        return false;
+      }
+      switch (subtree.type) {
+        case 1:
+        case 2:
+        case 6:
+          return typeof subtree.value === "string";
+        case 4:
+          return forge.util.isArray(subtree.attributes);
+        case 7:
+          return typeof subtree.value === "string" && (subtree.value.length === 8 || subtree.value.length === 32);
+      }
+      return false;
+    }
+    function _canonicalAttributes(attrs) {
+      var rval = [];
+      for (var i = 0; i < attrs.length; ++i) {
+        var value = attrs[i].value;
+        if (typeof value === "string") {
+          value = value.replace(/[ \t\n\v\f\r]+/g, " ");
+          if (value.charAt(0) === " ") {
+            value = value.substr(1);
+          }
+          if (value.charAt(value.length - 1) === " ") {
+            value = value.substr(0, value.length - 1);
+          }
+          value = value.replace(/[A-Z]+/g, function(s) {
+            return s.toLowerCase();
+          });
+        }
+        rval.push({ type: attrs[i].type, value });
+      }
+      return rval;
+    }
+    function _isHostName(value) {
+      if (typeof value !== "string") {
+        return false;
+      }
+      var labels = false;
+      for (var i = 0; i < value.length; ++i) {
+        var c = value.charAt(i);
+        if (/[a-zA-Z0-9_]/.test(c)) {
+          continue;
+        }
+        if (i > 0 && i < value.length - 1) {
+          if (c === "-") {
+            continue;
+          }
+          var next = value.charAt(i + 1);
+          if (c === "." && next !== "." && next !== "-" && value.charAt(i - 1) !== "-") {
+            labels = true;
+            continue;
+          }
+        }
+        return false;
+      }
+      return labels;
+    }
+    function _getConstrainedNames(cert, leaf) {
+      var rval = { names: [], unsupported: {}, types: {} };
+      var attrs = cert.subject.attributes;
+      var i;
+      if (attrs.length > 0) {
+        _addConstrainedName(rval, 4, attrs);
+      }
+      for (i = 0; i < attrs.length; ++i) {
+        if (attrs[i].type === oids.emailAddress) {
+          _addConstrainedName(rval, 1, attrs[i].value);
+        }
+      }
+      var hasDnsName = false;
+      for (i = 0; i < cert.extensions.length; ++i) {
+        var san = cert.extensions[i];
+        if (san.id !== "2.5.29.17") {
+          continue;
+        }
+        var altNames = san.altNames || [];
+        for (var n = 0; n < altNames.length; ++n) {
+          var altName = altNames[n];
+          var value = altName.value;
+          if (altName.type === 2) {
+            hasDnsName = true;
+          }
+          switch (altName.type) {
+            case 4:
+              value = null;
+              if (forge.util.isArray(altName.value) && altName.value.length === 1 && altName.value[0].type === asn1.Type.SEQUENCE && forge.util.isArray(altName.value[0].value)) {
+                value = pki2.RDNAttributesAsArray(altName.value[0]);
+              }
+              break;
+            case 7:
+              if (altName.ip) {
+                value = forge.util.bytesFromIP(altName.ip);
+              }
+              break;
+          }
+          _addConstrainedName(rval, altName.type, value);
+        }
+      }
+      if (leaf && !hasDnsName) {
+        for (i = 0; i < attrs.length; ++i) {
+          if (attrs[i].type === oids.commonName && _isHostName(attrs[i].value)) {
+            _addConstrainedName(rval, 2, attrs[i].value);
+          }
+        }
+      }
+      return rval;
+    }
+    function _addConstrainedName(names, type, value) {
+      var name = { type, value };
+      var ok = false;
+      names.types[type] = true;
+      switch (type) {
+        case 1:
+          ok = typeof value === "string" && value.lastIndexOf("@") !== -1;
+          if (ok) {
+            var at = value.lastIndexOf("@");
+            name.local = value.substr(0, at);
+            name.host = value.substr(at + 1).toLowerCase();
+          }
+          break;
+        case 2:
+          ok = typeof value === "string";
+          if (ok) {
+            name.host = value.toLowerCase();
+          }
+          break;
+        case 4:
+          ok = forge.util.isArray(value);
+          if (ok) {
+            name.attributes = _canonicalAttributes(value);
+          }
+          break;
+        case 6:
+          var m = typeof value === "string" && /^[a-zA-Z][a-zA-Z0-9+.\-]*:\/\/([^\/?#]*)/.exec(value);
+          if (m) {
+            var host = m[1].substr(m[1].lastIndexOf("@") + 1);
+            if (host.charAt(0) === "[") {
+              name.host = null;
+            } else {
+              var colon = host.indexOf(":");
+              if (colon !== -1) {
+                host = host.substr(0, colon);
+              }
+              name.host = host.toLowerCase();
+            }
+            ok = host.length > 0;
+          }
+          break;
+        case 7:
+          ok = typeof value === "string" && (value.length === 4 || value.length === 16);
+          break;
+      }
+      if (ok) {
+        names.names.push(name);
+      } else {
+        names.unsupported[type] = true;
+      }
+    }
+    function _hostMatchesConstraint(host, base) {
+      if (base.length === 0) {
+        return true;
+      }
+      if (base.charAt(0) === ".") {
+        return host.length > base.length && host.substr(host.length - base.length) === base;
+      }
+      return host === base;
+    }
+    function _nameMatchesConstraint(name, subtree) {
+      var value = name.host;
+      var base = subtree.host;
+      var i;
+      switch (name.type) {
+        case 1:
+          if (subtree.local !== null) {
+            return (subtree.local === "" || name.local === subtree.local) && value === base;
+          }
+          return _hostMatchesConstraint(value, base);
+        case 2:
+          if (base.length === 0) {
+            return true;
+          }
+          if (base.charAt(0) === ".") {
+            return value.length > base.length && value.substr(value.length - base.length) === base;
+          }
+          return value === base || value.length > base.length && value.substr(value.length - base.length - 1) === "." + base;
+        case 6:
+          return value !== null && _hostMatchesConstraint(value, base);
+        case 4:
+          var battrs = subtree.attributes;
+          var attrs = name.attributes;
+          if (battrs.length > attrs.length) {
+            return false;
+          }
+          for (i = 0; i < battrs.length; ++i) {
+            if (battrs[i].type !== attrs[i].type || battrs[i].value !== attrs[i].value) {
+              return false;
+            }
+          }
+          return true;
+        case 7:
+          value = name.value;
+          base = subtree.value;
+          if (base.length !== value.length * 2) {
+            return false;
+          }
+          for (i = 0; i < value.length; ++i) {
+            var mask = base.charCodeAt(value.length + i);
+            if ((value.charCodeAt(i) & mask) !== (base.charCodeAt(i) & mask)) {
+              return false;
+            }
+          }
+          return true;
+      }
+      return false;
+    }
+    function _nameToString(name) {
+      if (name.type === 4) {
+        var parts = [];
+        for (var i = 0; i < name.value.length; ++i) {
+          var attr = name.value[i];
+          parts.push((attr.shortName || attr.name || attr.type) + "=" + attr.value);
+        }
+        return parts.join(", ");
+      }
+      if (name.type === 7) {
+        return forge.util.bytesToIP(name.value);
+      }
+      return name.value;
+    }
+    function _checkNameConstraints(cert, constraints, count, leaf, work) {
+      if (count === 0) {
+        return null;
+      }
+      var subject = _getConstrainedNames(cert, leaf);
+      var names = subject.names;
+      var i;
+      var n;
+      var k;
+      var nc;
+      var subtree;
+      var typeName;
+      for (i = 0; i < count && work.checks <= _maxNameConstraintChecks; ++i) {
+        nc = constraints[i];
+        work.checks += (names.length + 1) * (nc.invalid ? 1 : nc.permitted.length + nc.excluded.length + 1);
+      }
+      if (work.checks > _maxNameConstraintChecks) {
+        return {
+          message: "Certificate name constraints require too many checks.",
+          error: pki2.certificateError.unsupported_certificate
+        };
+      }
+      for (i = 0; i < count; ++i) {
+        nc = constraints[i];
+        if (nc.invalid) {
+          return {
+            message: "Certificate name constraint could not be parsed.",
+            error: pki2.certificateError.unsupported_certificate
+          };
+        }
+        var all = nc.permitted.concat(nc.excluded);
+        for (n = 0; n < all.length; ++n) {
+          subtree = all[n];
+          if (subtree.type in subject.unsupported || !subtree.supported && subtree.type in subject.types) {
+            typeName = _generalNameTypes[subtree.type] || String(subtree.type);
+            return {
+              message: "Certificate name constraint of type " + typeName + " is not supported.",
+              error: pki2.certificateError.unsupported_certificate,
+              nameType: typeName
+            };
+          }
+        }
+      }
+      for (k = 0; k < names.length; ++k) {
+        var name = names[k];
+        for (i = 0; i < count; ++i) {
+          nc = constraints[i];
+          var found = false;
+          var matched = false;
+          for (n = 0; !matched && n < nc.permitted.length; ++n) {
+            subtree = nc.permitted[n];
+            if (subtree.type === name.type) {
+              found = true;
+              matched = _nameMatchesConstraint(name, subtree);
+            }
+          }
+          if (found && !matched) {
+            return {
+              message: "Certificate subject name is not permitted by a name constraint.",
+              error: pki2.certificateError.bad_certificate,
+              nameValue: _nameToString(name),
+              nameType: _generalNameTypes[name.type]
+            };
+          }
+          for (n = 0; n < nc.excluded.length; ++n) {
+            subtree = nc.excluded[n];
+            if (subtree.type === name.type && _nameMatchesConstraint(name, subtree)) {
+              return {
+                message: "Certificate subject name is excluded by a name constraint.",
+                error: pki2.certificateError.bad_certificate,
+                nameValue: _nameToString(name),
+                nameType: _generalNameTypes[name.type]
+              };
+            }
+          }
+        }
+      }
+      return null;
+    }
     pki2.verifyCertificateChain = function(caStore, chain, options) {
       if (typeof options === "function") {
         options = { verify: options };
@@ -89124,6 +89713,34 @@ var require_x509 = __commonJS({
       var validityCheckDate = options.validityCheckDate;
       if (typeof validityCheckDate === "undefined") {
         validityCheckDate = /* @__PURE__ */ new Date();
+      }
+      var ncList = [];
+      var ncCount = [];
+      var ncWork = { checks: 0 };
+      var last = certs[certs.length - 1];
+      if (last && !last.isIssuer(last)) {
+        var anchors = caStore.getIssuer(last);
+        anchors = anchors ? forge.util.isArray(anchors) ? anchors.slice() : [anchors] : [];
+        for (var ai = 0; ai < anchors.length; ++ai) {
+          var anchorNc = _getNameConstraints(anchors[ai]);
+          if (anchorNc.length > 0) {
+            var anchorVerified = false;
+            try {
+              anchorVerified = anchors[ai].verify(last);
+            } catch (ex) {
+            }
+            for (var an = 0; anchorVerified && an < anchorNc.length; ++an) {
+              ncList.push(anchorNc[an]);
+            }
+          }
+        }
+      }
+      for (var ci = certs.length - 1; ci >= 0; --ci) {
+        ncCount[ci] = ncList.length;
+        var certNc = ci > 0 ? _getNameConstraints(certs[ci]) : [];
+        for (var cn = 0; cn < certNc.length; ++cn) {
+          ncList.push(certNc[cn]);
+        }
       }
       var first = true;
       var error2 = null;
@@ -89183,14 +89800,24 @@ var require_x509 = __commonJS({
             error: pki2.certificateError.bad_certificate
           };
         }
+        if (error2 === null && (first || !cert.isIssuer(cert))) {
+          error2 = _checkNameConstraints(
+            cert,
+            ncList,
+            ncCount[depth],
+            first,
+            ncWork
+          );
+        }
         if (error2 === null) {
           var se = {
             keyUsage: true,
-            basicConstraints: true
+            basicConstraints: true,
+            nameConstraints: true
           };
           for (var i = 0; error2 === null && i < cert.extensions.length; ++i) {
             var ext = cert.extensions[i];
-            if (ext.critical && !(ext.name in se)) {
+            if (ext.critical && (!(ext.name in se) || ext.name === "nameConstraints" && ext.id !== "2.5.29.30")) {
               error2 = {
                 message: "Certificate has an unsupported critical extension.",
                 error: pki2.certificateError.unsupported_certificate
@@ -90517,6 +91144,16 @@ var require_tls = __commonJS({
           });
         }
         if (client) {
+          if (msg.compression_method !== tls.CompressionMethod.none) {
+            return c.error(c, {
+              message: "Unsupported compression method.",
+              send: true,
+              alert: {
+                level: tls.Alert.Level.fatal,
+                description: tls.Alert.Description.illegal_parameter
+              }
+            });
+          }
           c.session.compressionMethod = msg.compression_method;
         } else {
           c.session.compressionMethod = tls.CompressionMethod.none;
@@ -91112,7 +91749,7 @@ var require_tls = __commonJS({
       b.read -= 4;
       var bytes = b.bytes(length + 4);
       b.read += 4;
-      if (type in hsTable[c.entity][c.expect]) {
+      if (type in hsTable[c.entity][c.expect] && (c.session || c.entity === tls.ConnectionEnd.server)) {
         if (c.entity === tls.ConnectionEnd.server && !c.open && !c.fail) {
           c.handshaking = true;
           c.session = {
@@ -93294,6 +93931,9 @@ var require_ed25519 = __commonJS({
       if (unpackneg(q, pk)) {
         return -1;
       }
+      if (_isSmallOrder(q)) {
+        return -1;
+      }
       if (!_isCanonicalSignatureScalar(sm, 32)) {
         return -1;
       }
@@ -93333,6 +93973,24 @@ var require_ed25519 = __commonJS({
         }
       }
       return false;
+    }
+    function _isSmallOrder(p) {
+      var i;
+      var t = new NativeBuffer(32);
+      var r = [gf(p[0]), gf(p[1]), gf(p[2]), gf(p[3])];
+      for (i = 0; i < 3; ++i) {
+        add(r, r);
+      }
+      pack2(t, r);
+      if (t[0] !== 1) {
+        return false;
+      }
+      for (i = 1; i < 32; ++i) {
+        if (t[i] !== 0) {
+          return false;
+        }
+      }
+      return true;
     }
     function modL(r, x) {
       var carry, i, j, k;
