@@ -101666,13 +101666,17 @@ var ContainerService = {
     const tar = (0, import_tar_stream.pack)();
     tar.entry({ name, mode: RWX_ALL }, JSON.stringify(input));
     tar.finalize();
-    await container.putArchive(tar, { path });
+    await container.putArchive(tar, {
+      path
+    });
   },
   async storeCert(name, path, container, cert) {
     const tar = (0, import_tar_stream.pack)();
     tar.entry({ name }, cert);
     tar.finalize();
-    await container.putArchive(tar, { path });
+    await container.putArchive(tar, {
+      path
+    });
   },
   async run(container, command) {
     try {
