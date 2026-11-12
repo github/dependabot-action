@@ -81311,6 +81311,7 @@ var require_pem = __commonJS({
     };
     pem.decode = function(str) {
       var rval = [];
+      str = String(str);
       var messages = _pemMessageScanner(str);
       var rHeader = /(?:^|[^\x21-\x7e])([\x21-\x7e]+):\s*([\x21-\x7e\s^:]+)/;
       var rCRLF = /\r?\n/;
@@ -88174,6 +88175,14 @@ var require_x509 = __commonJS({
               default:
             }
           }
+        } else if (e.name === "nameConstraints" && e.id === "2.5.29.30") {
+          try {
+            var nc = _readNameConstraints(asn1.fromDer(e.value));
+            e.permittedSubtrees = nc.permittedSubtrees;
+            e.excludedSubtrees = nc.excludedSubtrees;
+            e.unsupportedSubtreeRange = nc.unsupportedSubtreeRange;
+          } catch (ex) {
+          }
         } else if (e.name === "subjectKeyIdentifier") {
           var ev = asn1.fromDer(e.value);
           e.subjectKeyIdentifier = forge.util.bytesToHex(ev.value);
@@ -88181,6 +88190,60 @@ var require_x509 = __commonJS({
       }
       return e;
     };
+    function _readNameConstraints(ev) {
+      var rval = {
+        permittedSubtrees: [],
+        excludedSubtrees: [],
+        unsupportedSubtreeRange: false
+      };
+      if (ev.tagClass !== asn1.Class.UNIVERSAL || ev.type !== asn1.Type.SEQUENCE || !forge.util.isArray(ev.value)) {
+        throw new Error("Invalid nameConstraints extension.");
+      }
+      for (var i = 0; i < ev.value.length; ++i) {
+        var trees = ev.value[i];
+        var list;
+        if (trees.tagClass === asn1.Class.CONTEXT_SPECIFIC && trees.type === 0) {
+          list = rval.permittedSubtrees;
+        } else if (trees.tagClass === asn1.Class.CONTEXT_SPECIFIC && trees.type === 1) {
+          list = rval.excludedSubtrees;
+        } else {
+          throw new Error("Invalid nameConstraints extension.");
+        }
+        if (!forge.util.isArray(trees.value)) {
+          throw new Error("Invalid nameConstraints extension.");
+        }
+        for (var n = 0; n < trees.value.length; ++n) {
+          var subtree = trees.value[n];
+          if (subtree.type !== asn1.Type.SEQUENCE || !forge.util.isArray(subtree.value) || subtree.value.length === 0 || subtree.value[0].tagClass !== asn1.Class.CONTEXT_SPECIFIC) {
+            throw new Error("Invalid nameConstraints extension.");
+          }
+          var gn = subtree.value[0];
+          var base = {
+            type: gn.type,
+            value: gn.value
+          };
+          if (gn.type === 4 && forge.util.isArray(gn.value) && gn.value.length === 1 && gn.value[0].type === asn1.Type.SEQUENCE && forge.util.isArray(gn.value[0].value)) {
+            base.attributes = pki2.RDNAttributesAsArray(gn.value[0]);
+          }
+          for (var m = 1; m < subtree.value.length; ++m) {
+            var bd = subtree.value[m];
+            if (bd.tagClass === asn1.Class.CONTEXT_SPECIFIC && bd.type === 0) {
+              base.minimum = asn1.derToInteger(bd.value);
+              if (base.minimum !== 0) {
+                rval.unsupportedSubtreeRange = true;
+              }
+            } else if (bd.tagClass === asn1.Class.CONTEXT_SPECIFIC && bd.type === 1) {
+              base.maximum = asn1.derToInteger(bd.value);
+              rval.unsupportedSubtreeRange = true;
+            } else {
+              throw new Error("Invalid nameConstraints extension.");
+            }
+          }
+          list.push(base);
+        }
+      }
+      return rval;
+    }
     pki2.certificationRequestFromAsn1 = function(obj, computeHash) {
       var capture = {};
       var errors = [];
@@ -89114,6 +89177,382 @@ var require_x509 = __commonJS({
       certificate_unknown: "forge.pki.CertificateUnknown",
       unknown_ca: "forge.pki.UnknownCertificateAuthority"
     };
+    var _generalNameTypes = {
+      0: "otherName",
+      1: "rfc822Name",
+      2: "dNSName",
+      3: "x400Address",
+      4: "directoryName",
+      5: "ediPartyName",
+      6: "uniformResourceIdentifier",
+      7: "iPAddress",
+      8: "registeredID"
+    };
+    var _maxNameConstraintChecks = 1 << 20;
+    function _getNameConstraints(cert) {
+      var rval = [];
+      for (var i = 0; i < cert.extensions.length; ++i) {
+        var ext = cert.extensions[i];
+        if (ext.id !== "2.5.29.30") {
+          continue;
+        }
+        var nc;
+        try {
+          var value = ext.value;
+          if (typeof value === "string") {
+            value = asn1.fromDer(value);
+          }
+          nc = _readNameConstraints(value);
+        } catch (ex) {
+          rval.push({ invalid: true });
+          continue;
+        }
+        rval.push({
+          permitted: _prepareSubtrees(nc.permittedSubtrees),
+          excluded: _prepareSubtrees(nc.excludedSubtrees)
+        });
+      }
+      return rval;
+    }
+    function _prepareSubtrees(subtrees) {
+      var rval = [];
+      for (var i = 0; i < subtrees.length; ++i) {
+        var subtree = subtrees[i];
+        var st = { type: subtree.type, supported: _isSupportedSubtree(subtree) };
+        if (st.supported) {
+          switch (st.type) {
+            case 1:
+              var at = subtree.value.lastIndexOf("@");
+              st.local = at === -1 ? null : subtree.value.substr(0, at);
+              st.host = subtree.value.substr(at + 1).toLowerCase();
+              break;
+            case 2:
+            case 6:
+              st.host = subtree.value.toLowerCase();
+              break;
+            case 4:
+              st.attributes = _canonicalAttributes(subtree.attributes);
+              break;
+            case 7:
+              st.value = subtree.value;
+              break;
+          }
+        }
+        rval.push(st);
+      }
+      return rval;
+    }
+    function _isSupportedSubtree(subtree) {
+      if (subtree.minimum && subtree.minimum !== 0 || "maximum" in subtree) {
+        return false;
+      }
+      switch (subtree.type) {
+        case 1:
+        case 2:
+        case 6:
+          return typeof subtree.value === "string";
+        case 4:
+          return forge.util.isArray(subtree.attributes);
+        case 7:
+          return typeof subtree.value === "string" && (subtree.value.length === 8 || subtree.value.length === 32);
+      }
+      return false;
+    }
+    function _canonicalAttributes(attrs) {
+      var rval = [];
+      for (var i = 0; i < attrs.length; ++i) {
+        var value = attrs[i].value;
+        if (typeof value === "string") {
+          value = value.replace(/[ \t\n\v\f\r]+/g, " ");
+          if (value.charAt(0) === " ") {
+            value = value.substr(1);
+          }
+          if (value.charAt(value.length - 1) === " ") {
+            value = value.substr(0, value.length - 1);
+          }
+          value = value.replace(/[A-Z]+/g, function(s) {
+            return s.toLowerCase();
+          });
+        }
+        rval.push({ type: attrs[i].type, value });
+      }
+      return rval;
+    }
+    function _isHostName(value) {
+      if (typeof value !== "string") {
+        return false;
+      }
+      var labels = false;
+      for (var i = 0; i < value.length; ++i) {
+        var c = value.charAt(i);
+        if (/[a-zA-Z0-9_]/.test(c)) {
+          continue;
+        }
+        if (i > 0 && i < value.length - 1) {
+          if (c === "-") {
+            continue;
+          }
+          var next = value.charAt(i + 1);
+          if (c === "." && next !== "." && next !== "-" && value.charAt(i - 1) !== "-") {
+            labels = true;
+            continue;
+          }
+        }
+        return false;
+      }
+      return labels;
+    }
+    function _getConstrainedNames(cert, leaf) {
+      var rval = { names: [], unsupported: {}, types: {} };
+      var attrs = cert.subject.attributes;
+      var i;
+      if (attrs.length > 0) {
+        _addConstrainedName(rval, 4, attrs);
+      }
+      for (i = 0; i < attrs.length; ++i) {
+        if (attrs[i].type === oids.emailAddress) {
+          _addConstrainedName(rval, 1, attrs[i].value);
+        }
+      }
+      var hasDnsName = false;
+      for (i = 0; i < cert.extensions.length; ++i) {
+        var san = cert.extensions[i];
+        if (san.id !== "2.5.29.17") {
+          continue;
+        }
+        var altNames = san.altNames || [];
+        for (var n = 0; n < altNames.length; ++n) {
+          var altName = altNames[n];
+          var value = altName.value;
+          if (altName.type === 2) {
+            hasDnsName = true;
+          }
+          switch (altName.type) {
+            case 4:
+              value = null;
+              if (forge.util.isArray(altName.value) && altName.value.length === 1 && altName.value[0].type === asn1.Type.SEQUENCE && forge.util.isArray(altName.value[0].value)) {
+                value = pki2.RDNAttributesAsArray(altName.value[0]);
+              }
+              break;
+            case 7:
+              if (altName.ip) {
+                value = forge.util.bytesFromIP(altName.ip);
+              }
+              break;
+          }
+          _addConstrainedName(rval, altName.type, value);
+        }
+      }
+      if (leaf && !hasDnsName) {
+        for (i = 0; i < attrs.length; ++i) {
+          if (attrs[i].type === oids.commonName && _isHostName(attrs[i].value)) {
+            _addConstrainedName(rval, 2, attrs[i].value);
+          }
+        }
+      }
+      return rval;
+    }
+    function _addConstrainedName(names, type, value) {
+      var name = { type, value };
+      var ok = false;
+      names.types[type] = true;
+      switch (type) {
+        case 1:
+          ok = typeof value === "string" && value.lastIndexOf("@") !== -1;
+          if (ok) {
+            var at = value.lastIndexOf("@");
+            name.local = value.substr(0, at);
+            name.host = value.substr(at + 1).toLowerCase();
+          }
+          break;
+        case 2:
+          ok = typeof value === "string";
+          if (ok) {
+            name.host = value.toLowerCase();
+          }
+          break;
+        case 4:
+          ok = forge.util.isArray(value);
+          if (ok) {
+            name.attributes = _canonicalAttributes(value);
+          }
+          break;
+        case 6:
+          var m = typeof value === "string" && /^[a-zA-Z][a-zA-Z0-9+.\-]*:\/\/([^\/?#]*)/.exec(value);
+          if (m) {
+            var host = m[1].substr(m[1].lastIndexOf("@") + 1);
+            if (host.charAt(0) === "[") {
+              name.host = null;
+            } else {
+              var colon = host.indexOf(":");
+              if (colon !== -1) {
+                host = host.substr(0, colon);
+              }
+              name.host = host.toLowerCase();
+            }
+            ok = host.length > 0;
+          }
+          break;
+        case 7:
+          ok = typeof value === "string" && (value.length === 4 || value.length === 16);
+          break;
+      }
+      if (ok) {
+        names.names.push(name);
+      } else {
+        names.unsupported[type] = true;
+      }
+    }
+    function _hostMatchesConstraint(host, base) {
+      if (base.length === 0) {
+        return true;
+      }
+      if (base.charAt(0) === ".") {
+        return host.length > base.length && host.substr(host.length - base.length) === base;
+      }
+      return host === base;
+    }
+    function _nameMatchesConstraint(name, subtree) {
+      var value = name.host;
+      var base = subtree.host;
+      var i;
+      switch (name.type) {
+        case 1:
+          if (subtree.local !== null) {
+            return (subtree.local === "" || name.local === subtree.local) && value === base;
+          }
+          return _hostMatchesConstraint(value, base);
+        case 2:
+          if (base.length === 0) {
+            return true;
+          }
+          if (base.charAt(0) === ".") {
+            return value.length > base.length && value.substr(value.length - base.length) === base;
+          }
+          return value === base || value.length > base.length && value.substr(value.length - base.length - 1) === "." + base;
+        case 6:
+          return value !== null && _hostMatchesConstraint(value, base);
+        case 4:
+          var battrs = subtree.attributes;
+          var attrs = name.attributes;
+          if (battrs.length > attrs.length) {
+            return false;
+          }
+          for (i = 0; i < battrs.length; ++i) {
+            if (battrs[i].type !== attrs[i].type || battrs[i].value !== attrs[i].value) {
+              return false;
+            }
+          }
+          return true;
+        case 7:
+          value = name.value;
+          base = subtree.value;
+          if (base.length !== value.length * 2) {
+            return false;
+          }
+          for (i = 0; i < value.length; ++i) {
+            var mask = base.charCodeAt(value.length + i);
+            if ((value.charCodeAt(i) & mask) !== (base.charCodeAt(i) & mask)) {
+              return false;
+            }
+          }
+          return true;
+      }
+      return false;
+    }
+    function _nameToString(name) {
+      if (name.type === 4) {
+        var parts = [];
+        for (var i = 0; i < name.value.length; ++i) {
+          var attr = name.value[i];
+          parts.push((attr.shortName || attr.name || attr.type) + "=" + attr.value);
+        }
+        return parts.join(", ");
+      }
+      if (name.type === 7) {
+        return forge.util.bytesToIP(name.value);
+      }
+      return name.value;
+    }
+    function _checkNameConstraints(cert, constraints, count, leaf, work) {
+      if (count === 0) {
+        return null;
+      }
+      var subject = _getConstrainedNames(cert, leaf);
+      var names = subject.names;
+      var i;
+      var n;
+      var k;
+      var nc;
+      var subtree;
+      var typeName;
+      for (i = 0; i < count && work.checks <= _maxNameConstraintChecks; ++i) {
+        nc = constraints[i];
+        work.checks += (names.length + 1) * (nc.invalid ? 1 : nc.permitted.length + nc.excluded.length + 1);
+      }
+      if (work.checks > _maxNameConstraintChecks) {
+        return {
+          message: "Certificate name constraints require too many checks.",
+          error: pki2.certificateError.unsupported_certificate
+        };
+      }
+      for (i = 0; i < count; ++i) {
+        nc = constraints[i];
+        if (nc.invalid) {
+          return {
+            message: "Certificate name constraint could not be parsed.",
+            error: pki2.certificateError.unsupported_certificate
+          };
+        }
+        var all = nc.permitted.concat(nc.excluded);
+        for (n = 0; n < all.length; ++n) {
+          subtree = all[n];
+          if (subtree.type in subject.unsupported || !subtree.supported && subtree.type in subject.types) {
+            typeName = _generalNameTypes[subtree.type] || String(subtree.type);
+            return {
+              message: "Certificate name constraint of type " + typeName + " is not supported.",
+              error: pki2.certificateError.unsupported_certificate,
+              nameType: typeName
+            };
+          }
+        }
+      }
+      for (k = 0; k < names.length; ++k) {
+        var name = names[k];
+        for (i = 0; i < count; ++i) {
+          nc = constraints[i];
+          var found = false;
+          var matched = false;
+          for (n = 0; !matched && n < nc.permitted.length; ++n) {
+            subtree = nc.permitted[n];
+            if (subtree.type === name.type) {
+              found = true;
+              matched = _nameMatchesConstraint(name, subtree);
+            }
+          }
+          if (found && !matched) {
+            return {
+              message: "Certificate subject name is not permitted by a name constraint.",
+              error: pki2.certificateError.bad_certificate,
+              nameValue: _nameToString(name),
+              nameType: _generalNameTypes[name.type]
+            };
+          }
+          for (n = 0; n < nc.excluded.length; ++n) {
+            subtree = nc.excluded[n];
+            if (subtree.type === name.type && _nameMatchesConstraint(name, subtree)) {
+              return {
+                message: "Certificate subject name is excluded by a name constraint.",
+                error: pki2.certificateError.bad_certificate,
+                nameValue: _nameToString(name),
+                nameType: _generalNameTypes[name.type]
+              };
+            }
+          }
+        }
+      }
+      return null;
+    }
     pki2.verifyCertificateChain = function(caStore, chain, options) {
       if (typeof options === "function") {
         options = { verify: options };
@@ -89124,6 +89563,34 @@ var require_x509 = __commonJS({
       var validityCheckDate = options.validityCheckDate;
       if (typeof validityCheckDate === "undefined") {
         validityCheckDate = /* @__PURE__ */ new Date();
+      }
+      var ncList = [];
+      var ncCount = [];
+      var ncWork = { checks: 0 };
+      var last = certs[certs.length - 1];
+      if (last && !last.isIssuer(last)) {
+        var anchors = caStore.getIssuer(last);
+        anchors = anchors ? forge.util.isArray(anchors) ? anchors.slice() : [anchors] : [];
+        for (var ai = 0; ai < anchors.length; ++ai) {
+          var anchorNc = _getNameConstraints(anchors[ai]);
+          if (anchorNc.length > 0) {
+            var anchorVerified = false;
+            try {
+              anchorVerified = anchors[ai].verify(last);
+            } catch (ex) {
+            }
+            for (var an = 0; anchorVerified && an < anchorNc.length; ++an) {
+              ncList.push(anchorNc[an]);
+            }
+          }
+        }
+      }
+      for (var ci = certs.length - 1; ci >= 0; --ci) {
+        ncCount[ci] = ncList.length;
+        var certNc = ci > 0 ? _getNameConstraints(certs[ci]) : [];
+        for (var cn = 0; cn < certNc.length; ++cn) {
+          ncList.push(certNc[cn]);
+        }
       }
       var first = true;
       var error2 = null;
@@ -89183,14 +89650,24 @@ var require_x509 = __commonJS({
             error: pki2.certificateError.bad_certificate
           };
         }
+        if (error2 === null && (first || !cert.isIssuer(cert))) {
+          error2 = _checkNameConstraints(
+            cert,
+            ncList,
+            ncCount[depth],
+            first,
+            ncWork
+          );
+        }
         if (error2 === null) {
           var se = {
             keyUsage: true,
-            basicConstraints: true
+            basicConstraints: true,
+            nameConstraints: true
           };
           for (var i = 0; error2 === null && i < cert.extensions.length; ++i) {
             var ext = cert.extensions[i];
-            if (ext.critical && !(ext.name in se)) {
+            if (ext.critical && (!(ext.name in se) || ext.name === "nameConstraints" && ext.id !== "2.5.29.30")) {
               error2 = {
                 message: "Certificate has an unsupported critical extension.",
                 error: pki2.certificateError.unsupported_certificate
@@ -90517,6 +90994,16 @@ var require_tls = __commonJS({
           });
         }
         if (client) {
+          if (msg.compression_method !== tls.CompressionMethod.none) {
+            return c.error(c, {
+              message: "Unsupported compression method.",
+              send: true,
+              alert: {
+                level: tls.Alert.Level.fatal,
+                description: tls.Alert.Description.illegal_parameter
+              }
+            });
+          }
           c.session.compressionMethod = msg.compression_method;
         } else {
           c.session.compressionMethod = tls.CompressionMethod.none;
@@ -91112,7 +91599,7 @@ var require_tls = __commonJS({
       b.read -= 4;
       var bytes = b.bytes(length + 4);
       b.read += 4;
-      if (type in hsTable[c.entity][c.expect]) {
+      if (type in hsTable[c.entity][c.expect] && (c.session || c.entity === tls.ConnectionEnd.server)) {
         if (c.entity === tls.ConnectionEnd.server && !c.open && !c.fail) {
           c.handshaking = true;
           c.session = {
@@ -93294,6 +93781,9 @@ var require_ed25519 = __commonJS({
       if (unpackneg(q, pk)) {
         return -1;
       }
+      if (_isSmallOrder(q)) {
+        return -1;
+      }
       if (!_isCanonicalSignatureScalar(sm, 32)) {
         return -1;
       }
@@ -93333,6 +93823,24 @@ var require_ed25519 = __commonJS({
         }
       }
       return false;
+    }
+    function _isSmallOrder(p) {
+      var i;
+      var t = new NativeBuffer(32);
+      var r = [gf(p[0]), gf(p[1]), gf(p[2]), gf(p[3])];
+      for (i = 0; i < 3; ++i) {
+        add(r, r);
+      }
+      pack2(t, r);
+      if (t[0] !== 1) {
+        return false;
+      }
+      for (i = 1; i < 32; ++i) {
+        if (t[i] !== 0) {
+          return false;
+        }
+      }
+      return true;
     }
     function modL(r, x) {
       var carry, i, j, k;
