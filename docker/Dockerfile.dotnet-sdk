@@ -1,1 +1,1 @@
-FROM ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20261112040052@sha256:ff012e636bad12e9d1cf986167e740c2c415b50613245d3071d6b71f7fbc2e06
+FROM ghcr.io/dependabot/dependabot-updater-dotnet-sdk:v2.0.20261113160701@sha256:6dcafb6de3143e1af5a98f137d3b088a8ceb716a028df8c69097ff7e356ab5f6
