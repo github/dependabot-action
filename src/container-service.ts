@@ -19,7 +19,9 @@ export const ContainerService = {
     const tar = pack()
     tar.entry({name, mode: RWX_ALL}, JSON.stringify(input))
     tar.finalize()
-    await container.putArchive(tar, {path})
+    await container.putArchive(tar as unknown as NodeJS.ReadableStream, {
+      path
+    })
   },
 
   async storeCert(
@@ -31,7 +33,9 @@ export const ContainerService = {
     const tar = pack()
     tar.entry({name}, cert)
     tar.finalize()
-    await container.putArchive(tar, {path})
+    await container.putArchive(tar as unknown as NodeJS.ReadableStream, {
+      path
+    })
   },
 
   async run(container: Container, command?: string): Promise<boolean> {
@@ -166,7 +170,7 @@ export const ContainerService = {
 
         extractor.on('entry', (header, stream, next) => {
           stream.on('data', chunk => {
-            data += chunk.toString()
+            data += (chunk as Buffer).toString()
           })
           stream.on('end', () => next())
           stream.resume()
