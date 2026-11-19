@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as fs from 'fs'
+import {Readable} from 'stream'
 import {Container} from 'dockerode'
 import {pack, extract} from 'tar-stream'
 import {FileFetcherInput, FileUpdaterInput, ProxyConfig} from './config-types'
@@ -19,7 +20,7 @@ export const ContainerService = {
     const tar = pack()
     tar.entry({name, mode: RWX_ALL}, JSON.stringify(input))
     tar.finalize()
-    await container.putArchive(tar, {path})
+    await container.putArchive(Readable.from(tar), {path})
   },
 
   async storeCert(
@@ -31,7 +32,7 @@ export const ContainerService = {
     const tar = pack()
     tar.entry({name}, cert)
     tar.finalize()
-    await container.putArchive(tar, {path})
+    await container.putArchive(Readable.from(tar), {path})
   },
 
   async run(container: Container, command?: string): Promise<boolean> {
@@ -162,17 +163,23 @@ export const ContainerService = {
 
       const content = await new Promise<string>((resolve, reject) => {
         const extractor = extract()
-        let data = ''
+        const chunks: Buffer[] = []
 
         extractor.on('entry', (header, stream, next) => {
           stream.on('data', chunk => {
-            data += chunk.toString()
+            if (!Buffer.isBuffer(chunk)) {
+              reject(new TypeError('Unexpected non-Buffer tar entry chunk'))
+              return
+            }
+            chunks.push(chunk)
           })
           stream.on('end', () => next())
           stream.resume()
         })
 
-        extractor.on('finish', () => resolve(data))
+        extractor.on('finish', () =>
+          resolve(Buffer.concat(chunks).toString('utf8'))
+        )
         extractor.on('error', err => reject(err))
 
         archiveStream.pipe(extractor)

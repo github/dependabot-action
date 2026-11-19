@@ -9444,7 +9444,7 @@ var require_readable = __commonJS({
   "node_modules/undici/lib/api/readable.js"(exports2, module2) {
     "use strict";
     var assert = require("node:assert");
-    var { Readable: Readable2 } = require("node:stream");
+    var { Readable: Readable3 } = require("node:stream");
     var { RequestAbortedError, NotSupportedError, InvalidArgumentError, AbortError } = require_errors();
     var util = require_util();
     var { ReadableStreamFrom } = require_util();
@@ -9456,7 +9456,7 @@ var require_readable = __commonJS({
     var kContentLength = /* @__PURE__ */ Symbol("kContentLength");
     var noop3 = () => {
     };
-    var BodyReadable = class extends Readable2 {
+    var BodyReadable = class extends Readable3 {
       constructor({
         resume,
         abort,
@@ -9798,7 +9798,7 @@ var require_api_request = __commonJS({
   "node_modules/undici/lib/api/api-request.js"(exports2, module2) {
     "use strict";
     var assert = require("node:assert");
-    var { Readable: Readable2 } = require_readable();
+    var { Readable: Readable3 } = require_readable();
     var { InvalidArgumentError, RequestAbortedError } = require_errors();
     var util = require_util();
     var { getResolveErrorBodyCallback } = require_util3();
@@ -9893,7 +9893,7 @@ var require_api_request = __commonJS({
         const parsedHeaders = responseHeaders === "raw" ? util.parseHeaders(rawHeaders) : headers;
         const contentType = parsedHeaders["content-type"];
         const contentLength = parsedHeaders["content-length"];
-        const res = new Readable2({
+        const res = new Readable3({
           resume,
           abort,
           contentType,
@@ -10208,7 +10208,7 @@ var require_api_pipeline = __commonJS({
   "node_modules/undici/lib/api/api-pipeline.js"(exports2, module2) {
     "use strict";
     var {
-      Readable: Readable2,
+      Readable: Readable3,
       Duplex,
       PassThrough
     } = require("node:stream");
@@ -10222,7 +10222,7 @@ var require_api_pipeline = __commonJS({
     var { addSignal, removeSignal } = require_abort_signal();
     var assert = require("node:assert");
     var kResume = /* @__PURE__ */ Symbol("resume");
-    var PipelineRequest = class extends Readable2 {
+    var PipelineRequest = class extends Readable3 {
       constructor() {
         super({ autoDestroy: true });
         this[kResume] = null;
@@ -10239,7 +10239,7 @@ var require_api_pipeline = __commonJS({
         callback(err);
       }
     };
-    var PipelineResponse = class extends Readable2 {
+    var PipelineResponse = class extends Readable3 {
       constructor(resume) {
         super({ autoDestroy: true });
         this[kResume] = resume;
@@ -13564,7 +13564,7 @@ var require_fetch = __commonJS({
       subresourceSet
     } = require_constants3();
     var EE = require("node:events");
-    var { Readable: Readable2, pipeline, finished } = require("node:stream");
+    var { Readable: Readable3, pipeline, finished } = require("node:stream");
     var { addAbortListener, isErrored, isReadable, bufferToLowerCasedHeaderName } = require_util();
     var { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require_data_url();
     var { getGlobalDispatcher } = require_global2();
@@ -14503,7 +14503,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              this.body = new Readable2({ read: resume });
+              this.body = new Readable3({ read: resume });
               const onError = this.onError.bind(this);
               resolve({
                 status,
@@ -41199,9 +41199,9 @@ var require_stream_duplex = __commonJS({
       return keys2;
     };
     module2.exports = Duplex;
-    var Readable2 = require_stream_readable();
+    var Readable3 = require_stream_readable();
     var Writable2 = require_stream_writable();
-    require_inherits()(Duplex, Readable2);
+    require_inherits()(Duplex, Readable3);
     {
       keys = objectKeys(Writable2.prototype);
       for (v = 0; v < keys.length; v++) {
@@ -41214,7 +41214,7 @@ var require_stream_duplex = __commonJS({
     var v;
     function Duplex(options) {
       if (!(this instanceof Duplex)) return new Duplex(options);
-      Readable2.call(this, options);
+      Readable3.call(this, options);
       Writable2.call(this, options);
       this.allowHalfOpen = true;
       if (options) {
@@ -41905,14 +41905,14 @@ var require_from = __commonJS({
       return obj;
     }
     var ERR_INVALID_ARG_TYPE = require_errors3().codes.ERR_INVALID_ARG_TYPE;
-    function from(Readable2, iterable, opts) {
+    function from(Readable3, iterable, opts) {
       var iterator2;
       if (iterable && typeof iterable.next === "function") {
         iterator2 = iterable;
       } else if (iterable && iterable[Symbol.asyncIterator]) iterator2 = iterable[Symbol.asyncIterator]();
       else if (iterable && iterable[Symbol.iterator]) iterator2 = iterable[Symbol.iterator]();
       else throw new ERR_INVALID_ARG_TYPE("iterable", ["Iterable"], iterable);
-      var readable = new Readable2(_objectSpread({
+      var readable = new Readable3(_objectSpread({
         objectMode: true
       }, opts));
       var reading = false;
@@ -41952,9 +41952,9 @@ var require_from = __commonJS({
 var require_stream_readable = __commonJS({
   "node_modules/readable-stream/lib/_stream_readable.js"(exports2, module2) {
     "use strict";
-    module2.exports = Readable2;
+    module2.exports = Readable3;
     var Duplex;
-    Readable2.ReadableState = ReadableState;
+    Readable3.ReadableState = ReadableState;
     var EE = require("events").EventEmitter;
     var EElistenerCount = function EElistenerCount2(emitter, type) {
       return emitter.listeners(type).length;
@@ -41989,7 +41989,7 @@ var require_stream_readable = __commonJS({
     var StringDecoder;
     var createReadableStreamAsyncIterator;
     var from;
-    require_inherits()(Readable2, Stream);
+    require_inherits()(Readable3, Stream);
     var errorOrDestroy = destroyImpl.errorOrDestroy;
     var kProxyEvents = ["error", "close", "destroy", "pause", "resume"];
     function prependListener(emitter, event, fn) {
@@ -42033,9 +42033,9 @@ var require_stream_readable = __commonJS({
         this.encoding = options.encoding;
       }
     }
-    function Readable2(options) {
+    function Readable3(options) {
       Duplex = Duplex || require_stream_duplex();
-      if (!(this instanceof Readable2)) return new Readable2(options);
+      if (!(this instanceof Readable3)) return new Readable3(options);
       var isDuplex = this instanceof Duplex;
       this._readableState = new ReadableState(options, this, isDuplex);
       this.readable = true;
@@ -42045,7 +42045,7 @@ var require_stream_readable = __commonJS({
       }
       Stream.call(this);
     }
-    Object.defineProperty(Readable2.prototype, "destroyed", {
+    Object.defineProperty(Readable3.prototype, "destroyed", {
       // making it explicit this property is not enumerable
       // because otherwise some prototype manipulation in
       // userland will fail
@@ -42063,12 +42063,12 @@ var require_stream_readable = __commonJS({
         this._readableState.destroyed = value;
       }
     });
-    Readable2.prototype.destroy = destroyImpl.destroy;
-    Readable2.prototype._undestroy = destroyImpl.undestroy;
-    Readable2.prototype._destroy = function(err, cb) {
+    Readable3.prototype.destroy = destroyImpl.destroy;
+    Readable3.prototype._undestroy = destroyImpl.undestroy;
+    Readable3.prototype._destroy = function(err, cb) {
       cb(err);
     };
-    Readable2.prototype.push = function(chunk, encoding) {
+    Readable3.prototype.push = function(chunk, encoding) {
       var state = this._readableState;
       var skipChunkCheck;
       if (!state.objectMode) {
@@ -42085,7 +42085,7 @@ var require_stream_readable = __commonJS({
       }
       return readableAddChunk(this, chunk, encoding, false, skipChunkCheck);
     };
-    Readable2.prototype.unshift = function(chunk) {
+    Readable3.prototype.unshift = function(chunk) {
       return readableAddChunk(this, chunk, null, true, false);
     };
     function readableAddChunk(stream2, chunk, encoding, addToFront, skipChunkCheck) {
@@ -42146,10 +42146,10 @@ var require_stream_readable = __commonJS({
       }
       return er;
     }
-    Readable2.prototype.isPaused = function() {
+    Readable3.prototype.isPaused = function() {
       return this._readableState.flowing === false;
     };
-    Readable2.prototype.setEncoding = function(enc) {
+    Readable3.prototype.setEncoding = function(enc) {
       if (!StringDecoder) StringDecoder = require_string_decoder().StringDecoder;
       var decoder = new StringDecoder(enc);
       this._readableState.decoder = decoder;
@@ -42195,7 +42195,7 @@ var require_stream_readable = __commonJS({
       }
       return state.length;
     }
-    Readable2.prototype.read = function(n) {
+    Readable3.prototype.read = function(n) {
       debug2("read", n);
       n = parseInt(n, 10);
       var state = this._readableState;
@@ -42304,10 +42304,10 @@ var require_stream_readable = __commonJS({
       }
       state.readingMore = false;
     }
-    Readable2.prototype._read = function(n) {
+    Readable3.prototype._read = function(n) {
       errorOrDestroy(this, new ERR_METHOD_NOT_IMPLEMENTED("_read()"));
     };
-    Readable2.prototype.pipe = function(dest, pipeOpts) {
+    Readable3.prototype.pipe = function(dest, pipeOpts) {
       var src = this;
       var state = this._readableState;
       switch (state.pipesCount) {
@@ -42410,7 +42410,7 @@ var require_stream_readable = __commonJS({
         }
       };
     }
-    Readable2.prototype.unpipe = function(dest) {
+    Readable3.prototype.unpipe = function(dest) {
       var state = this._readableState;
       var unpipeInfo = {
         hasUnpiped: false
@@ -42446,7 +42446,7 @@ var require_stream_readable = __commonJS({
       dest.emit("unpipe", this, unpipeInfo);
       return this;
     };
-    Readable2.prototype.on = function(ev, fn) {
+    Readable3.prototype.on = function(ev, fn) {
       var res = Stream.prototype.on.call(this, ev, fn);
       var state = this._readableState;
       if (ev === "data") {
@@ -42467,15 +42467,15 @@ var require_stream_readable = __commonJS({
       }
       return res;
     };
-    Readable2.prototype.addListener = Readable2.prototype.on;
-    Readable2.prototype.removeListener = function(ev, fn) {
+    Readable3.prototype.addListener = Readable3.prototype.on;
+    Readable3.prototype.removeListener = function(ev, fn) {
       var res = Stream.prototype.removeListener.call(this, ev, fn);
       if (ev === "readable") {
         process.nextTick(updateReadableListening, this);
       }
       return res;
     };
-    Readable2.prototype.removeAllListeners = function(ev) {
+    Readable3.prototype.removeAllListeners = function(ev) {
       var res = Stream.prototype.removeAllListeners.apply(this, arguments);
       if (ev === "readable" || ev === void 0) {
         process.nextTick(updateReadableListening, this);
@@ -42495,7 +42495,7 @@ var require_stream_readable = __commonJS({
       debug2("readable nexttick read 0");
       self2.read(0);
     }
-    Readable2.prototype.resume = function() {
+    Readable3.prototype.resume = function() {
       var state = this._readableState;
       if (!state.flowing) {
         debug2("resume");
@@ -42521,7 +42521,7 @@ var require_stream_readable = __commonJS({
       flow(stream2);
       if (state.flowing && !state.reading) stream2.read(0);
     }
-    Readable2.prototype.pause = function() {
+    Readable3.prototype.pause = function() {
       debug2("call pause flowing=%j", this._readableState.flowing);
       if (this._readableState.flowing !== false) {
         debug2("pause");
@@ -42538,7 +42538,7 @@ var require_stream_readable = __commonJS({
         ;
       }
     }
-    Readable2.prototype.wrap = function(stream2) {
+    Readable3.prototype.wrap = function(stream2) {
       var _this = this;
       var state = this._readableState;
       var paused = false;
@@ -42583,14 +42583,14 @@ var require_stream_readable = __commonJS({
       return this;
     };
     if (typeof Symbol === "function") {
-      Readable2.prototype[Symbol.asyncIterator] = function() {
+      Readable3.prototype[Symbol.asyncIterator] = function() {
         if (createReadableStreamAsyncIterator === void 0) {
           createReadableStreamAsyncIterator = require_async_iterator();
         }
         return createReadableStreamAsyncIterator(this);
       };
     }
-    Object.defineProperty(Readable2.prototype, "readableHighWaterMark", {
+    Object.defineProperty(Readable3.prototype, "readableHighWaterMark", {
       // making it explicit this property is not enumerable
       // because otherwise some prototype manipulation in
       // userland will fail
@@ -42599,7 +42599,7 @@ var require_stream_readable = __commonJS({
         return this._readableState.highWaterMark;
       }
     });
-    Object.defineProperty(Readable2.prototype, "readableBuffer", {
+    Object.defineProperty(Readable3.prototype, "readableBuffer", {
       // making it explicit this property is not enumerable
       // because otherwise some prototype manipulation in
       // userland will fail
@@ -42608,7 +42608,7 @@ var require_stream_readable = __commonJS({
         return this._readableState && this._readableState.buffer;
       }
     });
-    Object.defineProperty(Readable2.prototype, "readableFlowing", {
+    Object.defineProperty(Readable3.prototype, "readableFlowing", {
       // making it explicit this property is not enumerable
       // because otherwise some prototype manipulation in
       // userland will fail
@@ -42622,8 +42622,8 @@ var require_stream_readable = __commonJS({
         }
       }
     });
-    Readable2._fromList = fromList;
-    Object.defineProperty(Readable2.prototype, "readableLength", {
+    Readable3._fromList = fromList;
+    Object.defineProperty(Readable3.prototype, "readableLength", {
       // making it explicit this property is not enumerable
       // because otherwise some prototype manipulation in
       // userland will fail
@@ -42669,11 +42669,11 @@ var require_stream_readable = __commonJS({
       }
     }
     if (typeof Symbol === "function") {
-      Readable2.from = function(iterable, opts) {
+      Readable3.from = function(iterable, opts) {
         if (from === void 0) {
           from = require_from();
         }
-        return from(Readable2, iterable, opts);
+        return from(Readable3, iterable, opts);
       };
     }
     function indexOf(xs, x) {
@@ -45571,7 +45571,7 @@ var require_pack = __commonJS({
     var eos = require_end_of_stream2();
     var inherits = require_inherits();
     var alloc = Buffer.alloc;
-    var Readable2 = require_readable2().Readable;
+    var Readable3 = require_readable2().Readable;
     var Writable2 = require_readable2().Writable;
     var StringDecoder = require("string_decoder").StringDecoder;
     var headers = require_headers2();
@@ -45647,14 +45647,14 @@ var require_pack = __commonJS({
     };
     var Pack = function(opts) {
       if (!(this instanceof Pack)) return new Pack(opts);
-      Readable2.call(this, opts);
+      Readable3.call(this, opts);
       this._drain = noop3;
       this._finalized = false;
       this._finalizing = false;
       this._destroyed = false;
       this._stream = null;
     };
-    inherits(Pack, Readable2);
+    inherits(Pack, Readable3);
     Pack.prototype.entry = function(header, buffer, callback) {
       if (this._stream) throw new Error("already piping an entry");
       if (this._finalized || this._destroyed) return;
@@ -76194,7 +76194,7 @@ var require_streamx = __commonJS({
         }
       }
     };
-    var Readable2 = class _Readable extends Stream {
+    var Readable3 = class _Readable extends Stream {
       constructor(opts) {
         super(opts);
         this._duplexState |= OPENING | WRITE_DONE | READ_READ_AHEAD;
@@ -76405,7 +76405,7 @@ var require_streamx = __commonJS({
         return this;
       }
     };
-    var Duplex = class extends Readable2 {
+    var Duplex = class extends Readable3 {
       // and Writable
       constructor(opts) {
         super(opts);
@@ -76614,7 +76614,7 @@ var require_streamx = __commonJS({
       getStreamError,
       Stream,
       Writable: Writable2,
-      Readable: Readable2,
+      Readable: Readable3,
       Duplex,
       Transform,
       // Export PassThrough for compatibility with Node.js core's stream module
@@ -76888,7 +76888,7 @@ var require_headers3 = __commonJS({
 // node_modules/tar-stream/extract.js
 var require_extract2 = __commonJS({
   "node_modules/tar-stream/extract.js"(exports2, module2) {
-    var { Writable: Writable2, Readable: Readable2, getStreamError } = require_streamx();
+    var { Writable: Writable2, Readable: Readable3, getStreamError } = require_streamx();
     var FIFO = require_fast_fifo();
     var b4a = require_b4a();
     var headers = require_headers3();
@@ -76936,7 +76936,7 @@ var require_extract2 = __commonJS({
         return buf.subarray(this._offset, this._offset += size);
       }
     };
-    var Source = class extends Readable2 {
+    var Source = class extends Readable3 {
       constructor(self2, header, offset) {
         super();
         this.header = header;
@@ -77252,7 +77252,7 @@ var require_constants8 = __commonJS({
 // node_modules/tar-stream/pack.js
 var require_pack2 = __commonJS({
   "node_modules/tar-stream/pack.js"(exports2, module2) {
-    var { Readable: Readable2, Writable: Writable2, getStreamError } = require_streamx();
+    var { Readable: Readable3, Writable: Writable2, getStreamError } = require_streamx();
     var b4a = require_b4a();
     var constants3 = require_constants8();
     var headers = require_headers3();
@@ -77345,7 +77345,7 @@ var require_pack2 = __commonJS({
         cb();
       }
     };
-    var Pack = class extends Readable2 {
+    var Pack = class extends Readable3 {
       constructor(opts) {
         super(opts);
         this._drain = noop3;
@@ -101657,6 +101657,7 @@ var import_dockerode2 = __toESM(require_docker());
 
 // src/container-service.ts
 var fs2 = __toESM(require("fs"));
+var import_stream3 = require("stream");
 var import_tar_stream = __toESM(require_tar_stream2());
 var ContainerRuntimeError = class extends Error {
 };
@@ -101666,13 +101667,13 @@ var ContainerService = {
     const tar = (0, import_tar_stream.pack)();
     tar.entry({ name, mode: RWX_ALL }, JSON.stringify(input));
     tar.finalize();
-    await container.putArchive(tar, { path });
+    await container.putArchive(import_stream3.Readable.from(tar), { path });
   },
   async storeCert(name, path, container, cert) {
     const tar = (0, import_tar_stream.pack)();
     tar.entry({ name }, cert);
     tar.finalize();
-    await container.putArchive(tar, { path });
+    await container.putArchive(import_stream3.Readable.from(tar), { path });
   },
   async run(container, command) {
     try {
@@ -101769,15 +101770,22 @@ var ContainerService = {
       const archiveStream = await container.getArchive({ path: summaryPath });
       const content = await new Promise((resolve, reject) => {
         const extractor = (0, import_tar_stream.extract)();
-        let data = "";
+        const chunks = [];
         extractor.on("entry", (header, stream2, next) => {
           stream2.on("data", (chunk) => {
-            data += chunk.toString();
+            if (!Buffer.isBuffer(chunk)) {
+              reject(new TypeError("Unexpected non-Buffer tar entry chunk"));
+              return;
+            }
+            chunks.push(chunk);
           });
           stream2.on("end", () => next());
           stream2.resume();
         });
-        extractor.on("finish", () => resolve(data));
+        extractor.on(
+          "finish",
+          () => resolve(Buffer.concat(chunks).toString("utf8"))
+        );
         extractor.on("error", (err) => reject(err));
         archiveStream.pipe(extractor);
       });
